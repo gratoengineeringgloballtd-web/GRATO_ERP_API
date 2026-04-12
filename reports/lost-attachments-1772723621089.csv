@@ -1,0 +1,19 @@
+Employee Name,Email,Department,Requisition #,Title,Status,Submitted Date,Budget (XAF),Urgency,Lost File Name,Total Lost Files
+"Mr. Lukong Lambert","lukong.lambert@gratoglobal.com","Business Development & Supply Chain","REQ202602256506","Generator Swap at  Bonaberi ","fully_disbursed","25 Feb 2026",330000,"High","Generator movement.png",1
+"Mr. Lukong Lambert","lukong.lambert@gratoglobal.com","Business Development & Supply Chain","REQ202602232938","Repair of Top Gasket at Mabanda 2","fully_disbursed","23 Feb 2026",120000,"High","mabanda 2 approval.png",1
+"Mr. Lukong Lambert","lukong.lambert@gratoglobal.com","Business Development & Supply Chain","REQ202602203535","Souza Market Camtel Collocation","fully_disbursed","20 Feb 2026",499500,"High","GRATO Standard BOQ SOUZA Market updated.xlsx",1
+"Mr. Lukong Lambert","lukong.lambert@gratoglobal.com","Business Development & Supply Chain","REQ202601079850","Gen Swap at Dowen Sites","approved","07 Jan 2026",255000,"Medium","Screenshot 2026-01-07 132246.png",2
+"Mr. Lukong Lambert","lukong.lambert@gratoglobal.com","Business Development & Supply Chain","REQ202601079850","Gen Swap at Dowen Sites","approved","07 Jan 2026",255000,"Medium","SiKOUM 2026-01-07 135255.png",2
+"Carmel Dafny","carmel.dafny@gratoglobal.com","HR & Admin","REQ202602091125","Payement of Electricity and Water bills - January 2026","fully_disbursed","09 Feb 2026",185931,"High","2026209-GRATO ENG-ENEO-JANUARY.pdf",2
+"Carmel Dafny","carmel.dafny@gratoglobal.com","HR & Admin","REQ202602091125","Payement of Electricity and Water bills - January 2026","fully_disbursed","09 Feb 2026",185931,"High","2026209-GRATO ENG-CAMWATER-JANUARY.pdf",2
+"Carmel Dafny","carmel.dafny@gratoglobal.com","HR & Admin","REQ202512180004","office stationaries and consumables","rejected","18 Dec 2025",0,"Medium","Monthly budget 2.xlsx",1
+"Marcel Ngong","marcel.ngong@gratoglobal.com","IT","REQ202602043221"," IT accessories and Safety Stock (OPEX) - February 2026","rejected","04 Feb 2026",180000,"High","ASSET ATTRIBUTION - Operations.xlsx",1
+"Marcel Ngong","marcel.ngong@gratoglobal.com","IT","REQ202601168915","Subscriptions - January 2016","fully_disbursed","16 Jan 2026",205000,"High","LIST OF EMPLOYEES FOR PHONE ATTRIBUTION.xlsx",1
+"Esther Lum","esther.lum@gratoglobal.com","HR & Admin","REQ202601205092","Office Stationaries and Consumables","fully_disbursed","20 Jan 2026",457700,"High","Monthly budget for  Jan-Feb.xlsx",1
+"Esther Lum","esther.lum@gratoglobal.com","HR & Admin","REQ202601099040","Payment of electricity bill and Water bill","approved","09 Jan 2026",187850,"High","20250106-GRAE-CAMWATER-JANUARY 2026-5298.pdf",2
+"Esther Lum","esther.lum@gratoglobal.com","HR & Admin","REQ202601099040","Payment of electricity bill and Water bill","approved","09 Jan 2026",187850,"High","20250106-GRAE-ENEO-JANUARY 2026-181530.pdf",2
+"Mr. Verla Ivo","verla.ivo@gratoengineering.com","Technical","REQ202601076480","Spare Part Request materials for Overhauling of 9kva Baby Perkinks generator at Warehouse","rejected","07 Jan 2026",0,"High","Spare Part Request materials for Overhauling of 9kva Baby Perkinks generator at Warehouse.xlsx",1
+"Mr. Joel Wamba","joel@gratoengineering.com","Technical","REQ202601076172","Civil work , fencing work, Landlord celing, Bailief report","rejected","07 Jan 2026",390000,"High","Purchase requisition LIMBE BOTANIQUE.pdf",1
+"Mr. Joel Wamba","joel@gratoengineering.com","Technical","REQ202512244394","Civil work and Electrical installation Labor","pending_supply_chain_review","24 Dec 2025",500000,"High","labor civil work 01.pdf",1
+"Mr. Joel Wamba","joel@gratoengineering.com","Technical","REQ202512230981","Labor for CIVIL WORK and Electrical installation","rejected","23 Dec 2025",500000,"Medium","labor civil work 01.pdf",1
+"Mr. Joel Wamba","joel@gratoengineering.com","Technical","REQ202512236206","Labor CIVIL WORK and Electrical instalation","rejected","23 Dec 2025",500000,"Medium","labor civil work 01.pdf",1

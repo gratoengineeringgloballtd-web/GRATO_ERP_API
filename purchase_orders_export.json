@@ -1,0 +1,1650 @@
+[
+  {
+    "_id": "6955008f8ae9ddb786246bfa",
+    "poNumber": "PO-2025-000014",
+    "supplierId": null,
+    "buyerId": {
+      "_id": "691abf4dc7430e81c1984697",
+      "email": "lukong.lambert@gratoglobal.com",
+      "fullName": "Mr. Lukong Lambert"
+    },
+    "totalAmount": 1950000,
+    "currency": "XAF",
+    "status": "pending_supply_chain_assignment",
+    "currentApprovalLevel": 0,
+    "expectedDeliveryDate": "2026-01-01T23:00:00.000Z",
+    "paymentTerms": "30 days",
+    "deliveryAddress": "Bonaberi",
+    "items": [
+      {
+        "description": "PrPreventative  Maintenance & Site  Cleaning Services  ( Nov 26th 2025 to Dec 25th, 2025)",
+        "quantity": 26,
+        "unitPrice": 25000,
+        "totalPrice": 650000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "6955008f8ae9ddb786246bfb"
+      },
+      {
+        "description": "Preventative  Maintenance & Site  Cleaning Services  ( Dec 26th, 2025 to Jan 25th, 2026) )",
+        "quantity": 26,
+        "unitPrice": 25000,
+        "totalPrice": 650000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "6955008f8ae9ddb786246bfc"
+      },
+      {
+        "description": "Preventative  Maintenance & Site  Cleaning Services  (Jan 26th, 2026 to Feb 25th 2026)) ",
+        "quantity": 26,
+        "unitPrice": 25000,
+        "totalPrice": 650000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "6955008f8ae9ddb786246bfd"
+      }
+    ],
+    "progress": 5,
+    "currentStage": "created",
+    "activities": [
+      {
+        "type": "created",
+        "description": "Purchase order created",
+        "timestamp": "2025-12-31T10:53:03.030Z",
+        "user": "Mr. Lukong Lambert",
+        "_id": "6955008f8ae9ddb786246bfe"
+      },
+      {
+        "type": "sent",
+        "description": "Purchase order sent to Supply Chain for assignment",
+        "timestamp": "2026-01-12T06:35:28.164Z",
+        "user": "Mr. Lukong Lambert",
+        "_id": "696496300059313fb99dd266"
+      }
+    ],
+    "deliveryTracking": {
+      "status": "pending",
+      "updates": []
+    },
+    "approvalRequired": true,
+    "supplierDetails": {
+      "name": "Mr. GEORGES AGBOR. ",
+      "email": "Etahgeneratorengineering@gmail.com",
+      "phone": "+237671308804 ",
+      "address": "BONABERI DOUALA CAMEROON. ",
+      "businessType": "External Supplier",
+      "registrationNumber": null
+    },
+    "integrationData": {
+      "sourceSystem": "manual",
+      "itemsFromDatabase": 0,
+      "manualItems": 0,
+      "supplierValidated": false,
+      "itemsValidated": false
+    },
+    "taxApplicable": false,
+    "taxRate": 19.25,
+    "createdBy": {
+      "_id": "691abf4dc7430e81c1984697",
+      "email": "lukong.lambert@gratoglobal.com",
+      "fullName": "Mr. Lukong Lambert"
+    },
+    "approvalChain": [],
+    "creationDate": "2025-12-31T10:53:03.032Z",
+    "attachments": [],
+    "lastModifiedDate": "2025-12-31T10:53:03.032Z",
+    "createdAt": "2025-12-31T10:53:03.033Z",
+    "updatedAt": "2026-01-12T06:35:28.179Z",
+    "__v": 1,
+    "sentDate": "2026-01-12T06:35:28.163Z"
+  },
+  {
+    "_id": "694accc18ae9ddb786238972",
+    "poNumber": "PO-2025-000013",
+    "supplierId": null,
+    "buyerId": {
+      "_id": "691abf4dc7430e81c1984697",
+      "email": "lukong.lambert@gratoglobal.com",
+      "fullName": "Mr. Lukong Lambert"
+    },
+    "totalAmount": 3706290,
+    "currency": "XAF",
+    "status": "draft",
+    "currentApprovalLevel": 0,
+    "expectedDeliveryDate": "2025-12-24T23:00:00.000Z",
+    "paymentTerms": "30 days",
+    "deliveryAddress": "OFFICE",
+    "items": [
+      {
+        "description": "DIXXON 15W40 200L CI-4 (26th December 2025 to 25th January 2026)",
+        "quantity": 4,
+        "unitPrice": 370000,
+        "totalPrice": 1480000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "694accc18ae9ddb786238973"
+      },
+      {
+        "description": "DIXXON 15W40 200L CI-4 (26th January 2026 to 25th February 2026)",
+        "quantity": 4,
+        "unitPrice": 370000,
+        "totalPrice": 1480000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "694accc18ae9ddb786238974"
+      },
+      {
+        "description": "DIXXON 15W40 200L CI-4 (26th February 2026 to 25th March 2026)",
+        "quantity": 4,
+        "unitPrice": 370000,
+        "totalPrice": 148000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "694accc18ae9ddb786238975"
+      }
+    ],
+    "progress": 5,
+    "currentStage": "created",
+    "activities": [
+      {
+        "type": "created",
+        "description": "Purchase order created",
+        "timestamp": "2025-12-23T17:09:21.493Z",
+        "user": "Mr. Lukong Lambert",
+        "_id": "694accc18ae9ddb786238976"
+      },
+      {
+        "type": "updated",
+        "description": "Purchase order updated",
+        "timestamp": "2025-12-23T17:10:08.151Z",
+        "user": "Mr. Lukong Lambert",
+        "_id": "694accf08ae9ddb786238a39"
+      },
+      {
+        "type": "updated",
+        "description": "Purchase order updated",
+        "timestamp": "2025-12-23T17:14:57.120Z",
+        "user": "Mr. Lukong Lambert",
+        "_id": "694ace118ae9ddb786238aaf"
+      }
+    ],
+    "deliveryTracking": {
+      "status": "pending",
+      "updates": []
+    },
+    "approvalRequired": true,
+    "specialInstructions": "This is an Open PO Covering 3 Months ( January, February, and March) Delivery will be made base on order",
+    "supplierDetails": {
+      "name": "BATI TYRES & LUBRICANTS SARL",
+      "email": "Ali-rk@hotmail.com",
+      "phone": "",
+      "address": "VAT: M082014947333C",
+      "businessType": "External Supplier",
+      "registrationNumber": null
+    },
+    "integrationData": {
+      "sourceSystem": "manual",
+      "itemsFromDatabase": 0,
+      "manualItems": 0,
+      "supplierValidated": false,
+      "itemsValidated": false
+    },
+    "taxApplicable": true,
+    "taxRate": 19.25,
+    "createdBy": {
+      "_id": "691abf4dc7430e81c1984697",
+      "email": "lukong.lambert@gratoglobal.com",
+      "fullName": "Mr. Lukong Lambert"
+    },
+    "approvalChain": [],
+    "creationDate": "2025-12-23T17:09:21.494Z",
+    "attachments": [],
+    "lastModifiedDate": "2025-12-23T17:14:57.120Z",
+    "createdAt": "2025-12-23T17:09:21.495Z",
+    "updatedAt": "2025-12-23T17:14:57.121Z",
+    "__v": 2,
+    "lastModifiedBy": "691abf4dc7430e81c1984697",
+    "notes": ""
+  },
+  {
+    "_id": "694a6f338ae9ddb786234042",
+    "poNumber": "PO-2025-000012",
+    "supplierId": null,
+    "buyerId": {
+      "_id": "691abf4dc7430e81c1984697",
+      "email": "lukong.lambert@gratoglobal.com",
+      "fullName": "Mr. Lukong Lambert"
+    },
+    "totalAmount": 700000,
+    "currency": "XAF",
+    "status": "draft",
+    "currentApprovalLevel": 0,
+    "expectedDeliveryDate": "2025-12-24T23:00:00.000Z",
+    "paymentTerms": "30 days",
+    "deliveryAddress": "OFFICE",
+    "items": [
+      {
+        "description": "Office Security For December 2025 (3 Security Guards)",
+        "quantity": 3,
+        "unitPrice": 140000,
+        "totalPrice": 420000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "694a6f338ae9ddb786234043"
+      },
+      {
+        "description": "Warehouse Security for December 2025 (2 Security Guards)",
+        "quantity": 2,
+        "unitPrice": 140000,
+        "totalPrice": 280000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "694a6f338ae9ddb786234044"
+      }
+    ],
+    "progress": 5,
+    "currentStage": "created",
+    "activities": [
+      {
+        "type": "created",
+        "description": "Purchase order created",
+        "timestamp": "2025-12-23T10:30:11.462Z",
+        "user": "Mr. Lukong Lambert",
+        "_id": "694a6f338ae9ddb786234045"
+      },
+      {
+        "type": "updated",
+        "description": "Purchase order updated",
+        "timestamp": "2025-12-23T10:33:11.778Z",
+        "user": "Mr. Lukong Lambert",
+        "_id": "694a6fe78ae9ddb7862341d2"
+      }
+    ],
+    "deliveryTracking": {
+      "status": "pending",
+      "updates": []
+    },
+    "approvalRequired": true,
+    "supplierDetails": {
+      "name": "PROTECT SECURITY",
+      "email": "ngangsiphi@yahoo.co.uk",
+      "phone": "678994062 / 670758981",
+      "address": "Golf, Bastos - Yaounde",
+      "businessType": "External Supplier",
+      "registrationNumber": null
+    },
+    "integrationData": {
+      "sourceSystem": "manual",
+      "itemsFromDatabase": 0,
+      "manualItems": 0,
+      "supplierValidated": false,
+      "itemsValidated": false
+    },
+    "taxApplicable": false,
+    "taxRate": 19.25,
+    "createdBy": {
+      "_id": "691abf4dc7430e81c1984697",
+      "email": "lukong.lambert@gratoglobal.com",
+      "fullName": "Mr. Lukong Lambert"
+    },
+    "approvalChain": [],
+    "creationDate": "2025-12-23T10:30:11.465Z",
+    "attachments": [],
+    "lastModifiedDate": "2025-12-23T10:33:11.778Z",
+    "createdAt": "2025-12-23T10:30:11.467Z",
+    "updatedAt": "2025-12-23T10:33:11.780Z",
+    "__v": 1,
+    "lastModifiedBy": "691abf4dc7430e81c1984697",
+    "notes": "",
+    "specialInstructions": ""
+  },
+  {
+    "_id": "69441ca8f0a4eb6c9c2c7169",
+    "poNumber": "PO-2025-000011",
+    "supplierId": null,
+    "buyerId": {
+      "_id": "691abf4dc7430e81c1984697",
+      "email": "lukong.lambert@gratoglobal.com",
+      "fullName": "Mr. Lukong Lambert"
+    },
+    "totalAmount": 1470000,
+    "currency": "XAF",
+    "status": "draft",
+    "currentApprovalLevel": 0,
+    "expectedDeliveryDate": "2025-12-19T23:00:00.000Z",
+    "paymentTerms": "30 days",
+    "deliveryAddress": "OFFICE",
+    "items": [
+      {
+        "description": "CAR LEASE - 1 CARS ( DIVERSES - NOVEMBER 2025)",
+        "quantity": 1,
+        "unitPrice": 900000,
+        "totalPrice": 900000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "69441ca8f0a4eb6c9c2c716a"
+      },
+      {
+        "description": "CAR LEASE - 1 CARS ( DIVERSES - 12th NOVEMBER TO 30th NOVEMBER2025)",
+        "quantity": 1,
+        "unitPrice": 570000,
+        "totalPrice": 570000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "69441ca8f0a4eb6c9c2c716b"
+      }
+    ],
+    "progress": 5,
+    "currentStage": "created",
+    "activities": [
+      {
+        "type": "created",
+        "description": "Purchase order created",
+        "timestamp": "2025-12-18T15:24:24.595Z",
+        "user": "Mr. Lukong Lambert",
+        "_id": "69441ca8f0a4eb6c9c2c716c"
+      }
+    ],
+    "deliveryTracking": {
+      "status": "pending",
+      "updates": []
+    },
+    "approvalRequired": true,
+    "supplierDetails": {
+      "name": "WANAH CONSTRUCTION",
+      "email": "wanahconstruction76@gmail.com",
+      "phone": "",
+      "address": "Camp Sonel Biyem-Assi Lycee",
+      "businessType": "External Supplier",
+      "registrationNumber": null
+    },
+    "integrationData": {
+      "sourceSystem": "manual",
+      "itemsFromDatabase": 0,
+      "manualItems": 0,
+      "supplierValidated": false,
+      "itemsValidated": false
+    },
+    "taxApplicable": false,
+    "taxRate": 19.25,
+    "createdBy": {
+      "_id": "691abf4dc7430e81c1984697",
+      "email": "lukong.lambert@gratoglobal.com",
+      "fullName": "Mr. Lukong Lambert"
+    },
+    "approvalChain": [],
+    "creationDate": "2025-12-18T15:24:24.597Z",
+    "attachments": [],
+    "lastModifiedDate": "2025-12-18T15:24:24.597Z",
+    "createdAt": "2025-12-18T15:24:24.598Z",
+    "updatedAt": "2025-12-18T15:24:24.598Z",
+    "__v": 0
+  },
+  {
+    "_id": "69416aeb85985fd6d3157f7f",
+    "poNumber": "PO-2025-000010",
+    "supplierId": null,
+    "buyerId": {
+      "_id": "691abf4dc7430e81c1984697",
+      "email": "lukong.lambert@gratoglobal.com",
+      "fullName": "Mr. Lukong Lambert"
+    },
+    "totalAmount": 5475000,
+    "currency": "XAF",
+    "status": "draft",
+    "currentApprovalLevel": 0,
+    "expectedDeliveryDate": "2025-12-17T23:00:00.000Z",
+    "paymentTerms": "30 days",
+    "deliveryAddress": "Office",
+    "items": [
+      {
+        "description": "CAR LEASE - 6 CARS ( DIVERSES - DECEMBER 2025",
+        "quantity": 6,
+        "unitPrice": 900000,
+        "totalPrice": 5400000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "69416aeb85985fd6d3157f80"
+      },
+      {
+        "description": "CAR LEASE - 1 CARS ( DIVERSES - FROM 2nd DECEMBER TO 5th DECEMBER 2025 ",
+        "quantity": 4,
+        "unitPrice": 75000,
+        "totalPrice": 75000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "69416aeb85985fd6d3157f81"
+      }
+    ],
+    "progress": 5,
+    "currentStage": "created",
+    "activities": [
+      {
+        "type": "created",
+        "description": "Purchase order created",
+        "timestamp": "2025-12-16T14:21:31.867Z",
+        "user": "Mr. Lukong Lambert",
+        "_id": "69416aeb85985fd6d3157f82"
+      },
+      {
+        "type": "updated",
+        "description": "Purchase order updated",
+        "timestamp": "2025-12-16T14:23:16.267Z",
+        "user": "Mr. Lukong Lambert",
+        "_id": "69416b5485985fd6d3158014"
+      }
+    ],
+    "deliveryTracking": {
+      "status": "pending",
+      "updates": []
+    },
+    "approvalRequired": true,
+    "supplierDetails": {
+      "name": "Garage Auto Location Express",
+      "email": "gale-logistic@hotmail.com",
+      "phone": "+237 696630000",
+      "address": "Rue Koloko Bonapriso",
+      "businessType": "External Supplier",
+      "registrationNumber": null
+    },
+    "integrationData": {
+      "sourceSystem": "manual",
+      "itemsFromDatabase": 0,
+      "manualItems": 2,
+      "supplierValidated": false,
+      "itemsValidated": false
+    },
+    "taxApplicable": true,
+    "taxRate": 19.25,
+    "createdBy": {
+      "_id": "691abf4dc7430e81c1984697",
+      "email": "lukong.lambert@gratoglobal.com",
+      "fullName": "Mr. Lukong Lambert"
+    },
+    "approvalChain": [],
+    "creationDate": "2025-12-16T14:21:31.869Z",
+    "attachments": [],
+    "lastModifiedDate": "2025-12-16T14:23:16.269Z",
+    "createdAt": "2025-12-16T14:21:31.870Z",
+    "updatedAt": "2025-12-16T14:23:16.269Z",
+    "__v": 1,
+    "lastModifiedBy": "691abf4dc7430e81c1984697",
+    "notes": "",
+    "specialInstructions": ""
+  },
+  {
+    "_id": "6936b80968fdca8903e8ef3f",
+    "poNumber": "PO-2025-000009",
+    "supplierId": null,
+    "buyerId": {
+      "_id": "691abf4dc7430e81c1984697",
+      "email": "lukong.lambert@gratoglobal.com",
+      "fullName": "Mr. Lukong Lambert"
+    },
+    "totalAmount": 980200,
+    "currency": "XAF",
+    "status": "draft",
+    "currentApprovalLevel": 0,
+    "expectedDeliveryDate": "2025-12-09T23:00:00.000Z",
+    "paymentTerms": "30 days",
+    "deliveryAddress": "Office",
+    "items": [
+      {
+        "description": "Ballot de chiffons",
+        "quantity": 7,
+        "unitPrice": 15000,
+        "totalPrice": 105000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "6936b80968fdca8903e8ef40"
+      },
+      {
+        "description": "Plastique bache noir 3*2",
+        "quantity": 10,
+        "unitPrice": 2500,
+        "totalPrice": 250000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "6936b80968fdca8903e8ef41"
+      },
+      {
+        "description": "Acetic grey for fuel tank",
+        "quantity": 14,
+        "unitPrice": 3000,
+        "totalPrice": 42000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "6936b80968fdca8903e8ef42"
+      },
+      {
+        "description": "Cle a molettes 35mm",
+        "quantity": 1,
+        "unitPrice": 3500,
+        "totalPrice": 3500,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "6936b80968fdca8903e8ef43"
+      },
+      {
+        "description": "Niveau d'eau 60cm",
+        "quantity": 1,
+        "unitPrice": 3000,
+        "totalPrice": 3000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "6936b80968fdca8903e8ef44"
+      },
+      {
+        "description": "Escabot 5 marche",
+        "quantity": 1,
+        "unitPrice": 60000,
+        "totalPrice": 60000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "6936b80968fdca8903e8ef45"
+      },
+      {
+        "description": "Air filter perkins 206",
+        "quantity": 10,
+        "unitPrice": 5000,
+        "totalPrice": 50000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "6936b80968fdca8903e8ef46"
+      },
+      {
+        "description": " Reglette LED 120 cm 100w",
+        "quantity": 2,
+        "unitPrice": 5500,
+        "totalPrice": 11000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "6936b80968fdca8903e8ef47"
+      },
+      {
+        "description": "Prise",
+        "quantity": 5,
+        "unitPrice": 1000,
+        "totalPrice": 5000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "6936b80968fdca8903e8ef48"
+      },
+      {
+        "description": " Interupteur simple",
+        "quantity": 9,
+        "unitPrice": 1000,
+        "totalPrice": 9000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "6936b80968fdca8903e8ef49"
+      },
+      {
+        "description": "Gaine D20",
+        "quantity": 100,
+        "unitPrice": 300,
+        "totalPrice": 30000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "6936b80968fdca8903e8ef4a"
+      },
+      {
+        "description": " Cable 2*1.5mm2",
+        "quantity": 100,
+        "unitPrice": 550,
+        "totalPrice": 55000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "6936b80968fdca8903e8ef4b"
+      },
+      {
+        "description": "Disjoncteur 4P 100A",
+        "quantity": 3,
+        "unitPrice": 54000,
+        "totalPrice": 162000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "6936b80968fdca8903e8ef4c"
+      },
+      {
+        "description": "Detergent liquide",
+        "quantity": 35,
+        "unitPrice": 700,
+        "totalPrice": 24500,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "6936b80968fdca8903e8ef4d"
+      },
+      {
+        "description": " Cable 3*2.5mm2",
+        "quantity": 25,
+        "unitPrice": 1400,
+        "totalPrice": 35000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "6936b80968fdca8903e8ef4e"
+      },
+      {
+        "description": " Projecteur led solaire",
+        "quantity": 1,
+        "unitPrice": 30000,
+        "totalPrice": 30000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "6936b80968fdca8903e8ef4f"
+      },
+      {
+        "description": "Meche D8",
+        "quantity": 1,
+        "unitPrice": 1650,
+        "totalPrice": 1650,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "6936b80968fdca8903e8ef50"
+      },
+      {
+        "description": "Meche D9",
+        "quantity": 1,
+        "unitPrice": 1650,
+        "totalPrice": 1650,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "6936b80968fdca8903e8ef51"
+      },
+      {
+        "description": " Liaison frigorifrique",
+        "quantity": 4,
+        "unitPrice": 18000,
+        "totalPrice": 72000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "6936b80968fdca8903e8ef52"
+      },
+      {
+        "description": " Bande adhesive",
+        "quantity": 4,
+        "unitPrice": 1300,
+        "totalPrice": 5200,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "6936b80968fdca8903e8ef53"
+      },
+      {
+        "description": "Cable de 4*1.5mm2",
+        "quantity": 8,
+        "unitPrice": 1400,
+        "totalPrice": 11200,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "6936b80968fdca8903e8ef54"
+      },
+      {
+        "description": "Cheville D8",
+        "quantity": 1,
+        "unitPrice": 1500,
+        "totalPrice": 1500,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "6936b80968fdca8903e8ef55"
+      },
+      {
+        "description": "Cheville D10",
+        "quantity": 1,
+        "unitPrice": 2000,
+        "totalPrice": 2000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "6936b80968fdca8903e8ef56"
+      },
+      {
+        "description": " Robinet",
+        "quantity": 1,
+        "unitPrice": 10000,
+        "totalPrice": 10000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "6936b80968fdca8903e8ef57"
+      }
+    ],
+    "progress": 5,
+    "currentStage": "created",
+    "activities": [
+      {
+        "type": "created",
+        "description": "Purchase order created",
+        "timestamp": "2025-12-08T11:35:37.475Z",
+        "user": "Mr. Lukong Lambert",
+        "_id": "6936b80968fdca8903e8ef58"
+      },
+      {
+        "type": "updated",
+        "description": "Purchase order updated",
+        "timestamp": "2025-12-08T12:28:48.351Z",
+        "user": "Mr. Lukong Lambert",
+        "_id": "6936c48060d7bedc38eee4aa"
+      },
+      {
+        "type": "updated",
+        "description": "Purchase order updated",
+        "timestamp": "2025-12-08T12:32:18.304Z",
+        "user": "Mr. Lukong Lambert",
+        "_id": "6936c55260d7bedc38eee762"
+      },
+      {
+        "type": "updated",
+        "description": "Purchase order updated",
+        "timestamp": "2025-12-09T03:21:03.946Z",
+        "user": "Mr. Lukong Lambert",
+        "_id": "6937959f8cde957d9ed00aab"
+      },
+      {
+        "type": "updated",
+        "description": "Purchase order updated",
+        "timestamp": "2025-12-09T03:23:52.059Z",
+        "user": "Mr. Lukong Lambert",
+        "_id": "693796488cde957d9ed00b39"
+      }
+    ],
+    "deliveryTracking": {
+      "status": "pending",
+      "updates": []
+    },
+    "approvalRequired": true,
+    "supplierDetails": {
+      "name": "General Electric Cold ltd",
+      "email": "generalelectriccold@gmail.com",
+      "phone": "672460833- 659389227-656663706",
+      "address": "",
+      "businessType": "External Supplier",
+      "registrationNumber": null
+    },
+    "integrationData": {
+      "sourceSystem": "manual",
+      "itemsFromDatabase": 0,
+      "manualItems": 24,
+      "supplierValidated": false,
+      "itemsValidated": false
+    },
+    "taxApplicable": false,
+    "taxRate": 19.25,
+    "createdBy": {
+      "_id": "691abf4dc7430e81c1984697",
+      "email": "lukong.lambert@gratoglobal.com",
+      "fullName": "Mr. Lukong Lambert"
+    },
+    "approvalChain": [],
+    "creationDate": "2025-12-08T11:35:37.478Z",
+    "attachments": [],
+    "lastModifiedDate": "2025-12-09T03:23:52.063Z",
+    "createdAt": "2025-12-08T11:35:37.481Z",
+    "updatedAt": "2025-12-09T03:23:52.063Z",
+    "__v": 4,
+    "lastModifiedBy": "691abf4dc7430e81c1984697",
+    "notes": "",
+    "specialInstructions": ""
+  },
+  {
+    "_id": "69307444e20ae92eeb44ada2",
+    "poNumber": "PO-2025-000008",
+    "supplierId": null,
+    "buyerId": {
+      "_id": "691abf4dc7430e81c1984697",
+      "email": "lukong.lambert@gratoglobal.com",
+      "fullName": "Mr. Lukong Lambert"
+    },
+    "totalAmount": 1046879,
+    "currency": "XAF",
+    "status": "draft",
+    "currentApprovalLevel": 0,
+    "expectedDeliveryDate": "2025-12-04T23:00:00.000Z",
+    "paymentTerms": "30 days",
+    "deliveryAddress": "Office",
+    "items": [
+      {
+        "description": "Battery General 12V 75AH3",
+        "quantity": 3,
+        "unitPrice": 38775,
+        "totalPrice": 116325,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "69307444e20ae92eeb44ada3"
+      },
+      {
+        "description": "Chargeur static 220V",
+        "quantity": 1,
+        "unitPrice": 45000,
+        "totalPrice": 45000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "69307444e20ae92eeb44ada4"
+      },
+      {
+        "description": "Oli Filter (PERKINS) 2654403",
+        "quantity": 5,
+        "unitPrice": 4113,
+        "totalPrice": 20565,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "69307444e20ae92eeb44ada5"
+      },
+      {
+        "description": "Solar Projector 48V / 200W",
+        "quantity": 4,
+        "unitPrice": 14100,
+        "totalPrice": 56400,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "69307444e20ae92eeb44ada6"
+      },
+      {
+        "description": "Air Filter (MAHINDRA) AF25436",
+        "quantity": 5,
+        "unitPrice": 9400,
+        "totalPrice": 47000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "69307444e20ae92eeb44ada7"
+      },
+      {
+        "description": "Oil Filter MD084693",
+        "quantity": 3,
+        "unitPrice": 5875,
+        "totalPrice": 17625,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "69307444e20ae92eeb44ada8"
+      },
+      {
+        "description": "Oil Filter W940/18",
+        "quantity": 3,
+        "unitPrice": 3525,
+        "totalPrice": 10575,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "69307444e20ae92eeb44ada9"
+      },
+      {
+        "description": "multimètre (DC) AC/DC 1000A",
+        "quantity": 4,
+        "unitPrice": 68738,
+        "totalPrice": 274952,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "69307444e20ae92eeb44adaa"
+      },
+      {
+        "description": "FUEL FILTER PERKINS 26561117 9 -20KVA",
+        "quantity": 30,
+        "unitPrice": 1410,
+        "totalPrice": 42300,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "69307444e20ae92eeb44adab"
+      },
+      {
+        "description": "Diesel / Fuel Pipe @10mm",
+        "quantity": 100,
+        "unitPrice": 1000,
+        "totalPrice": 100000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "69307444e20ae92eeb44adac"
+      },
+      {
+        "description": "Diesel / Fuel Pipe @12mm",
+        "quantity": 100,
+        "unitPrice": 1500,
+        "totalPrice": 150000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "69307444e20ae92eeb44adad"
+      },
+      {
+        "description": "GEN Radiator Coolant",
+        "quantity": 140,
+        "unitPrice": 588,
+        "totalPrice": 82320,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "69307444e20ae92eeb44adae"
+      },
+      {
+        "description": "DG fan belt A38",
+        "quantity": 10,
+        "unitPrice": 2000,
+        "totalPrice": 20000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "69307444e20ae92eeb44adaf"
+      },
+      {
+        "description": "Mahindra gaz filters 20kva A0000322405  P-707",
+        "quantity": 6,
+        "unitPrice": 5288,
+        "totalPrice": 31728,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "69307444e20ae92eeb44adb0"
+      },
+      {
+        "description": "Mahindra oil filters 20kva JOHN DEERE T19044",
+        "quantity": 3,
+        "unitPrice": 4113,
+        "totalPrice": 12339,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "69307444e20ae92eeb44adb1"
+      },
+      {
+        "description": "Diesel GEN Fan belt - A51",
+        "quantity": 1,
+        "unitPrice": 2000,
+        "totalPrice": 2000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "69307444e20ae92eeb44adb2"
+      },
+      {
+        "description": "AC Distribution Box - 12 Modules",
+        "quantity": 1,
+        "unitPrice": 6000,
+        "totalPrice": 6000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "69307444e20ae92eeb44adb3"
+      },
+      {
+        "description": "Solenoid switch - Perkins 30KVA",
+        "quantity": 1,
+        "unitPrice": 11750,
+        "totalPrice": 11750,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "69307444e20ae92eeb44adb4"
+      }
+    ],
+    "progress": 5,
+    "currentStage": "created",
+    "activities": [
+      {
+        "type": "created",
+        "description": "Purchase order created",
+        "timestamp": "2025-12-03T17:32:52.899Z",
+        "user": "Mr. Lukong Lambert",
+        "_id": "69307444e20ae92eeb44adb5"
+      }
+    ],
+    "deliveryTracking": {
+      "status": "pending",
+      "updates": []
+    },
+    "approvalRequired": true,
+    "supplierDetails": {
+      "name": "FC OBIOHA ULLC",
+      "email": "obioha.francis@fcobioha.com",
+      "phone": "670378607",
+      "address": "Douala",
+      "businessType": "External Supplier",
+      "registrationNumber": null
+    },
+    "integrationData": {
+      "sourceSystem": "manual",
+      "itemsFromDatabase": 0,
+      "manualItems": 18,
+      "supplierValidated": false,
+      "itemsValidated": false
+    },
+    "taxApplicable": false,
+    "taxRate": 19.25,
+    "createdBy": {
+      "_id": "691abf4dc7430e81c1984697",
+      "email": "lukong.lambert@gratoglobal.com",
+      "fullName": "Mr. Lukong Lambert"
+    },
+    "approvalChain": [],
+    "creationDate": "2025-12-03T17:32:52.902Z",
+    "attachments": [],
+    "lastModifiedDate": "2025-12-03T17:32:52.905Z",
+    "createdAt": "2025-12-03T17:32:52.904Z",
+    "updatedAt": "2025-12-03T17:32:52.904Z",
+    "__v": 0
+  },
+  {
+    "_id": "69305f5de20ae92eeb44abb3",
+    "poNumber": "PO-2025-000007",
+    "supplierId": null,
+    "buyerId": {
+      "_id": "691abf4dc7430e81c1984697",
+      "email": "lukong.lambert@gratoglobal.com",
+      "fullName": "Mr. Lukong Lambert"
+    },
+    "totalAmount": 664000,
+    "currency": "XAF",
+    "status": "draft",
+    "currentApprovalLevel": 0,
+    "expectedDeliveryDate": "2025-12-04T23:00:00.000Z",
+    "paymentTerms": "30 days",
+    "deliveryAddress": "Bonaberi ",
+    "items": [
+      {
+        "description": "Preventative  Maintenance  Services for  Generators with site  cleaning October 26,  2025 -  November 25,  2025",
+        "quantity": 26,
+        "unitPrice": 25000,
+        "totalPrice": 650000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "69305f5de20ae92eeb44abb4"
+      },
+      {
+        "description": "Preventative  Maintenance  Services for  Generators with site  cleaning New site (ihs  bnb 404)  November 19 and 21  ,2025",
+        "quantity": 2,
+        "unitPrice": 7000,
+        "totalPrice": 14000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "69305f5de20ae92eeb44abb5"
+      }
+    ],
+    "progress": 5,
+    "currentStage": "created",
+    "activities": [
+      {
+        "type": "created",
+        "description": "Purchase order created",
+        "timestamp": "2025-12-03T16:03:41.179Z",
+        "user": "Mr. Lukong Lambert",
+        "_id": "69305f5de20ae92eeb44abb6"
+      }
+    ],
+    "deliveryTracking": {
+      "status": "pending",
+      "updates": []
+    },
+    "approvalRequired": true,
+    "supplierDetails": {
+      "name": "MR. GEORGES AGBOR ",
+      "email": "etahgeneratorengineering@gmail.com",
+      "phone": "(+237) 671308804  ",
+      "address": "Bonaberi",
+      "businessType": "External Supplier",
+      "registrationNumber": null
+    },
+    "integrationData": {
+      "sourceSystem": "manual",
+      "itemsFromDatabase": 0,
+      "manualItems": 2,
+      "supplierValidated": false,
+      "itemsValidated": false
+    },
+    "taxApplicable": false,
+    "taxRate": 19.25,
+    "createdBy": {
+      "_id": "691abf4dc7430e81c1984697",
+      "email": "lukong.lambert@gratoglobal.com",
+      "fullName": "Mr. Lukong Lambert"
+    },
+    "approvalChain": [],
+    "creationDate": "2025-12-03T16:03:41.181Z",
+    "attachments": [],
+    "lastModifiedDate": "2025-12-03T16:03:41.182Z",
+    "createdAt": "2025-12-03T16:03:41.182Z",
+    "updatedAt": "2025-12-03T16:03:41.182Z",
+    "__v": 0
+  },
+  {
+    "_id": "693059f7e20ae92eeb44a95a",
+    "poNumber": "PO-2025-000006",
+    "supplierId": null,
+    "buyerId": {
+      "_id": "691abf4dc7430e81c1984697",
+      "email": "lukong.lambert@gratoglobal.com",
+      "fullName": "Mr. Lukong Lambert"
+    },
+    "totalAmount": 650000,
+    "currency": "XAF",
+    "status": "draft",
+    "currentApprovalLevel": 0,
+    "expectedDeliveryDate": "2025-12-04T23:00:00.000Z",
+    "paymentTerms": "30 days",
+    "deliveryAddress": "Bonaberi 2",
+    "items": [
+      {
+        "description": "PPM GENERATOR IN   BONABERI 2  FOR   OCTOBER (26th Sept. 25th Oct.)",
+        "quantity": 26,
+        "unitPrice": 25000,
+        "totalPrice": 650000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "693059f7e20ae92eeb44a95b"
+      }
+    ],
+    "progress": 5,
+    "currentStage": "created",
+    "activities": [
+      {
+        "type": "created",
+        "description": "Purchase order created",
+        "timestamp": "2025-12-03T15:40:39.003Z",
+        "user": "Mr. Lukong Lambert",
+        "_id": "693059f7e20ae92eeb44a95c"
+      }
+    ],
+    "deliveryTracking": {
+      "status": "pending",
+      "updates": []
+    },
+    "approvalRequired": true,
+    "supplierDetails": {
+      "name": "ETS BEETECH ENGINEERING",
+      "email": "beetechengineering1@gmail.com",
+      "phone": "680986406\t/\t657946284",
+      "address": "Bonaberi ",
+      "businessType": "External Supplier",
+      "registrationNumber": null
+    },
+    "integrationData": {
+      "sourceSystem": "manual",
+      "itemsFromDatabase": 0,
+      "manualItems": 1,
+      "supplierValidated": false,
+      "itemsValidated": false
+    },
+    "taxApplicable": false,
+    "taxRate": 19.25,
+    "createdBy": {
+      "_id": "691abf4dc7430e81c1984697",
+      "email": "lukong.lambert@gratoglobal.com",
+      "fullName": "Mr. Lukong Lambert"
+    },
+    "approvalChain": [],
+    "creationDate": "2025-12-03T15:40:39.005Z",
+    "attachments": [],
+    "lastModifiedDate": "2025-12-03T15:40:39.006Z",
+    "createdAt": "2025-12-03T15:40:39.006Z",
+    "updatedAt": "2025-12-03T15:40:39.006Z",
+    "__v": 0
+  },
+  {
+    "_id": "692eb7177ac65f7e5d5854d6",
+    "poNumber": "PO-2025-000005",
+    "supplierId": null,
+    "buyerId": {
+      "_id": "691abf4dc7430e81c1984697",
+      "email": "lukong.lambert@gratoglobal.com",
+      "fullName": "Mr. Lukong Lambert"
+    },
+    "totalAmount": 3105000,
+    "currency": "XAF",
+    "status": "draft",
+    "currentApprovalLevel": 0,
+    "expectedDeliveryDate": "2025-12-03T23:00:00.000Z",
+    "paymentTerms": "30 days",
+    "deliveryAddress": "Kotto and Ndogbong",
+    "items": [
+      {
+        "description": "PPM GENERATOR FOR KOTTO OCTOBER CYCLE ( 26TH Sept – 25TH Oct)",
+        "quantity": 24,
+        "unitPrice": 25000,
+        "totalPrice": 600000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "692eb7177ac65f7e5d5854d7"
+      },
+      {
+        "description": "EXTRA WORK AT KOTTO OCTOBER CYCLE ( Replaced the Flywheel of the Generator) ",
+        "quantity": 1,
+        "unitPrice": 30000,
+        "totalPrice": 30000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "692eb7177ac65f7e5d5854d8"
+      },
+      {
+        "description": "PPM GENERATOR FOR KOTTO AND NDOGBONG NOVEMBER CYCLE ( 26TH Oct – 25TH Nov)",
+        "quantity": 33,
+        "unitPrice": 25000,
+        "totalPrice": 825000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "692eb7177ac65f7e5d5854d9"
+      },
+      {
+        "description": "PPM GENERATOR FOR KOTTO AND NDOGBONG DECEMBRE CYCLE ( 26TH Novt – 25TH Dec) ",
+        "quantity": 33,
+        "unitPrice": 25000,
+        "totalPrice": 825000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "692eb7177ac65f7e5d5854da"
+      },
+      {
+        "description": "PPM GENERATOR FOR KOTTO AND NDOGBONG JANVIER CYCLE ( 26TH Dec – 25TH Jan 26) ",
+        "quantity": 33,
+        "unitPrice": 25000,
+        "totalPrice": 825000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "692eb7177ac65f7e5d5854db"
+      }
+    ],
+    "progress": 5,
+    "currentStage": "created",
+    "activities": [
+      {
+        "type": "created",
+        "description": "Purchase order created",
+        "timestamp": "2025-12-02T09:53:27.867Z",
+        "user": "Mr. Lukong Lambert",
+        "_id": "692eb7177ac65f7e5d5854dc"
+      }
+    ],
+    "deliveryTracking": {
+      "status": "pending",
+      "updates": []
+    },
+    "approvalRequired": true,
+    "supplierDetails": {
+      "name": "Linass Engineering Services",
+      "email": "linassengineeringservices@gmail.com",
+      "phone": "657108461 / 677295421",
+      "address": "Cite-Sic Bassa - Douala",
+      "businessType": "External Supplier",
+      "registrationNumber": null
+    },
+    "integrationData": {
+      "sourceSystem": "manual",
+      "itemsFromDatabase": 0,
+      "manualItems": 5,
+      "supplierValidated": false,
+      "itemsValidated": false
+    },
+    "taxApplicable": false,
+    "taxRate": 19.25,
+    "createdBy": {
+      "_id": "691abf4dc7430e81c1984697",
+      "email": "lukong.lambert@gratoglobal.com",
+      "fullName": "Mr. Lukong Lambert"
+    },
+    "approvalChain": [],
+    "creationDate": "2025-12-02T09:53:27.869Z",
+    "attachments": [],
+    "lastModifiedDate": "2025-12-02T09:53:27.872Z",
+    "createdAt": "2025-12-02T09:53:27.871Z",
+    "updatedAt": "2025-12-02T09:53:27.871Z",
+    "__v": 0
+  },
+  {
+    "_id": "692d705bd71ca8a2252540f1",
+    "poNumber": "PO-2025-000004",
+    "supplierId": null,
+    "buyerId": {
+      "_id": "691abf4dc7430e81c1984697",
+      "email": "lukong.lambert@gratoglobal.com",
+      "fullName": "Mr. Lukong Lambert"
+    },
+    "totalAmount": 2600000,
+    "currency": "XAF",
+    "status": "draft",
+    "currentApprovalLevel": 0,
+    "expectedDeliveryDate": "2025-12-02T23:00:00.000Z",
+    "paymentTerms": "30 days",
+    "deliveryAddress": "Bonaberi 2",
+    "items": [
+      {
+        "description": "PPM FOR BONABERI 2 OCTOBER -  NOVEMBER ( 25TH OCT.- 26TH NOV. ) ",
+        "quantity": 26,
+        "unitPrice": 25000,
+        "totalPrice": 650000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "692d705bd71ca8a2252540f2"
+      },
+      {
+        "description": "PPM FOR BONABERI 2 NOVEMBER -  DECEMBER ( 25TH NOV.- 26TH DEC. ) ",
+        "quantity": 26,
+        "unitPrice": 25000,
+        "totalPrice": 650000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "692d705bd71ca8a2252540f3"
+      },
+      {
+        "description": "PPM FOR BONABERI 2 DECEMBER  -  JANUARY ( 25TH DEC.- 26TH JAN. ) ",
+        "quantity": 26,
+        "unitPrice": 25000,
+        "totalPrice": 650000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "692d705bd71ca8a2252540f4"
+      },
+      {
+        "description": "PPM FOR  BONABERI 2 JANUARY - FEBRUARY (  25TH JAN.- 26TH FEB. ) ",
+        "quantity": 26,
+        "unitPrice": 25000,
+        "totalPrice": 650000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "692d705bd71ca8a2252540f5"
+      }
+    ],
+    "progress": 5,
+    "currentStage": "created",
+    "activities": [
+      {
+        "type": "created",
+        "description": "Purchase order created",
+        "timestamp": "2025-12-01T10:39:23.755Z",
+        "user": "Mr. Lukong Lambert",
+        "_id": "692d705bd71ca8a2252540f6"
+      }
+    ],
+    "deliveryTracking": {
+      "status": "pending",
+      "updates": []
+    },
+    "approvalRequired": true,
+    "supplierDetails": {
+      "name": "ETS Beetech Engineering",
+      "email": "beetechengineering1@gmail.com",
+      "phone": "680986406 / 657956284",
+      "address": "",
+      "businessType": "External Supplier",
+      "registrationNumber": null
+    },
+    "integrationData": {
+      "sourceSystem": "manual",
+      "itemsFromDatabase": 0,
+      "manualItems": 4,
+      "supplierValidated": false,
+      "itemsValidated": false
+    },
+    "taxApplicable": false,
+    "taxRate": 19.25,
+    "createdBy": {
+      "_id": "691abf4dc7430e81c1984697",
+      "email": "lukong.lambert@gratoglobal.com",
+      "fullName": "Mr. Lukong Lambert"
+    },
+    "approvalChain": [],
+    "creationDate": "2025-12-01T10:39:23.757Z",
+    "attachments": [],
+    "lastModifiedDate": "2025-12-01T10:39:23.759Z",
+    "createdAt": "2025-12-01T10:39:23.758Z",
+    "updatedAt": "2025-12-01T10:39:23.758Z",
+    "__v": 0
+  },
+  {
+    "_id": "692d6cb3d71ca8a2252540b5",
+    "poNumber": "PO-2025-000003",
+    "supplierId": null,
+    "buyerId": {
+      "_id": "691abf4dc7430e81c1984697",
+      "email": "lukong.lambert@gratoglobal.com",
+      "fullName": "Mr. Lukong Lambert"
+    },
+    "totalAmount": 700000,
+    "currency": "XAF",
+    "status": "draft",
+    "currentApprovalLevel": 0,
+    "expectedDeliveryDate": "2025-12-03T23:00:00.000Z",
+    "paymentTerms": "30 days",
+    "deliveryAddress": "Office",
+    "items": [
+      {
+        "description": "Office Security For November",
+        "quantity": 3,
+        "unitPrice": 140000,
+        "totalPrice": 420000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "692d6cb3d71ca8a2252540b6"
+      },
+      {
+        "description": "Warehouse Security for November",
+        "quantity": 2,
+        "unitPrice": 140000,
+        "totalPrice": 280000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "692d6cb3d71ca8a2252540b7"
+      }
+    ],
+    "progress": 5,
+    "currentStage": "created",
+    "activities": [
+      {
+        "type": "created",
+        "description": "Purchase order created",
+        "timestamp": "2025-12-01T10:23:47.528Z",
+        "user": "Mr. Lukong Lambert",
+        "_id": "692d6cb3d71ca8a2252540b8"
+      }
+    ],
+    "deliveryTracking": {
+      "status": "pending",
+      "updates": []
+    },
+    "approvalRequired": true,
+    "supplierDetails": {
+      "name": "Protect Security",
+      "email": "ngangsiphil@yahoo.co.uk",
+      "phone": "678994062 / 670758981",
+      "address": "Golf, Bastos - Yaounde",
+      "businessType": "External Supplier",
+      "registrationNumber": null
+    },
+    "integrationData": {
+      "sourceSystem": "manual",
+      "itemsFromDatabase": 0,
+      "manualItems": 2,
+      "supplierValidated": false,
+      "itemsValidated": false
+    },
+    "taxApplicable": false,
+    "taxRate": 19.25,
+    "createdBy": {
+      "_id": "691abf4dc7430e81c1984697",
+      "email": "lukong.lambert@gratoglobal.com",
+      "fullName": "Mr. Lukong Lambert"
+    },
+    "approvalChain": [],
+    "creationDate": "2025-12-01T10:23:47.529Z",
+    "attachments": [],
+    "lastModifiedDate": "2025-12-01T10:23:47.531Z",
+    "createdAt": "2025-12-01T10:23:47.531Z",
+    "updatedAt": "2025-12-01T10:23:47.531Z",
+    "__v": 0
+  },
+  {
+    "_id": "692d6b5dd71ca8a225254074",
+    "poNumber": "PO-2025-000002",
+    "supplierId": null,
+    "buyerId": {
+      "_id": "691abf4dc7430e81c1984697",
+      "email": "lukong.lambert@gratoglobal.com",
+      "fullName": "Mr. Lukong Lambert"
+    },
+    "totalAmount": 185156,
+    "currency": "XAF",
+    "status": "draft",
+    "currentApprovalLevel": 0,
+    "expectedDeliveryDate": "2025-12-02T23:00:00.000Z",
+    "paymentTerms": "30 days",
+    "deliveryAddress": "Office",
+    "items": [
+      {
+        "description": "Day Security Office From 20 to 31 of October",
+        "quantity": 1,
+        "unitPrice": 54192,
+        "totalPrice": 54192,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "692d6b5dd71ca8a225254075"
+      },
+      {
+        "description": "Day Security Office From 28 to 31 of October",
+        "quantity": 1,
+        "unitPrice": 18064,
+        "totalPrice": 18064,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "692d6b5dd71ca8a225254076"
+      },
+      {
+        "description": "Night Security Office From 27 to 31 of October",
+        "quantity": 1,
+        "unitPrice": 22580,
+        "totalPrice": 22580,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "692d6b5dd71ca8a225254077"
+      },
+      {
+        "description": "Day Security Warehouse From 22 to 31 of October",
+        "quantity": 1,
+        "unitPrice": 45160,
+        "totalPrice": 45160,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "692d6b5dd71ca8a225254078"
+      },
+      {
+        "description": "Night Security Warehouse From 22 to 31 of October",
+        "quantity": 1,
+        "unitPrice": 45160,
+        "totalPrice": 45160,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "692d6b5dd71ca8a225254079"
+      }
+    ],
+    "progress": 5,
+    "currentStage": "created",
+    "activities": [
+      {
+        "type": "created",
+        "description": "Purchase order created",
+        "timestamp": "2025-12-01T10:18:05.796Z",
+        "user": "Mr. Lukong Lambert",
+        "_id": "692d6b5dd71ca8a22525407a"
+      }
+    ],
+    "deliveryTracking": {
+      "status": "pending",
+      "updates": []
+    },
+    "approvalRequired": true,
+    "supplierDetails": {
+      "name": "Protect Security",
+      "email": "ngangsiphil@yahoo.co.uk",
+      "phone": "678994062 / 670758981",
+      "address": "Golf, Bastos - Yaounde",
+      "businessType": "External Supplier",
+      "registrationNumber": null
+    },
+    "integrationData": {
+      "sourceSystem": "manual",
+      "itemsFromDatabase": 0,
+      "manualItems": 5,
+      "supplierValidated": false,
+      "itemsValidated": false
+    },
+    "taxApplicable": false,
+    "taxRate": 19.25,
+    "createdBy": {
+      "_id": "691abf4dc7430e81c1984697",
+      "email": "lukong.lambert@gratoglobal.com",
+      "fullName": "Mr. Lukong Lambert"
+    },
+    "approvalChain": [],
+    "creationDate": "2025-12-01T10:18:05.798Z",
+    "attachments": [],
+    "lastModifiedDate": "2025-12-01T10:18:05.800Z",
+    "createdAt": "2025-12-01T10:18:05.800Z",
+    "updatedAt": "2025-12-01T10:18:05.800Z",
+    "__v": 0
+  },
+  {
+    "_id": "69271608ee79981afde48242",
+    "poNumber": "PO-2025-000001",
+    "supplierId": null,
+    "buyerId": {
+      "_id": "691abf4dc7430e81c1984697",
+      "email": "lukong.lambert@gratoglobal.com",
+      "fullName": "Mr. Lukong Lambert"
+    },
+    "totalAmount": 1000000,
+    "currency": "XAF",
+    "status": "approved",
+    "currentApprovalLevel": 0,
+    "expectedDeliveryDate": "2025-11-27T23:00:00.000Z",
+    "paymentTerms": "15 days",
+    "deliveryAddress": "Office",
+    "items": [
+      {
+        "description": "Audit and financial accounting audit fee for 2024 financial year",
+        "quantity": 1,
+        "unitPrice": 1000000,
+        "totalPrice": 1000000,
+        "specifications": "",
+        "isFromDatabase": false,
+        "_id": "69271608ee79981afde48243"
+      }
+    ],
+    "progress": 5,
+    "currentStage": "created",
+    "activities": [
+      {
+        "type": "created",
+        "description": "Purchase order created",
+        "timestamp": "2025-11-26T15:00:24.066Z",
+        "user": "Mr. Lukong Lambert",
+        "_id": "69271608ee79981afde48244"
+      },
+      {
+        "type": "updated",
+        "description": "Purchase order updated",
+        "timestamp": "2025-12-08T12:43:32.608Z",
+        "user": "Mr. Lukong Lambert",
+        "_id": "6936c7f460d7bedc38eee7b6"
+      }
+    ],
+    "deliveryTracking": {
+      "status": "pending",
+      "updates": []
+    },
+    "approvalRequired": true,
+    "supplierDetails": {
+      "name": "Lic Standard Chartered Consulting Firm",
+      "email": "info@lic-scc.com",
+      "phone": " 678 49 09 91/ 650 79 26 80",
+      "address": "Douala-Bonapriso",
+      "businessType": "External Supplier",
+      "registrationNumber": null
+    },
+    "integrationData": {
+      "sourceSystem": "manual",
+      "itemsFromDatabase": 0,
+      "manualItems": 1,
+      "supplierValidated": false,
+      "itemsValidated": false
+    },
+    "taxApplicable": false,
+    "taxRate": 19.25,
+    "createdBy": {
+      "_id": "691abf4dc7430e81c1984697",
+      "email": "lukong.lambert@gratoglobal.com",
+      "fullName": "Mr. Lukong Lambert"
+    },
+    "approvalChain": [],
+    "creationDate": "2025-11-26T15:00:24.067Z",
+    "attachments": [],
+    "lastModifiedDate": "2025-12-08T12:43:32.609Z",
+    "createdAt": "2025-11-26T15:00:24.069Z",
+    "updatedAt": "2025-12-08T12:43:32.609Z",
+    "__v": 1,
+    "lastModifiedBy": "691abf4dc7430e81c1984697",
+    "notes": "",
+    "specialInstructions": ""
+  }
+]

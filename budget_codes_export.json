@@ -1,0 +1,3097 @@
+[
+  {
+    "_id": "696509ca43211f67b3d1ae49",
+    "code": "BUD_REF2026-CAPEX",
+    "name": "REFURBISHMENT CAPEX BUDGET 2026",
+    "description": "2026 REFURBISHMENT BUDGET FOR CAPITAL EXPENDITURES.",
+    "budget": 1600000,
+    "used": 0,
+    "department": "Technical Roll Out",
+    "budgetType": "CAPEX",
+    "budgetPeriod": "yearly",
+    "budgetOwner": {
+      "_id": "691abf53c7430e81c19846a3",
+      "email": "verla.ivo@gratoengineering.com",
+      "fullName": "Mr. Yerla Ivo",
+      "department": "Technical"
+    },
+    "status": "active",
+    "approvalChain": [
+      {
+        "level": 1,
+        "approver": {
+          "name": "Mr. E.T Kelvin",
+          "email": "kelvin.eyong@gratoglobal.com",
+          "role": "Departmental Head",
+          "department": "Business Development & Supply Chain"
+        },
+        "status": "approved",
+        "assignedDate": "2026-01-12T14:48:42.349Z",
+        "_id": "696509ca43211f67b3d1ae4a",
+        "actionDate": "2026-01-12T15:04:39.942Z",
+        "actionTime": "03:04 PM",
+        "comments": "APPROVED"
+      },
+      {
+        "level": 2,
+        "approver": {
+          "name": "Ms. Rambell Mambo",
+          "email": "ranibellmambo@gratoengineering.com",
+          "role": "Finance Officer",
+          "department": "Business Development & Supply Chain"
+        },
+        "status": "approved",
+        "assignedDate": "2026-01-12T14:48:42.349Z",
+        "_id": "696509ca43211f67b3d1ae4b",
+        "actionDate": "2026-01-12T15:05:22.316Z",
+        "actionTime": "03:05 PM",
+        "comments": "Approved"
+      }
+    ],
+    "criticalAlertSent": false,
+    "warningAlertSent": false,
+    "performanceMetrics": {
+      "averageMonthlySpend": 0
+    },
+    "startDate": "2026-01-12T14:48:42.349Z",
+    "active": true,
+    "createdBy": {
+      "_id": "691abf4ec7430e81c1984699",
+      "email": "ranibellmambo@gratoengineering.com",
+      "fullName": "Ms. Ranibell Mambo"
+    },
+    "allocations": [],
+    "transactions": [],
+    "budgetRevisions": [],
+    "budgetHistory": [],
+    "fiscalYear": 2026,
+    "createdAt": "2026-01-12T14:48:42.368Z",
+    "updatedAt": "2026-01-12T15:05:22.317Z",
+    "__v": 0,
+    "approvedBy": {
+      "_id": "691abf4ec7430e81c1984699",
+      "email": "ranibellmambo@gratoengineering.com",
+      "fullName": "Ms. Ranibell Mambo"
+    }
+  },
+  {
+    "_id": "6965095943211f67b3d1ad55",
+    "code": "BUD_REF2026-OPEX",
+    "name": "REFURBISHMENT OPEX BUDGET 2026",
+    "description": "2026 REFURBISHMENT BUDGET FOR OPERATING EXPENSES",
+    "budget": 153472525,
+    "used": 90000,
+    "department": "Technical Roll Out",
+    "budgetType": "OPEX",
+    "budgetPeriod": "yearly",
+    "budgetOwner": {
+      "_id": "691abf53c7430e81c19846a3",
+      "email": "verla.ivo@gratoengineering.com",
+      "fullName": "Mr. Yerla Ivo",
+      "department": "Technical"
+    },
+    "status": "active",
+    "approvalChain": [
+      {
+        "level": 1,
+        "approver": {
+          "name": "Mr. E.T Kelvin",
+          "email": "kelvin.eyong@gratoglobal.com",
+          "role": "Departmental Head",
+          "department": "Business Development & Supply Chain"
+        },
+        "status": "approved",
+        "assignedDate": "2026-01-12T14:46:49.382Z",
+        "_id": "6965095943211f67b3d1ad56",
+        "actionDate": "2026-01-12T15:05:24.683Z",
+        "actionTime": "03:05 PM",
+        "comments": "APPROVED"
+      },
+      {
+        "level": 2,
+        "approver": {
+          "name": "Ms. Rambell Mambo",
+          "email": "ranibellmambo@gratoengineering.com",
+          "role": "Finance Officer",
+          "department": "Business Development & Supply Chain"
+        },
+        "status": "approved",
+        "assignedDate": "2026-01-12T14:46:49.382Z",
+        "_id": "6965095943211f67b3d1ad57",
+        "actionDate": "2026-01-12T15:05:53.079Z",
+        "actionTime": "03:05 PM",
+        "comments": "Approved"
+      }
+    ],
+    "criticalAlertSent": false,
+    "warningAlertSent": false,
+    "performanceMetrics": {
+      "averageMonthlySpend": 0
+    },
+    "startDate": "2026-01-12T14:46:49.382Z",
+    "active": true,
+    "createdBy": {
+      "_id": "691abf4ec7430e81c1984699",
+      "email": "ranibellmambo@gratoengineering.com",
+      "fullName": "Ms. Ranibell Mambo"
+    },
+    "allocations": [
+      {
+        "requisitionId": {
+          "_id": "695fcb56f3842a31c719e2e2",
+          "requisitionNumber": "REQ202601086431",
+          "title": "Spare Part Request materials for Overhauling of 9kva Baby Perkinks generator at Warehouse",
+          "status": "pending_supply_chain_review"
+        },
+        "amount": 90000,
+        "allocatedDate": "2026-01-12T15:14:35.818Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "allocated",
+        "actualSpent": 0,
+        "disbursementCount": 0,
+        "balanceReturned": 0,
+        "_id": "69650fdb43211f67b3d1d21c"
+      }
+    ],
+    "transactions": [],
+    "budgetRevisions": [],
+    "budgetHistory": [],
+    "fiscalYear": 2026,
+    "createdAt": "2026-01-12T14:46:49.387Z",
+    "updatedAt": "2026-01-12T15:14:35.820Z",
+    "__v": 1,
+    "approvedBy": {
+      "_id": "691abf4ec7430e81c1984699",
+      "email": "ranibellmambo@gratoengineering.com",
+      "fullName": "Ms. Ranibell Mambo"
+    }
+  },
+  {
+    "_id": "695e99188ae9ddb786259747",
+    "code": "BUD_HR2026-OPEXX",
+    "name": "HR OPEX BUDGET 2026",
+    "description": "2026 HSE BUDGET FOR OPERATION EXPENDITURES",
+    "budget": 66008081,
+    "used": 1726850,
+    "department": "HR",
+    "budgetType": "OPEX",
+    "budgetPeriod": "yearly",
+    "budgetOwner": {
+      "_id": "691abf4ac7430e81c1984693",
+      "email": "bruiline.tsitoh@gratoglobal.com",
+      "fullName": "Mrs. Bruiline Tsitoh",
+      "department": "HR & Admin"
+    },
+    "status": "active",
+    "approvalChain": [
+      {
+        "level": 1,
+        "approver": {
+          "name": "Mr. E.T Kelvin",
+          "email": "kelvin.eyong@gratoglobal.com",
+          "role": "Departmental Head",
+          "department": "Business Development & Supply Chain"
+        },
+        "status": "approved",
+        "assignedDate": "2026-01-07T17:34:16.925Z",
+        "_id": "695e99188ae9ddb786259748",
+        "actionDate": "2026-01-07T17:36:38.881Z",
+        "actionTime": "05:36 PM",
+        "comments": "Approved"
+      },
+      {
+        "level": 2,
+        "approver": {
+          "name": "Ms. Rambell Mambo",
+          "email": "ranibellmambo@gratoengineering.com",
+          "role": "Finance Officer",
+          "department": "Business Development & Supply Chain"
+        },
+        "status": "approved",
+        "assignedDate": "2026-01-07T17:34:16.925Z",
+        "_id": "695e99188ae9ddb786259749",
+        "actionDate": "2026-01-07T17:38:16.256Z",
+        "actionTime": "05:38 PM",
+        "comments": "Approved"
+      }
+    ],
+    "criticalAlertSent": false,
+    "warningAlertSent": false,
+    "performanceMetrics": {
+      "averageMonthlySpend": 0
+    },
+    "startDate": "2026-01-07T17:34:16.926Z",
+    "active": true,
+    "createdBy": {
+      "_id": "691abf4ec7430e81c1984699",
+      "email": "ranibellmambo@gratoengineering.com",
+      "fullName": "Ms. Ranibell Mambo"
+    },
+    "allocations": [
+      {
+        "requisitionId": {
+          "_id": "69612010705b5199544f98f6",
+          "requisitionNumber": "REQ202601099040",
+          "title": "Payment of electricity bill and Water bill",
+          "status": "approved"
+        },
+        "amount": 187850,
+        "allocatedDate": "2026-01-12T09:51:22.926Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "allocated",
+        "actualSpent": 0,
+        "disbursementCount": 0,
+        "balanceReturned": 0,
+        "_id": "6964c41ad2781292f6cac887"
+      },
+      {
+        "requisitionId": null,
+        "amount": 18500,
+        "allocatedDate": "2026-01-12T15:06:59.509Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "allocated",
+        "actualSpent": 0,
+        "disbursementCount": 0,
+        "balanceReturned": 0,
+        "_id": "69650e1343211f67b3d1c7e4"
+      },
+      {
+        "requisitionId": {
+          "_id": "6954f4b88ae9ddb786245c12",
+          "requisitionNumber": "REQ202512317715",
+          "title": "Office Partition",
+          "status": "pending_supply_chain_review"
+        },
+        "amount": 1539000,
+        "allocatedDate": "2026-01-12T15:18:27.246Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "allocated",
+        "actualSpent": 0,
+        "disbursementCount": 0,
+        "balanceReturned": 0,
+        "_id": "696510c343211f67b3d1d4e9"
+      }
+    ],
+    "transactions": [],
+    "budgetRevisions": [],
+    "budgetHistory": [],
+    "fiscalYear": 2026,
+    "createdAt": "2026-01-07T17:34:16.928Z",
+    "updatedAt": "2026-01-12T15:18:27.247Z",
+    "__v": 3,
+    "approvedBy": {
+      "_id": "691abf4ec7430e81c1984699",
+      "email": "ranibellmambo@gratoengineering.com",
+      "fullName": "Ms. Ranibell Mambo"
+    }
+  },
+  {
+    "_id": "695e52088ae9ddb78625744b",
+    "code": "BUD_OPR2026-OPEX",
+    "name": "OPR OPEX BUDGET 2026",
+    "description": "OPERATIONS BUDGET FOR 2026 OPERATING EXPENDITURES",
+    "budget": 413088752,
+    "used": 1265000,
+    "department": "Technical Operations",
+    "budgetType": "OPEX",
+    "budgetPeriod": "yearly",
+    "budgetOwner": {
+      "_id": "691abf4cc7430e81c1984695",
+      "email": "didier.oyong@gratoengineering.com",
+      "fullName": "Mr. Didier Oyong",
+      "department": "Technical"
+    },
+    "status": "active",
+    "approvalChain": [
+      {
+        "level": 1,
+        "approver": {
+          "name": "Mr. E.T Kelvin",
+          "email": "kelvin.eyong@gratoglobal.com",
+          "role": "Departmental Head",
+          "department": "Business Development & Supply Chain"
+        },
+        "status": "approved",
+        "assignedDate": "2026-01-07T12:31:04.598Z",
+        "_id": "695e52088ae9ddb78625744c",
+        "actionDate": "2026-01-07T17:30:42.880Z",
+        "actionTime": "05:30 PM",
+        "comments": "Budget approved"
+      },
+      {
+        "level": 2,
+        "approver": {
+          "name": "Ms. Rambell Mambo",
+          "email": "ranibellmambo@gratoengineering.com",
+          "role": "Finance Officer",
+          "department": "Business Development & Supply Chain"
+        },
+        "status": "approved",
+        "assignedDate": "2026-01-07T12:31:04.598Z",
+        "_id": "695e52088ae9ddb78625744d",
+        "actionDate": "2026-01-07T17:39:00.775Z",
+        "actionTime": "05:39 PM",
+        "comments": "Approved"
+      }
+    ],
+    "criticalAlertSent": false,
+    "warningAlertSent": false,
+    "performanceMetrics": {
+      "averageMonthlySpend": 0
+    },
+    "startDate": "2026-01-07T12:31:04.598Z",
+    "active": true,
+    "createdBy": {
+      "_id": "691abf4ec7430e81c1984699",
+      "email": "ranibellmambo@gratoengineering.com",
+      "fullName": "Ms. Ranibell Mambo"
+    },
+    "allocations": [
+      {
+        "requisitionId": {
+          "_id": "695bcfce8ae9ddb78624e653",
+          "requisitionNumber": "REQ202601058247",
+          "title": "Swap Of Generators and Batteries from Bonaberi Madzi to IHS WH",
+          "status": "approved"
+        },
+        "amount": 150000,
+        "allocatedDate": "2026-01-08T09:26:47.387Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "allocated",
+        "actualSpent": 0,
+        "disbursementCount": 0,
+        "balanceReturned": 0,
+        "_id": "695f785744eed9c987c3892e"
+      },
+      {
+        "requisitionId": {
+          "_id": "695e591a8ae9ddb786257a72",
+          "requisitionNumber": "REQ202601079850",
+          "title": "Gen Swap at Dowen Sites",
+          "status": "approved"
+        },
+        "amount": 255000,
+        "allocatedDate": "2026-01-08T09:45:33.808Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "allocated",
+        "actualSpent": 0,
+        "disbursementCount": 0,
+        "balanceReturned": 0,
+        "_id": "695f7cbd44eed9c987c39a2b"
+      },
+      {
+        "requisitionId": {
+          "_id": "695e35418ae9ddb786255221",
+          "requisitionNumber": "REQ202601074622",
+          "title": "Sites Cleaning Budget -  January 2026 Cycle",
+          "status": "approved"
+        },
+        "amount": 320000,
+        "allocatedDate": "2026-01-08T09:54:07.209Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "allocated",
+        "actualSpent": 0,
+        "disbursementCount": 0,
+        "balanceReturned": 0,
+        "_id": "695f7ebf44eed9c987c3a2d1"
+      },
+      {
+        "requisitionId": {
+          "_id": "695ccb9d8ae9ddb786250a7f",
+          "requisitionNumber": "REQ202601061752",
+          "title": "Fuel manutention",
+          "status": "approved"
+        },
+        "amount": 500000,
+        "allocatedDate": "2026-01-08T10:14:11.371Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "allocated",
+        "actualSpent": 0,
+        "disbursementCount": 0,
+        "balanceReturned": 0,
+        "_id": "695f837344eed9c987c3ab49"
+      },
+      {
+        "requisitionId": {
+          "_id": "6964d35ed2781292f6cad089",
+          "requisitionNumber": "REQ202601126944",
+          "title": "EW Bonangang",
+          "status": "pending_supply_chain_review"
+        },
+        "amount": 40000,
+        "allocatedDate": "2026-01-12T15:13:05.982Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "allocated",
+        "actualSpent": 0,
+        "disbursementCount": 0,
+        "balanceReturned": 0,
+        "_id": "69650f8143211f67b3d1d136"
+      }
+    ],
+    "transactions": [],
+    "budgetRevisions": [],
+    "budgetHistory": [],
+    "fiscalYear": 2026,
+    "createdAt": "2026-01-07T12:31:04.600Z",
+    "updatedAt": "2026-01-12T15:13:05.985Z",
+    "__v": 5,
+    "approvedBy": {
+      "_id": "691abf4ec7430e81c1984699",
+      "email": "ranibellmambo@gratoengineering.com",
+      "fullName": "Ms. Ranibell Mambo"
+    }
+  },
+  {
+    "_id": "695e4fdd8ae9ddb786256fd7",
+    "code": "BUD_HR2026-CAPEX",
+    "name": "HR CAPEX BUDGET 2026",
+    "description": "2026 HR BUDGET FOR CAPITAL EXPENDITURES.",
+    "budget": 1900000,
+    "used": 0,
+    "department": "HR",
+    "budgetType": "CAPEX",
+    "budgetPeriod": "yearly",
+    "budgetOwner": {
+      "_id": "691abf4ac7430e81c1984693",
+      "email": "bruiline.tsitoh@gratoglobal.com",
+      "fullName": "Mrs. Bruiline Tsitoh",
+      "department": "HR & Admin"
+    },
+    "status": "rejected",
+    "approvalChain": [
+      {
+        "level": 1,
+        "approver": {
+          "name": "Mr. E.T Kelvin",
+          "email": "kelvin.eyong@gratoglobal.com",
+          "role": "Departmental Head",
+          "department": "Business Development & Supply Chain"
+        },
+        "status": "rejected",
+        "assignedDate": "2026-01-07T12:21:49.436Z",
+        "_id": "695e4fdd8ae9ddb786256fd8",
+        "actionDate": "2026-01-07T17:31:22.008Z",
+        "actionTime": "05:31 PM",
+        "comments": "Rejected"
+      },
+      {
+        "level": 2,
+        "approver": {
+          "name": "Ms. Rambell Mambo",
+          "email": "ranibellmambo@gratoengineering.com",
+          "role": "Finance Officer",
+          "department": "Business Development & Supply Chain"
+        },
+        "status": "pending",
+        "assignedDate": "2026-01-07T12:21:49.436Z",
+        "_id": "695e4fdd8ae9ddb786256fd9"
+      }
+    ],
+    "criticalAlertSent": false,
+    "warningAlertSent": false,
+    "performanceMetrics": {
+      "averageMonthlySpend": 0
+    },
+    "startDate": "2026-01-07T12:21:49.437Z",
+    "active": false,
+    "createdBy": {
+      "_id": "691abf4ec7430e81c1984699",
+      "email": "ranibellmambo@gratoengineering.com",
+      "fullName": "Ms. Ranibell Mambo"
+    },
+    "allocations": [],
+    "transactions": [],
+    "budgetRevisions": [],
+    "budgetHistory": [],
+    "fiscalYear": 2026,
+    "createdAt": "2026-01-07T12:21:49.438Z",
+    "updatedAt": "2026-01-07T17:31:22.009Z",
+    "__v": 0,
+    "rejectedBy": "691abf4ac7430e81c1984691",
+    "rejectionDate": "2026-01-07T17:31:22.009Z",
+    "rejectionReason": "Rejected"
+  },
+  {
+    "_id": "695e4ea78ae9ddb786256f62",
+    "code": "BUD_HSE2026-CAPEX",
+    "name": "HSE CAPEX BUDGET 2026",
+    "description": "2026 HSE BUDGET FOR CAPITAL EXPENDITURES.",
+    "budget": 7275000,
+    "used": 0,
+    "department": "Technical QHSE",
+    "budgetType": "CAPEX",
+    "budgetPeriod": "yearly",
+    "budgetOwner": {
+      "_id": "691abf4cc7430e81c1984695",
+      "email": "didier.oyong@gratoengineering.com",
+      "fullName": "Mr. Didier Oyong",
+      "department": "Technical"
+    },
+    "status": "active",
+    "approvalChain": [
+      {
+        "level": 1,
+        "approver": {
+          "name": "Mr. E.T Kelvin",
+          "email": "kelvin.eyong@gratoglobal.com",
+          "role": "Departmental Head",
+          "department": "Business Development & Supply Chain"
+        },
+        "status": "approved",
+        "assignedDate": "2026-01-07T12:16:39.298Z",
+        "_id": "695e4ea78ae9ddb786256f63",
+        "actionDate": "2026-01-07T17:32:06.359Z",
+        "actionTime": "05:32 PM",
+        "comments": "Rejected for revision"
+      },
+      {
+        "level": 2,
+        "approver": {
+          "name": "Ms. Rambell Mambo",
+          "email": "ranibellmambo@gratoengineering.com",
+          "role": "Finance Officer",
+          "department": "Business Development & Supply Chain"
+        },
+        "status": "approved",
+        "assignedDate": "2026-01-07T12:16:39.298Z",
+        "_id": "695e4ea78ae9ddb786256f64",
+        "actionDate": "2026-01-07T17:39:47.535Z",
+        "actionTime": "05:39 PM",
+        "comments": "Approved"
+      }
+    ],
+    "criticalAlertSent": false,
+    "warningAlertSent": false,
+    "performanceMetrics": {
+      "averageMonthlySpend": 0
+    },
+    "startDate": "2026-01-07T12:16:39.298Z",
+    "active": true,
+    "createdBy": {
+      "_id": "691abf4ec7430e81c1984699",
+      "email": "ranibellmambo@gratoengineering.com",
+      "fullName": "Ms. Ranibell Mambo"
+    },
+    "allocations": [],
+    "transactions": [],
+    "budgetRevisions": [],
+    "budgetHistory": [],
+    "fiscalYear": 2026,
+    "createdAt": "2026-01-07T12:16:39.300Z",
+    "updatedAt": "2026-01-07T17:39:47.536Z",
+    "__v": 0,
+    "approvedBy": {
+      "_id": "691abf4ec7430e81c1984699",
+      "email": "ranibellmambo@gratoengineering.com",
+      "fullName": "Ms. Ranibell Mambo"
+    }
+  },
+  {
+    "_id": "695e4e2b8ae9ddb786256e0f",
+    "code": "BUD_HSE2026-OPEX",
+    "name": "HSE OPEX BUDGET 2026",
+    "description": "2026 HSE BUDGET FOR OPERATING EXPENDITURES",
+    "budget": 18378410,
+    "used": 65000,
+    "department": "Technical QHSE",
+    "budgetType": "OPEX",
+    "budgetPeriod": "yearly",
+    "budgetOwner": {
+      "_id": "691abf4cc7430e81c1984695",
+      "email": "didier.oyong@gratoengineering.com",
+      "fullName": "Mr. Didier Oyong",
+      "department": "Technical"
+    },
+    "status": "active",
+    "approvalChain": [
+      {
+        "level": 1,
+        "approver": {
+          "name": "Mr. E.T Kelvin",
+          "email": "kelvin.eyong@gratoglobal.com",
+          "role": "Departmental Head",
+          "department": "Business Development & Supply Chain"
+        },
+        "status": "approved",
+        "assignedDate": "2026-01-07T12:14:35.249Z",
+        "_id": "695e4e2b8ae9ddb786256e10",
+        "actionDate": "2026-01-07T17:33:48.055Z",
+        "actionTime": "05:33 PM",
+        "comments": "Approved"
+      },
+      {
+        "level": 2,
+        "approver": {
+          "name": "Ms. Rambell Mambo",
+          "email": "ranibellmambo@gratoengineering.com",
+          "role": "Finance Officer",
+          "department": "Business Development & Supply Chain"
+        },
+        "status": "approved",
+        "assignedDate": "2026-01-07T12:14:35.249Z",
+        "_id": "695e4e2b8ae9ddb786256e11",
+        "actionDate": "2026-01-07T17:44:38.001Z",
+        "actionTime": "05:44 PM",
+        "comments": "Approved"
+      }
+    ],
+    "criticalAlertSent": false,
+    "warningAlertSent": false,
+    "performanceMetrics": {
+      "averageMonthlySpend": 0
+    },
+    "startDate": "2026-01-07T12:14:35.249Z",
+    "active": true,
+    "createdBy": {
+      "_id": "691abf4ec7430e81c1984699",
+      "email": "ranibellmambo@gratoengineering.com",
+      "fullName": "Ms. Ranibell Mambo"
+    },
+    "allocations": [
+      {
+        "requisitionId": {
+          "_id": "695e408b8ae9ddb786255e6e",
+          "requisitionNumber": "REQ202601076281",
+          "title": "Purchase of Alcohol Test",
+          "status": "pending_supply_chain_review"
+        },
+        "amount": 65000,
+        "allocatedDate": "2026-01-12T15:10:34.170Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "allocated",
+        "actualSpent": 0,
+        "disbursementCount": 0,
+        "balanceReturned": 0,
+        "_id": "69650eea43211f67b3d1cf89"
+      }
+    ],
+    "transactions": [],
+    "budgetRevisions": [],
+    "budgetHistory": [],
+    "fiscalYear": 2026,
+    "createdAt": "2026-01-07T12:14:35.251Z",
+    "updatedAt": "2026-01-12T15:10:34.171Z",
+    "__v": 1,
+    "approvedBy": {
+      "_id": "691abf4ec7430e81c1984699",
+      "email": "ranibellmambo@gratoengineering.com",
+      "fullName": "Ms. Ranibell Mambo"
+    }
+  },
+  {
+    "_id": "695e490e8ae9ddb78625681b",
+    "code": "BUD_HR2026-OPEX",
+    "name": "HR OPEX BUDGET 2026",
+    "description": "2026 HUMAN RESOURCE BUDGET FOR OPERATING EXPENDITURES",
+    "budget": 66008081,
+    "used": 0,
+    "department": "HR",
+    "budgetType": "OPEX",
+    "budgetPeriod": "yearly",
+    "budgetOwner": {
+      "_id": "691abf4ac7430e81c1984693",
+      "email": "bruiline.tsitoh@gratoglobal.com",
+      "fullName": "Mrs. Bruiline Tsitoh",
+      "department": "HR & Admin"
+    },
+    "status": "rejected",
+    "approvalChain": [
+      {
+        "level": 1,
+        "approver": {
+          "name": "Mr. E.T Kelvin",
+          "email": "kelvin.eyong@gratoglobal.com",
+          "role": "Departmental Head",
+          "department": "Business Development & Supply Chain"
+        },
+        "status": "rejected",
+        "assignedDate": "2026-01-07T11:52:46.792Z",
+        "_id": "695e490e8ae9ddb78625681c",
+        "actionDate": "2026-01-07T17:26:12.956Z",
+        "actionTime": "05:26 PM",
+        "comments": "Rejected for revision"
+      },
+      {
+        "level": 2,
+        "approver": {
+          "name": "Ms. Rambell Mambo",
+          "email": "ranibellmambo@gratoengineering.com",
+          "role": "Finance Officer",
+          "department": "Business Development & Supply Chain"
+        },
+        "status": "pending",
+        "assignedDate": "2026-01-07T11:52:46.792Z",
+        "_id": "695e490e8ae9ddb78625681d"
+      }
+    ],
+    "criticalAlertSent": false,
+    "warningAlertSent": false,
+    "performanceMetrics": {
+      "averageMonthlySpend": 0
+    },
+    "startDate": "2026-01-07T11:52:46.792Z",
+    "active": false,
+    "createdBy": {
+      "_id": "691abf4ec7430e81c1984699",
+      "email": "ranibellmambo@gratoengineering.com",
+      "fullName": "Ms. Ranibell Mambo"
+    },
+    "allocations": [],
+    "transactions": [],
+    "budgetRevisions": [],
+    "budgetHistory": [
+      {
+        "previousBudget": 64508081,
+        "newBudget": 66008081,
+        "changeAmount": 1500000,
+        "reason": "Budget adjustment",
+        "changedBy": "691abf4ec7430e81c1984699",
+        "changeDate": "2026-01-07T17:28:22.155Z",
+        "_id": "695e97b68ae9ddb786259669"
+      }
+    ],
+    "fiscalYear": 2026,
+    "createdAt": "2026-01-07T11:52:46.794Z",
+    "updatedAt": "2026-01-07T17:28:22.157Z",
+    "__v": 1,
+    "rejectedBy": "691abf4ac7430e81c1984691",
+    "rejectionDate": "2026-01-07T17:26:12.957Z",
+    "rejectionReason": "Rejected for revision",
+    "lastModifiedBy": {
+      "_id": "691abf4ec7430e81c1984699",
+      "email": "ranibellmambo@gratoengineering.com",
+      "fullName": "Ms. Ranibell Mambo"
+    }
+  },
+  {
+    "_id": "695e47198ae9ddb7862566bc",
+    "code": "BUD_ROLL-OUT2026-OPEX",
+    "name": "ROLL OUT OPEX BUDGET 2026",
+    "description": "2026 ROLL OUT OPERATING EXPENDITURE BUDGET",
+    "budget": 283796615,
+    "used": 500000,
+    "department": "Technical Roll Out",
+    "budgetType": "OPEX",
+    "budgetPeriod": "quarterly",
+    "budgetOwner": {
+      "_id": "691abf4cc7430e81c1984695",
+      "email": "didier.oyong@gratoengineering.com",
+      "fullName": "Mr. Didier Oyong",
+      "department": "Technical"
+    },
+    "status": "active",
+    "approvalChain": [
+      {
+        "level": 1,
+        "approver": {
+          "name": "Mr. E.T Kelvin",
+          "email": "kelvin.eyong@gratoglobal.com",
+          "role": "Departmental Head",
+          "department": "Business Development & Supply Chain"
+        },
+        "status": "approved",
+        "assignedDate": "2026-01-07T11:44:25.316Z",
+        "_id": "695e47198ae9ddb7862566bd",
+        "actionDate": "2026-01-07T17:34:40.453Z",
+        "actionTime": "05:34 PM",
+        "comments": "Approved"
+      },
+      {
+        "level": 2,
+        "approver": {
+          "name": "Ms. Rambell Mambo",
+          "email": "ranibellmambo@gratoengineering.com",
+          "role": "Finance Officer",
+          "department": "Business Development & Supply Chain"
+        },
+        "status": "approved",
+        "assignedDate": "2026-01-07T11:44:25.316Z",
+        "_id": "695e47198ae9ddb7862566be",
+        "actionDate": "2026-01-07T18:04:46.213Z",
+        "actionTime": "06:04 PM",
+        "comments": "Approved"
+      }
+    ],
+    "criticalAlertSent": false,
+    "warningAlertSent": false,
+    "performanceMetrics": {
+      "averageMonthlySpend": 0
+    },
+    "startDate": "2026-01-07T11:44:25.316Z",
+    "active": true,
+    "createdBy": {
+      "_id": "691abf4ec7430e81c1984699",
+      "email": "ranibellmambo@gratoengineering.com",
+      "fullName": "Ms. Ranibell Mambo"
+    },
+    "allocations": [
+      {
+        "requisitionId": {
+          "_id": "695e3cbb8ae9ddb786255dcb",
+          "requisitionNumber": "REQ202601079148",
+          "title": "Limbe Botanic Garden Rooftop site construction",
+          "status": "approved"
+        },
+        "amount": 50000,
+        "allocatedDate": "2026-01-08T09:48:58.080Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "allocated",
+        "actualSpent": 0,
+        "disbursementCount": 0,
+        "balanceReturned": 0,
+        "_id": "695f7d8a44eed9c987c39ff7"
+      },
+      {
+        "requisitionId": null,
+        "amount": 15000,
+        "allocatedDate": "2026-01-12T15:01:34.210Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "allocated",
+        "actualSpent": 0,
+        "disbursementCount": 0,
+        "balanceReturned": 0,
+        "_id": "69650cce43211f67b3d1bddc"
+      },
+      {
+        "requisitionId": {
+          "_id": "694bf63b8ae9ddb78623ac15",
+          "requisitionNumber": "REQ202512246160",
+          "title": "Telemetrie installation",
+          "status": "pending_supply_chain_review"
+        },
+        "amount": 450000,
+        "allocatedDate": "2026-01-12T15:19:06.308Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "allocated",
+        "actualSpent": 0,
+        "disbursementCount": 0,
+        "balanceReturned": 0,
+        "_id": "696510ea43211f67b3d1d5e0"
+      }
+    ],
+    "transactions": [],
+    "budgetRevisions": [],
+    "budgetHistory": [],
+    "fiscalYear": 2026,
+    "createdAt": "2026-01-07T11:44:25.319Z",
+    "updatedAt": "2026-01-12T15:19:06.310Z",
+    "__v": 3,
+    "approvedBy": {
+      "_id": "691abf4ec7430e81c1984699",
+      "email": "ranibellmambo@gratoengineering.com",
+      "fullName": "Ms. Ranibell Mambo"
+    }
+  },
+  {
+    "_id": "695e45b78ae9ddb7862564ad",
+    "code": "BUD_ROLL-OUT2026-CAPEX",
+    "name": "2026 ROLL-OUT CAPEX BUDGET",
+    "description": "ROLL OUT BUDGET 2026 FOR CAPITAL EXPENDITURE",
+    "budget": 6000000,
+    "used": 0,
+    "department": "Technical Roll Out",
+    "budgetType": "CAPEX",
+    "budgetPeriod": "quarterly",
+    "budgetOwner": {
+      "_id": "691abf4cc7430e81c1984695",
+      "email": "didier.oyong@gratoengineering.com",
+      "fullName": "Mr. Didier Oyong",
+      "department": "Technical"
+    },
+    "status": "rejected",
+    "approvalChain": [
+      {
+        "level": 1,
+        "approver": {
+          "name": "Mr. E.T Kelvin",
+          "email": "kelvin.eyong@gratoglobal.com",
+          "role": "Departmental Head",
+          "department": "Business Development & Supply Chain"
+        },
+        "status": "rejected",
+        "assignedDate": "2026-01-07T11:38:31.196Z",
+        "_id": "695e45b78ae9ddb7862564ae",
+        "actionDate": "2026-01-07T17:36:01.999Z",
+        "actionTime": "05:36 PM",
+        "comments": "This should not be quarterly"
+      },
+      {
+        "level": 2,
+        "approver": {
+          "name": "Ms. Rambell Mambo",
+          "email": "ranibellmambo@gratoengineering.com",
+          "role": "Finance Officer",
+          "department": "Business Development & Supply Chain"
+        },
+        "status": "pending",
+        "assignedDate": "2026-01-07T11:38:31.196Z",
+        "_id": "695e45b78ae9ddb7862564af"
+      }
+    ],
+    "criticalAlertSent": false,
+    "warningAlertSent": false,
+    "performanceMetrics": {
+      "averageMonthlySpend": 0
+    },
+    "startDate": "2026-01-07T11:38:31.196Z",
+    "active": false,
+    "createdBy": {
+      "_id": "691abf4ec7430e81c1984699",
+      "email": "ranibellmambo@gratoengineering.com",
+      "fullName": "Ms. Ranibell Mambo"
+    },
+    "allocations": [],
+    "transactions": [],
+    "budgetRevisions": [],
+    "budgetHistory": [],
+    "fiscalYear": 2026,
+    "createdAt": "2026-01-07T11:38:31.198Z",
+    "updatedAt": "2026-01-07T17:36:02.001Z",
+    "__v": 0,
+    "rejectedBy": "691abf4ac7430e81c1984691",
+    "rejectionDate": "2026-01-07T17:36:02.000Z",
+    "rejectionReason": "This should not be quarterly"
+  },
+  {
+    "_id": "695e45068ae9ddb78625615c",
+    "code": "BUD_ROLL-OUT2026-CAP",
+    "name": "ROLL OUT CAPEX BUDGET 2026",
+    "description": "2026 ROLL OUT CAPEX BUDGET",
+    "budget": 265851468,
+    "used": 0,
+    "department": "Technical Roll Out",
+    "budgetType": "CAPEX",
+    "budgetPeriod": "yearly",
+    "budgetOwner": {
+      "_id": "691abf4cc7430e81c1984695",
+      "email": "didier.oyong@gratoengineering.com",
+      "fullName": "Mr. Didier Oyong",
+      "department": "Technical"
+    },
+    "status": "rejected",
+    "approvalChain": [
+      {
+        "level": 1,
+        "approver": {
+          "name": "Mr. E.T Kelvin",
+          "email": "kelvin.eyong@gratoglobal.com",
+          "role": "Departmental Head",
+          "department": "Business Development & Supply Chain"
+        },
+        "status": "rejected",
+        "assignedDate": "2026-01-07T11:35:34.480Z",
+        "_id": "695e45068ae9ddb78625615d",
+        "actionDate": "2026-01-07T11:37:58.771Z",
+        "actionTime": "11:37 AM",
+        "comments": "Rejected. Budget should be split as Opex/Capex"
+      },
+      {
+        "level": 2,
+        "approver": {
+          "name": "Ms. Rambell Mambo",
+          "email": "ranibellmambo@gratoengineering.com",
+          "role": "Finance Officer",
+          "department": "Business Development & Supply Chain"
+        },
+        "status": "pending",
+        "assignedDate": "2026-01-07T11:35:34.480Z",
+        "_id": "695e45068ae9ddb78625615e"
+      }
+    ],
+    "criticalAlertSent": false,
+    "warningAlertSent": false,
+    "performanceMetrics": {
+      "averageMonthlySpend": 0
+    },
+    "startDate": "2026-01-07T11:35:34.480Z",
+    "active": false,
+    "createdBy": {
+      "_id": "691abf4ec7430e81c1984699",
+      "email": "ranibellmambo@gratoengineering.com",
+      "fullName": "Ms. Ranibell Mambo"
+    },
+    "allocations": [],
+    "transactions": [],
+    "budgetRevisions": [],
+    "budgetHistory": [],
+    "fiscalYear": 2026,
+    "createdAt": "2026-01-07T11:35:34.483Z",
+    "updatedAt": "2026-01-07T11:37:58.777Z",
+    "__v": 0,
+    "rejectedBy": "691abf4ac7430e81c1984691",
+    "rejectionDate": "2026-01-07T11:37:58.776Z",
+    "rejectionReason": "Rejected. Budget should be split as Opex/Capex"
+  },
+  {
+    "_id": "694530f5af64b21538db003c",
+    "code": "BUD_CSR_M12-2025",
+    "name": "CSR BUDGET DECEMBER 2025",
+    "description": "CSR BUDGET DECEMBER 2025",
+    "budget": 100000,
+    "used": 30000,
+    "department": "Business",
+    "budgetType": "PROJECT",
+    "budgetPeriod": "monthly",
+    "budgetOwner": {
+      "_id": "691abf4ac7430e81c1984691",
+      "email": "kelvin.eyong@gratoglobal.com",
+      "fullName": "Mr. E.T Kelvin",
+      "department": "Business Development & Supply Chain"
+    },
+    "status": "active",
+    "approvalChain": [
+      {
+        "level": 1,
+        "approver": {
+          "name": "Mr. E.T Kelvin",
+          "email": "kelvin.eyong@gratoglobal.com",
+          "role": "Departmental Head",
+          "department": "Business Development & Supply Chain"
+        },
+        "status": "approved",
+        "assignedDate": "2025-12-19T11:03:17.537Z",
+        "_id": "694530f5af64b21538db003d",
+        "actionDate": "2025-12-19T11:10:23.686Z",
+        "actionTime": "11:10 AM",
+        "comments": "Approved"
+      },
+      {
+        "level": 2,
+        "approver": {
+          "name": "Ms. Rambell Mambo",
+          "email": "ranibellmambo@gratoengineering.com",
+          "role": "Finance Officer",
+          "department": "Business Development & Supply Chain"
+        },
+        "status": "approved",
+        "assignedDate": "2025-12-19T11:03:17.537Z",
+        "_id": "694530f5af64b21538db003e",
+        "actionDate": "2025-12-19T14:51:36.156Z",
+        "actionTime": "02:51 PM",
+        "comments": "OK"
+      }
+    ],
+    "criticalAlertSent": false,
+    "warningAlertSent": false,
+    "performanceMetrics": {
+      "averageMonthlySpend": 0
+    },
+    "startDate": "2025-12-19T11:03:17.537Z",
+    "active": true,
+    "createdBy": {
+      "_id": "691abf4ec7430e81c1984699",
+      "email": "ranibellmambo@gratoengineering.com",
+      "fullName": "Ms. Ranibell Mambo"
+    },
+    "allocations": [
+      {
+        "requisitionId": null,
+        "amount": 30000,
+        "allocatedDate": "2025-12-19T15:32:20.253Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "spent",
+        "actualSpent": 30000,
+        "disbursementCount": 1,
+        "balanceReturned": 0,
+        "_id": "69457004af64b21538db37fc",
+        "lastDisbursement": "2025-12-19T15:32:20.544Z",
+        "spentAt": "2025-12-19T15:32:20.544Z"
+      }
+    ],
+    "transactions": [
+      {
+        "type": "deduction",
+        "amount": 30000,
+        "requisitionId": "6942b8422d65074e89b86d40",
+        "description": "Disbursement for 6942b8422d65074e89b86d40 (Full payment #1)",
+        "performedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "balanceBefore": 100000,
+        "balanceAfter": 70000,
+        "timestamp": "2025-12-19T15:32:20.544Z",
+        "_id": "69457004af64b21538db37fe"
+      }
+    ],
+    "budgetRevisions": [],
+    "budgetHistory": [],
+    "fiscalYear": 2025,
+    "createdAt": "2025-12-19T11:03:17.540Z",
+    "updatedAt": "2025-12-19T15:32:20.545Z",
+    "__v": 1,
+    "approvedBy": {
+      "_id": "691abf4ec7430e81c1984699",
+      "email": "ranibellmambo@gratoengineering.com",
+      "fullName": "Ms. Ranibell Mambo"
+    }
+  },
+  {
+    "_id": "69316bbae20ae92eeb44bd1e",
+    "code": "BUD_REF-M122025",
+    "name": "REFURBISHMENT BUDGET DECEMBER 2025",
+    "description": "REFURBISHMENT BUDGET DECEMBER 2025",
+    "budget": 600000,
+    "used": 485000,
+    "department": "Facilities",
+    "budgetType": "OPEX",
+    "budgetPeriod": "monthly",
+    "budgetOwner": {
+      "_id": "691abf53c7430e81c19846a3",
+      "email": "verla.ivo@gratoengineering.com",
+      "fullName": "Mr. Yerla Ivo",
+      "department": "Technical"
+    },
+    "status": "active",
+    "approvalChain": [
+      {
+        "level": 1,
+        "approver": {
+          "name": "Mr. E.T Kelvin",
+          "email": "kelvin.eyong@gratoglobal.com",
+          "role": "Departmental Head",
+          "department": "Business Development & Supply Chain"
+        },
+        "status": "approved",
+        "assignedDate": "2025-12-04T11:08:42.050Z",
+        "_id": "69316bbae20ae92eeb44bd1f",
+        "actionDate": "2025-12-04T11:22:17.365Z",
+        "actionTime": "11:22 AM",
+        "comments": "APPROVED"
+      },
+      {
+        "level": 2,
+        "approver": {
+          "name": "Ms. Rambell Mambo",
+          "email": "ranibellmambo@gratoengineering.com",
+          "role": "Finance Officer",
+          "department": "Business Development & Supply Chain"
+        },
+        "status": "approved",
+        "assignedDate": "2025-12-04T11:08:42.050Z",
+        "_id": "69316bbae20ae92eeb44bd20",
+        "actionDate": "2025-12-04T11:39:13.165Z",
+        "actionTime": "11:39 AM",
+        "comments": "Approved"
+      }
+    ],
+    "criticalAlertSent": false,
+    "warningAlertSent": true,
+    "performanceMetrics": {
+      "averageMonthlySpend": 0
+    },
+    "startDate": "2025-12-01T00:00:00.000Z",
+    "endDate": "2025-12-31T00:00:00.000Z",
+    "active": true,
+    "createdBy": {
+      "_id": "691abf4ec7430e81c1984699",
+      "email": "ranibellmambo@gratoengineering.com",
+      "fullName": "Ms. Ranibell Mambo"
+    },
+    "allocations": [
+      {
+        "requisitionId": null,
+        "amount": 315000,
+        "allocatedDate": "2025-12-08T12:55:12.806Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "spent",
+        "_id": "6936cab060d7bedc38eee90a"
+      },
+      {
+        "requisitionId": {
+          "_id": "694a74c58ae9ddb7862349a7",
+          "requisitionNumber": "REQ202512234607",
+          "title": "Mobile Trolley Frabrication",
+          "status": "approved"
+        },
+        "amount": 170000,
+        "allocatedDate": "2025-12-23T14:00:45.415Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "allocated",
+        "actualSpent": 0,
+        "disbursementCount": 0,
+        "balanceReturned": 0,
+        "_id": "694aa08d8ae9ddb786235ded"
+      }
+    ],
+    "budgetRevisions": [],
+    "budgetHistory": [],
+    "fiscalYear": 2025,
+    "createdAt": "2025-12-04T11:08:42.052Z",
+    "updatedAt": "2025-12-24T08:00:01.762Z",
+    "__v": 2,
+    "approvedBy": {
+      "_id": "691abf4ec7430e81c1984699",
+      "email": "ranibellmambo@gratoengineering.com",
+      "fullName": "Ms. Ranibell Mambo"
+    },
+    "transactions": [],
+    "lastAlertDate": "2025-12-24T08:00:01.760Z"
+  },
+  {
+    "_id": "692f1c8030d5e01c52b24d1f",
+    "code": "BUD_FINM12-2025",
+    "name": "FINANCE BUDGET DECEMBER 2025",
+    "description": "SUPPLY CHAIN BUDGET DECEMBER 2025",
+    "budget": 2000000,
+    "used": 33500,
+    "department": "Finance",
+    "budgetType": "OPEX",
+    "budgetPeriod": "monthly",
+    "budgetOwner": {
+      "_id": "691abf4ec7430e81c1984699",
+      "email": "ranibellmambo@gratoengineering.com",
+      "fullName": "Ms. Ranibell Mambo",
+      "department": "Business Development & Supply Chain"
+    },
+    "status": "active",
+    "approvalChain": [
+      {
+        "level": 1,
+        "approver": {
+          "name": "Mr. E.T Kelvin",
+          "email": "kelvin.eyong@gratoglobal.com",
+          "role": "Departmental Head",
+          "department": "Business Development & Supply Chain"
+        },
+        "status": "approved",
+        "assignedDate": "2025-12-02T17:06:08.670Z",
+        "_id": "692f1c8030d5e01c52b24d20",
+        "actionDate": "2025-12-03T10:10:41.462Z",
+        "actionTime": "10:10 AM",
+        "comments": "APPROVED"
+      },
+      {
+        "level": 2,
+        "approver": {
+          "name": "Ms. Rambell Mambo",
+          "email": "ranibellmambo@gratoengineering.com",
+          "role": "Finance Officer",
+          "department": "Business Development & Supply Chain"
+        },
+        "status": "approved",
+        "assignedDate": "2025-12-02T17:06:08.670Z",
+        "_id": "692f1c8030d5e01c52b24d21",
+        "actionDate": "2025-12-03T11:45:50.899Z",
+        "actionTime": "11:45 AM",
+        "comments": "Approved"
+      }
+    ],
+    "criticalAlertSent": false,
+    "warningAlertSent": false,
+    "performanceMetrics": {
+      "averageMonthlySpend": 0
+    },
+    "startDate": "2025-12-01T00:00:00.000Z",
+    "endDate": "2025-12-31T00:00:00.000Z",
+    "active": true,
+    "createdBy": {
+      "_id": "691abf4ec7430e81c1984699",
+      "email": "ranibellmambo@gratoengineering.com",
+      "fullName": "Ms. Ranibell Mambo"
+    },
+    "allocations": [
+      {
+        "requisitionId": null,
+        "amount": 33500,
+        "allocatedDate": "2025-12-31T10:57:07.439Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "spent",
+        "actualSpent": 33500,
+        "disbursementCount": 1,
+        "balanceReturned": 0,
+        "_id": "695501838ae9ddb786247393",
+        "lastDisbursement": "2025-12-31T10:57:07.733Z",
+        "spentAt": "2025-12-31T10:57:07.733Z"
+      }
+    ],
+    "budgetRevisions": [],
+    "budgetHistory": [],
+    "fiscalYear": 2025,
+    "createdAt": "2025-12-02T17:06:08.672Z",
+    "updatedAt": "2025-12-31T10:57:07.734Z",
+    "__v": 1,
+    "approvedBy": {
+      "_id": "691abf4ec7430e81c1984699",
+      "email": "ranibellmambo@gratoengineering.com",
+      "fullName": "Ms. Ranibell Mambo"
+    },
+    "transactions": [
+      {
+        "type": "deduction",
+        "amount": 33500,
+        "requisitionId": "695410578ae9ddb7862448b9",
+        "description": "Disbursement for 695410578ae9ddb7862448b9 (Full payment #1)",
+        "performedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "balanceBefore": 2000000,
+        "balanceAfter": 1966500,
+        "timestamp": "2025-12-31T10:57:07.733Z",
+        "_id": "695501838ae9ddb786247395"
+      }
+    ]
+  },
+  {
+    "_id": "692f1b9530d5e01c52b24ce5",
+    "code": "BUD_SCM12-2025",
+    "name": "SUPPLY CHAIN BUDGET DECEMBER 2025",
+    "description": "SUPPLY CHAIN BUDGET DECEMBER 2025",
+    "budget": 20000000,
+    "used": 255000,
+    "department": "Supply Chain",
+    "budgetType": "OPERATIONAL",
+    "budgetPeriod": "monthly",
+    "budgetOwner": {
+      "_id": "691abf4ac7430e81c1984691",
+      "email": "kelvin.eyong@gratoglobal.com",
+      "fullName": "Mr. E.T Kelvin",
+      "department": "Business Development & Supply Chain"
+    },
+    "status": "active",
+    "approvalChain": [
+      {
+        "level": 1,
+        "approver": {
+          "name": "Mr. E.T Kelvin",
+          "email": "kelvin.eyong@gratoglobal.com",
+          "role": "Departmental Head",
+          "department": "Business Development & Supply Chain"
+        },
+        "status": "approved",
+        "assignedDate": "2025-12-02T17:02:13.488Z",
+        "_id": "692f1b9530d5e01c52b24ce6",
+        "actionDate": "2025-12-03T10:10:25.828Z",
+        "actionTime": "10:10 AM",
+        "comments": "APPROVED"
+      },
+      {
+        "level": 2,
+        "approver": {
+          "name": "Ms. Rambell Mambo",
+          "email": "ranibellmambo@gratoengineering.com",
+          "role": "Finance Officer",
+          "department": "Business Development & Supply Chain"
+        },
+        "status": "approved",
+        "assignedDate": "2025-12-02T17:02:13.488Z",
+        "_id": "692f1b9530d5e01c52b24ce7",
+        "actionDate": "2025-12-03T11:46:05.392Z",
+        "actionTime": "11:46 AM",
+        "comments": "Approved"
+      }
+    ],
+    "criticalAlertSent": false,
+    "warningAlertSent": false,
+    "performanceMetrics": {
+      "averageMonthlySpend": 0
+    },
+    "startDate": "2025-12-01T00:00:00.000Z",
+    "endDate": "2025-12-31T00:00:00.000Z",
+    "active": true,
+    "createdBy": {
+      "_id": "691abf4ec7430e81c1984699",
+      "email": "ranibellmambo@gratoengineering.com",
+      "fullName": "Ms. Ranibell Mambo"
+    },
+    "allocations": [
+      {
+        "requisitionId": {
+          "_id": "69385a17c6c6fc8879741cf6",
+          "requisitionNumber": "REQ202512098530",
+          "title": "Transportation of MDG to IHS WH",
+          "status": "approved"
+        },
+        "amount": 250000,
+        "allocatedDate": "2025-12-10T07:53:35.946Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "released",
+        "_id": "693926ffc6c6fc8879742a74",
+        "releaseDate": "2026-01-10T01:00:01.133Z",
+        "releaseReason": "Auto-released after 30 days"
+      },
+      {
+        "requisitionId": null,
+        "amount": 5000,
+        "allocatedDate": "2025-12-31T10:58:10.547Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "spent",
+        "actualSpent": 5000,
+        "disbursementCount": 1,
+        "balanceReturned": 0,
+        "_id": "695501c28ae9ddb78624754f",
+        "lastDisbursement": "2025-12-31T10:58:10.832Z",
+        "spentAt": "2025-12-31T10:58:10.832Z"
+      }
+    ],
+    "budgetRevisions": [],
+    "budgetHistory": [],
+    "fiscalYear": 2025,
+    "createdAt": "2025-12-02T17:02:13.491Z",
+    "updatedAt": "2026-01-10T01:00:01.135Z",
+    "__v": 2,
+    "approvedBy": {
+      "_id": "691abf4ec7430e81c1984699",
+      "email": "ranibellmambo@gratoengineering.com",
+      "fullName": "Ms. Ranibell Mambo"
+    },
+    "transactions": [
+      {
+        "type": "deduction",
+        "amount": 5000,
+        "requisitionId": "6954fa8c8ae9ddb786245fe6",
+        "description": "Disbursement for 6954fa8c8ae9ddb786245fe6 (Full payment #1)",
+        "performedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "balanceBefore": 19750000,
+        "balanceAfter": 19745000,
+        "timestamp": "2025-12-31T10:58:10.832Z",
+        "_id": "695501c28ae9ddb786247551"
+      }
+    ]
+  },
+  {
+    "_id": "6928498b6c46827be196d846",
+    "code": "BUD_BUS-M122025",
+    "name": "BUSINESS DEC 2025",
+    "description": "BUSINESS DEC 2025",
+    "budget": 300000000,
+    "used": 0,
+    "department": "Business",
+    "budgetType": "PROJECT",
+    "budgetPeriod": "monthly",
+    "budgetOwner": {
+      "_id": "691abf4ac7430e81c1984691",
+      "email": "kelvin.eyong@gratoglobal.com",
+      "fullName": "Mr. E.T Kelvin",
+      "department": "Business Development & Supply Chain"
+    },
+    "status": "active",
+    "approvalChain": [
+      {
+        "level": 1,
+        "approver": {
+          "name": "Mr. E.T Kelvin",
+          "email": "kelvin.eyong@gratoglobal.com",
+          "role": "Departmental Head",
+          "department": "Business Development & Supply Chain"
+        },
+        "status": "approved",
+        "assignedDate": "2025-11-27T12:52:27.040Z",
+        "_id": "6928498b6c46827be196d847",
+        "actionDate": "2025-11-27T12:54:52.485Z",
+        "actionTime": "12:54 PM",
+        "comments": "Approved. This includes all departmental budgets"
+      },
+      {
+        "level": 2,
+        "approver": {
+          "name": "Ms. Rambell Mambo",
+          "email": "ranibellmambo@gratoengineering.com",
+          "role": "Finance Officer",
+          "department": "Business Development & Supply Chain"
+        },
+        "status": "approved",
+        "assignedDate": "2025-11-27T12:52:27.040Z",
+        "_id": "6928498b6c46827be196d848",
+        "actionDate": "2025-11-27T13:00:52.023Z",
+        "actionTime": "01:00 PM",
+        "comments": "Ok"
+      }
+    ],
+    "criticalAlertSent": false,
+    "warningAlertSent": false,
+    "performanceMetrics": {
+      "averageMonthlySpend": 0
+    },
+    "startDate": "2025-11-26T00:00:00.000Z",
+    "endDate": "2025-12-31T00:00:00.000Z",
+    "active": true,
+    "createdBy": {
+      "_id": "691abf4ec7430e81c1984699",
+      "email": "ranibellmambo@gratoengineering.com",
+      "fullName": "Ms. Ranibell Mambo"
+    },
+    "allocations": [],
+    "budgetRevisions": [],
+    "budgetHistory": [],
+    "fiscalYear": 2025,
+    "createdAt": "2025-11-27T12:52:27.044Z",
+    "updatedAt": "2025-11-27T13:00:52.025Z",
+    "__v": 0,
+    "approvedBy": {
+      "_id": "691abf4ec7430e81c1984699",
+      "email": "ranibellmambo@gratoengineering.com",
+      "fullName": "Ms. Ranibell Mambo"
+    }
+  },
+  {
+    "_id": "6925bc401d4e6065841edfe8",
+    "code": "BUD_HSE-M122025",
+    "name": "HSE BUDGET DEC 2025",
+    "description": "HSE BUDGET DEC 2025",
+    "budget": 1000000,
+    "used": 690000,
+    "department": "Roll Out",
+    "budgetType": "OPEX",
+    "budgetPeriod": "monthly",
+    "budgetOwner": {
+      "_id": "691abf4cc7430e81c1984695",
+      "email": "didier.oyong@gratoengineering.com",
+      "fullName": "Mr. Didier Oyong",
+      "department": "Technical"
+    },
+    "status": "active",
+    "approvalChain": [
+      {
+        "level": 1,
+        "approver": {
+          "name": "Mr. E.T Kelvin",
+          "email": "kelvin.eyong@gratoglobal.com",
+          "role": "Departmental Head",
+          "department": "Business Development & Supply Chain"
+        },
+        "status": "approved",
+        "assignedDate": "2025-11-25T14:25:04.899Z",
+        "_id": "6925bc401d4e6065841edfe9",
+        "actionDate": "2025-11-25T14:35:01.912Z",
+        "actionTime": "02:35 PM",
+        "comments": "APPROVED"
+      },
+      {
+        "level": 2,
+        "approver": {
+          "name": "Ms. Rambell Mambo",
+          "email": "ranibellmambo@gratoengineering.com",
+          "role": "Finance Officer",
+          "department": "Business Development & Supply Chain"
+        },
+        "status": "approved",
+        "assignedDate": "2025-11-25T14:25:04.899Z",
+        "_id": "6925bc401d4e6065841edfea",
+        "actionDate": "2025-11-25T15:00:30.419Z",
+        "actionTime": "03:00 PM",
+        "comments": "Good to go!"
+      }
+    ],
+    "criticalAlertSent": false,
+    "warningAlertSent": false,
+    "performanceMetrics": {
+      "averageMonthlySpend": 0
+    },
+    "startDate": "2025-11-25T00:00:00.000Z",
+    "endDate": "2025-12-31T00:00:00.000Z",
+    "active": true,
+    "createdBy": {
+      "_id": "691abf4ec7430e81c1984699",
+      "email": "ranibellmambo@gratoengineering.com",
+      "fullName": "Ms. Ranibell Mambo"
+    },
+    "allocations": [
+      {
+        "requisitionId": {
+          "_id": "6925c8d01d4e6065841ee802",
+          "requisitionNumber": "REQ202511251933",
+          "title": "Hot Works Training",
+          "status": "approved"
+        },
+        "amount": 240000,
+        "allocatedDate": "2025-11-25T15:22:55.233Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "released",
+        "_id": "6925c9cf1d4e6065841ee967",
+        "releaseDate": "2025-12-26T01:00:00.573Z",
+        "releaseReason": "Auto-released after 30 days"
+      },
+      {
+        "requisitionId": null,
+        "amount": 320000,
+        "allocatedDate": "2025-11-26T15:19:09.833Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "spent",
+        "_id": "69271a6d35b778ea58d9581e",
+        "actualSpent": 320000,
+        "disbursementCount": 1,
+        "lastDisbursement": "2025-12-10T20:17:35.118Z",
+        "spentAt": "2025-12-10T20:17:35.118Z"
+      },
+      {
+        "requisitionId": null,
+        "amount": 6000,
+        "allocatedDate": "2025-12-03T12:32:10.112Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "spent",
+        "_id": "69302dcae06bf42478bbb91c"
+      },
+      {
+        "requisitionId": null,
+        "amount": 4000,
+        "allocatedDate": "2025-12-10T16:35:50.993Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "spent",
+        "_id": "6939a166c6c6fc8879745d72"
+      },
+      {
+        "requisitionId": {
+          "_id": "69399021c6c6fc8879744dfb",
+          "requisitionNumber": "REQ202512100726",
+          "title": "Purchase of Office Fire Extinguisher",
+          "status": "approved"
+        },
+        "amount": 30000,
+        "allocatedDate": "2025-12-10T17:07:55.957Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "released",
+        "actualSpent": 0,
+        "disbursementCount": 0,
+        "balanceReturned": 0,
+        "_id": "6939a8ebae924066de25cf29",
+        "releaseDate": "2026-01-10T01:00:00.854Z",
+        "releaseReason": "Auto-released after 30 days"
+      },
+      {
+        "requisitionId": null,
+        "amount": 90000,
+        "allocatedDate": "2025-12-18T13:15:48.702Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "spent",
+        "actualSpent": 90000,
+        "disbursementCount": 1,
+        "balanceReturned": 0,
+        "_id": "6943fe84f0a4eb6c9c2c56a9",
+        "lastDisbursement": "2025-12-18T13:15:48.990Z",
+        "spentAt": "2025-12-18T13:15:48.989Z"
+      }
+    ],
+    "budgetRevisions": [],
+    "budgetHistory": [],
+    "fiscalYear": 2025,
+    "createdAt": "2025-11-25T14:25:04.900Z",
+    "updatedAt": "2026-01-10T01:00:00.856Z",
+    "__v": 7,
+    "approvedBy": {
+      "_id": "691abf4ec7430e81c1984699",
+      "email": "ranibellmambo@gratoengineering.com",
+      "fullName": "Ms. Ranibell Mambo"
+    },
+    "transactions": [
+      {
+        "type": "reservation",
+        "amount": 200000,
+        "requisitionId": "6924537fdfc03bc5b20cc1aa",
+        "description": "Allocation increased from XAF 320,000 to XAF 320,000",
+        "performedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "balanceBefore": 600000,
+        "balanceAfter": 400000,
+        "timestamp": "2025-12-10T20:15:57.208Z",
+        "_id": "6939d4fd89ae73c9f767f648"
+      },
+      {
+        "type": "deduction",
+        "amount": 200000,
+        "requisitionId": "6924537fdfc03bc5b20cc1aa",
+        "description": "Disbursement for 6924537fdfc03bc5b20cc1aa (Full payment #1)",
+        "performedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "balanceBefore": 600000,
+        "balanceAfter": 400000,
+        "timestamp": "2025-12-10T20:17:35.119Z",
+        "_id": "6939d55fed8cc45b3524faac"
+      },
+      {
+        "type": "deduction",
+        "amount": 90000,
+        "requisitionId": "6943ef24f0a4eb6c9c2c3dcb",
+        "description": "Disbursement for 6943ef24f0a4eb6c9c2c3dcb (Full payment #1)",
+        "performedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "balanceBefore": 400000,
+        "balanceAfter": 310000,
+        "timestamp": "2025-12-18T13:15:48.990Z",
+        "_id": "6943fe84f0a4eb6c9c2c56ab"
+      }
+    ]
+  },
+  {
+    "_id": "6925b615e2eb853899995e4e",
+    "code": "BUD_OPR-Q42025",
+    "name": "OPERATIONS Q4 2025",
+    "description": "OPERATIONS BUDGET Q4 2025",
+    "budget": 18000000,
+    "used": 1863250,
+    "department": "Operations",
+    "budgetType": "OPEX",
+    "budgetPeriod": "quarterly",
+    "budgetOwner": {
+      "_id": "691abf52c7430e81c19846a1",
+      "email": "pascal.rodrique@gratoglobal.com",
+      "fullName": "Mr. Pascal Assam",
+      "department": "Technical"
+    },
+    "status": "active",
+    "approvalChain": [
+      {
+        "level": 1,
+        "approver": {
+          "name": "Mr. E.T Kelvin",
+          "email": "kelvin.eyong@gratoglobal.com",
+          "role": "Departmental Head",
+          "department": "Business Development & Supply Chain"
+        },
+        "status": "approved",
+        "assignedDate": "2025-11-25T13:58:45.427Z",
+        "_id": "6925b615e2eb853899995e4f",
+        "actionDate": "2025-11-25T14:03:56.221Z",
+        "actionTime": "02:03 PM",
+        "comments": "APPROVED"
+      },
+      {
+        "level": 2,
+        "approver": {
+          "name": "Ms. Rambell Mambo",
+          "email": "ranibellmambo@gratoengineering.com",
+          "role": "Finance Officer",
+          "department": "Business Development & Supply Chain"
+        },
+        "status": "approved",
+        "assignedDate": "2025-11-25T13:58:45.427Z",
+        "_id": "6925b615e2eb853899995e50",
+        "actionDate": "2025-11-25T15:01:26.837Z",
+        "actionTime": "03:01 PM",
+        "comments": "Good to go!"
+      }
+    ],
+    "criticalAlertSent": false,
+    "warningAlertSent": false,
+    "performanceMetrics": {
+      "averageMonthlySpend": 0
+    },
+    "startDate": "2025-11-25T00:00:00.000Z",
+    "endDate": "2025-12-31T00:00:00.000Z",
+    "active": true,
+    "createdBy": {
+      "_id": "691abf4ec7430e81c1984699",
+      "email": "ranibellmambo@gratoengineering.com",
+      "fullName": "Ms. Ranibell Mambo"
+    },
+    "allocations": [
+      {
+        "requisitionId": null,
+        "amount": 15000,
+        "allocatedDate": "2025-12-10T16:35:18.645Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "spent",
+        "_id": "6939a146c6c6fc8879745c7f"
+      },
+      {
+        "requisitionId": null,
+        "amount": 800000,
+        "allocatedDate": "2025-12-10T16:37:02.277Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "spent",
+        "_id": "6939a1aec6c6fc8879745f73",
+        "actualSpent": 247500,
+        "disbursementCount": 1,
+        "lastDisbursement": "2025-12-12T15:21:30.488Z",
+        "spentAt": "2025-12-12T15:21:30.488Z"
+      },
+      {
+        "requisitionId": {
+          "_id": "693ab561e301c115934b5c3d",
+          "requisitionNumber": "REQ202512114506",
+          "title": "Site lightening",
+          "status": "approved"
+        },
+        "amount": 274250,
+        "allocatedDate": "2025-12-12T15:39:00.777Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "released",
+        "actualSpent": 0,
+        "disbursementCount": 0,
+        "balanceReturned": 0,
+        "_id": "693c371485985fd6d31549c5",
+        "releaseDate": "2026-01-12T01:00:00.845Z",
+        "releaseReason": "Auto-released after 30 days"
+      },
+      {
+        "requisitionId": null,
+        "amount": 6000,
+        "allocatedDate": "2025-12-18T13:57:56.268Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "spent",
+        "actualSpent": 6000,
+        "disbursementCount": 1,
+        "balanceReturned": 0,
+        "_id": "69440864f0a4eb6c9c2c5c53",
+        "lastDisbursement": "2025-12-18T13:57:56.561Z",
+        "spentAt": "2025-12-18T13:57:56.561Z"
+      },
+      {
+        "requisitionId": null,
+        "amount": 150000,
+        "allocatedDate": "2025-12-18T14:06:53.306Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "spent",
+        "actualSpent": 150000,
+        "disbursementCount": 1,
+        "balanceReturned": 0,
+        "_id": "69440a7df0a4eb6c9c2c60a6",
+        "lastDisbursement": "2025-12-18T14:06:53.593Z",
+        "spentAt": "2025-12-18T14:06:53.593Z"
+      },
+      {
+        "requisitionId": {
+          "_id": "6949686f8ae9ddb78622ffb3",
+          "requisitionNumber": "REQ202512223779",
+          "title": "Extra Works for 5 Clusters",
+          "status": "approved"
+        },
+        "amount": 225500,
+        "allocatedDate": "2025-12-22T16:03:54.248Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "allocated",
+        "actualSpent": 0,
+        "disbursementCount": 0,
+        "balanceReturned": 0,
+        "_id": "69496bea8ae9ddb786230b3a"
+      },
+      {
+        "requisitionId": {
+          "_id": "694ab6d48ae9ddb786237111",
+          "requisitionNumber": "REQ202512237977",
+          "title": "Transportation of Gen from Nkomomdo to Logbele Edea",
+          "status": "approved"
+        },
+        "amount": 80000,
+        "allocatedDate": "2025-12-23T16:37:46.657Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "allocated",
+        "actualSpent": 0,
+        "disbursementCount": 0,
+        "balanceReturned": 0,
+        "_id": "694ac55a8ae9ddb7862383db"
+      },
+      {
+        "requisitionId": {
+          "_id": "694bdca48ae9ddb7862397bc",
+          "requisitionNumber": "REQ202512240116",
+          "title": "Extra Works at Poutka and Quartier Gentil",
+          "status": "approved"
+        },
+        "amount": 60000,
+        "allocatedDate": "2025-12-26T15:47:40.352Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "allocated",
+        "actualSpent": 0,
+        "disbursementCount": 0,
+        "balanceReturned": 0,
+        "_id": "694eae1c8ae9ddb78623de28"
+      },
+      {
+        "requisitionId": null,
+        "amount": 5000,
+        "allocatedDate": "2025-12-31T11:08:29.683Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "spent",
+        "actualSpent": 5000,
+        "disbursementCount": 1,
+        "balanceReturned": 0,
+        "_id": "6955042d8ae9ddb7862482b1",
+        "lastDisbursement": "2025-12-31T11:08:29.976Z",
+        "spentAt": "2025-12-31T11:08:29.976Z"
+      }
+    ],
+    "budgetRevisions": [],
+    "budgetHistory": [],
+    "fiscalYear": 2025,
+    "createdAt": "2025-11-25T13:58:45.430Z",
+    "updatedAt": "2026-01-12T01:00:00.847Z",
+    "__v": 9,
+    "approvedBy": {
+      "_id": "691abf4ec7430e81c1984699",
+      "email": "ranibellmambo@gratoengineering.com",
+      "fullName": "Ms. Ranibell Mambo"
+    },
+    "transactions": [
+      {
+        "type": "deduction",
+        "amount": 247500,
+        "requisitionId": "692da2f640ea9ce71eddb501",
+        "description": "Disbursement for 692da2f640ea9ce71eddb501 (Partial payment #1)",
+        "performedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "balanceBefore": 17185000,
+        "balanceAfter": 16937500,
+        "timestamp": "2025-12-12T15:21:30.488Z",
+        "_id": "693c32fa85985fd6d31546ae"
+      },
+      {
+        "type": "deduction",
+        "amount": 6000,
+        "requisitionId": "6943d524934d3ff9b1001581",
+        "description": "Disbursement for 6943d524934d3ff9b1001581 (Full payment #1)",
+        "performedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "balanceBefore": 16663250,
+        "balanceAfter": 16657250,
+        "timestamp": "2025-12-18T13:57:56.561Z",
+        "_id": "69440864f0a4eb6c9c2c5c55"
+      },
+      {
+        "type": "deduction",
+        "amount": 150000,
+        "requisitionId": "694295b02d65074e89b8330a",
+        "description": "Disbursement for 694295b02d65074e89b8330a (Full payment #1)",
+        "performedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "balanceBefore": 16657250,
+        "balanceAfter": 16507250,
+        "timestamp": "2025-12-18T14:06:53.593Z",
+        "_id": "69440a7df0a4eb6c9c2c60a8"
+      },
+      {
+        "type": "deduction",
+        "amount": 5000,
+        "requisitionId": "694acecf8ae9ddb786238b1c",
+        "description": "Disbursement for 694acecf8ae9ddb786238b1c (Full payment #1)",
+        "performedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "balanceBefore": 16141750,
+        "balanceAfter": 16136750,
+        "timestamp": "2025-12-31T11:08:29.976Z",
+        "_id": "6955042d8ae9ddb7862482b3"
+      }
+    ]
+  },
+  {
+    "_id": "6925b2bbdfc03bc5b20ce594",
+    "code": "BUD-RO-Q42025",
+    "name": "ROLL OUT Q4 2025",
+    "description": "ROLL OUT BUDGET Q4 2025",
+    "budget": 30000000,
+    "used": 9171785,
+    "department": "Roll Out",
+    "budgetType": "OPEX",
+    "budgetPeriod": "quarterly",
+    "budgetOwner": {
+      "_id": "691abf4cc7430e81c1984695",
+      "email": "didier.oyong@gratoengineering.com",
+      "fullName": "Mr. Didier Oyong",
+      "department": "Technical"
+    },
+    "status": "active",
+    "approvalChain": [
+      {
+        "level": 1,
+        "approver": {
+          "name": "Mr. E.T Kelvin",
+          "email": "kelvin.eyong@gratoglobal.com",
+          "role": "Departmental Head",
+          "department": "Business Development & Supply Chain"
+        },
+        "status": "approved",
+        "assignedDate": "2025-11-25T13:44:27.825Z",
+        "_id": "6925b2bbdfc03bc5b20ce595",
+        "actionDate": "2025-11-25T13:45:11.513Z",
+        "actionTime": "01:45 PM",
+        "comments": "Approved"
+      },
+      {
+        "level": 2,
+        "approver": {
+          "name": "Ms. Rambell Mambo",
+          "email": "ranibellmambo@gratoengineering.com",
+          "role": "Finance Officer",
+          "department": "Business Development & Supply Chain"
+        },
+        "status": "approved",
+        "assignedDate": "2025-11-25T13:44:27.825Z",
+        "_id": "6925b2bbdfc03bc5b20ce596",
+        "actionDate": "2025-11-25T15:00:54.787Z",
+        "actionTime": "03:00 PM",
+        "comments": "Good to go!"
+      }
+    ],
+    "criticalAlertSent": false,
+    "warningAlertSent": false,
+    "performanceMetrics": {
+      "averageMonthlySpend": 0
+    },
+    "startDate": "2025-11-25T00:00:00.000Z",
+    "endDate": "2025-12-31T00:00:00.000Z",
+    "active": true,
+    "createdBy": {
+      "_id": "691abf4ec7430e81c1984699",
+      "email": "ranibellmambo@gratoengineering.com",
+      "fullName": "Ms. Ranibell Mambo"
+    },
+    "allocations": [
+      {
+        "requisitionId": null,
+        "amount": 402500,
+        "allocatedDate": "2025-12-03T12:02:46.244Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "spent",
+        "_id": "693026e6e06bf42478bbb53a"
+      },
+      {
+        "requisitionId": null,
+        "amount": 235000,
+        "allocatedDate": "2025-12-03T12:01:31.142Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "spent",
+        "_id": "6930269be06bf42478bbb37f",
+        "actualSpent": 235000,
+        "disbursementCount": 1,
+        "lastDisbursement": "2025-12-11T17:38:30.366Z",
+        "spentAt": "2025-12-11T17:38:30.366Z"
+      },
+      {
+        "requisitionId": null,
+        "amount": 56000,
+        "allocatedDate": "2025-12-03T12:00:47.906Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "spent",
+        "_id": "6930266fe06bf42478bbb2d4"
+      },
+      {
+        "requisitionId": null,
+        "amount": 25000,
+        "allocatedDate": "2025-12-08T12:54:34.280Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "spent",
+        "_id": "6936ca8a60d7bedc38eee843"
+      },
+      {
+        "requisitionId": null,
+        "amount": 160000,
+        "allocatedDate": "2025-12-10T16:36:15.057Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "spent",
+        "_id": "6939a17fc6c6fc8879745e75"
+      },
+      {
+        "requisitionId": {
+          "_id": "693bc88485985fd6d3151c91",
+          "requisitionNumber": "REQ202512123960",
+          "title": "Nake bakundu",
+          "status": "approved"
+        },
+        "amount": 1459500,
+        "allocatedDate": "2025-12-12T15:33:48.295Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "released",
+        "actualSpent": 0,
+        "disbursementCount": 0,
+        "balanceReturned": 0,
+        "_id": "693c35dc85985fd6d315493e",
+        "releaseDate": "2026-01-12T01:00:00.557Z",
+        "releaseReason": "Auto-released after 30 days"
+      },
+      {
+        "requisitionId": null,
+        "amount": 5000,
+        "allocatedDate": "2025-12-17T13:59:44.142Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "spent",
+        "actualSpent": 5000,
+        "disbursementCount": 1,
+        "balanceReturned": 0,
+        "_id": "6942b7502d65074e89b869ad",
+        "lastDisbursement": "2025-12-17T13:59:44.434Z",
+        "spentAt": "2025-12-17T13:59:44.434Z"
+      },
+      {
+        "requisitionId": null,
+        "amount": 26000,
+        "allocatedDate": "2025-12-18T09:56:52.540Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "spent",
+        "actualSpent": 26000,
+        "disbursementCount": 1,
+        "balanceReturned": 0,
+        "_id": "6943cfe4934d3ff9b1001101",
+        "lastDisbursement": "2025-12-18T09:56:52.832Z",
+        "spentAt": "2025-12-18T09:56:52.832Z"
+      },
+      {
+        "requisitionId": null,
+        "amount": 75000,
+        "allocatedDate": "2025-12-18T13:05:12.464Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "spent",
+        "actualSpent": 75000,
+        "disbursementCount": 1,
+        "balanceReturned": 0,
+        "_id": "6943fc08f0a4eb6c9c2c4ebe",
+        "lastDisbursement": "2025-12-18T13:05:12.763Z",
+        "spentAt": "2025-12-18T13:05:12.763Z"
+      },
+      {
+        "requisitionId": null,
+        "amount": 12000,
+        "allocatedDate": "2025-12-18T13:59:04.428Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "spent",
+        "actualSpent": 12000,
+        "disbursementCount": 1,
+        "balanceReturned": 0,
+        "_id": "694408a8f0a4eb6c9c2c5dab",
+        "lastDisbursement": "2025-12-18T13:59:04.711Z",
+        "spentAt": "2025-12-18T13:59:04.711Z"
+      },
+      {
+        "requisitionId": null,
+        "amount": 15000,
+        "allocatedDate": "2025-12-18T14:02:40.356Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "spent",
+        "actualSpent": 15000,
+        "disbursementCount": 1,
+        "balanceReturned": 0,
+        "_id": "69440980f0a4eb6c9c2c5f44",
+        "lastDisbursement": "2025-12-18T14:02:40.645Z",
+        "spentAt": "2025-12-18T14:02:40.645Z"
+      },
+      {
+        "requisitionId": null,
+        "amount": 55000,
+        "allocatedDate": "2025-12-18T16:52:32.621Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "spent",
+        "actualSpent": 55000,
+        "disbursementCount": 1,
+        "balanceReturned": 0,
+        "_id": "69443150f0a4eb6c9c2c877c",
+        "lastDisbursement": "2025-12-18T16:52:32.915Z",
+        "spentAt": "2025-12-18T16:52:32.915Z"
+      },
+      {
+        "requisitionId": {
+          "_id": "6944227df0a4eb6c9c2c7518",
+          "requisitionNumber": "REQ202512187442",
+          "title": "Limbe Botanic Garden Rooftop site construction",
+          "status": "approved"
+        },
+        "amount": 1411785,
+        "allocatedDate": "2025-12-19T10:26:45.119Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "allocated",
+        "actualSpent": 0,
+        "disbursementCount": 0,
+        "balanceReturned": 0,
+        "_id": "69452865af64b21538daeca2"
+      },
+      {
+        "requisitionId": {
+          "_id": "69454240af64b21538db1243",
+          "requisitionNumber": "REQ202512197668",
+          "title": "Limbe Botanic Garden Rooftop site construction",
+          "status": "approved"
+        },
+        "amount": 1000000,
+        "allocatedDate": "2025-12-19T15:26:30.624Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "allocated",
+        "actualSpent": 0,
+        "disbursementCount": 0,
+        "balanceReturned": 0,
+        "_id": "69456ea6af64b21538db2fe3"
+      },
+      {
+        "requisitionId": {
+          "_id": "69453245af64b21538db03f3",
+          "requisitionNumber": "REQ202512192369",
+          "title": "Nake Bakundu OCM Collocation",
+          "status": "approved"
+        },
+        "amount": 16500,
+        "allocatedDate": "2025-12-19T15:27:41.611Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "allocated",
+        "actualSpent": 0,
+        "disbursementCount": 0,
+        "balanceReturned": 0,
+        "_id": "69456eedaf64b21538db31d2"
+      },
+      {
+        "requisitionId": {
+          "_id": "69453fc3af64b21538db0e4c",
+          "requisitionNumber": "REQ202512195321",
+          "title": "Collocation Bonaberi Isenberg",
+          "status": "approved"
+        },
+        "amount": 100000,
+        "allocatedDate": "2025-12-19T15:30:02.821Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "allocated",
+        "actualSpent": 0,
+        "disbursementCount": 0,
+        "balanceReturned": 0,
+        "_id": "69456f7aaf64b21538db3383"
+      },
+      {
+        "requisitionId": {
+          "_id": "694560c3af64b21538db21a7",
+          "requisitionNumber": "REQ202512199443",
+          "title": "Civil labor",
+          "status": "approved"
+        },
+        "amount": 300000,
+        "allocatedDate": "2025-12-19T15:31:29.342Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "allocated",
+        "actualSpent": 0,
+        "disbursementCount": 0,
+        "balanceReturned": 0,
+        "_id": "69456fd1af64b21538db353c"
+      },
+      {
+        "requisitionId": {
+          "_id": "69496cb58ae9ddb786230f35",
+          "requisitionNumber": "REQ202512228674",
+          "title": "Limbe Botanic Garden Rooftop site construction",
+          "status": "approved"
+        },
+        "amount": 150000,
+        "allocatedDate": "2025-12-23T16:43:42.837Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "allocated",
+        "actualSpent": 0,
+        "disbursementCount": 0,
+        "balanceReturned": 0,
+        "_id": "694ac6be8ae9ddb786238570"
+      },
+      {
+        "requisitionId": {
+          "_id": "694ac63e8ae9ddb7862384c9",
+          "requisitionNumber": "REQ202512239133",
+          "title": "Limbe Botanic Garden Rooftop site construction",
+          "status": "approved"
+        },
+        "amount": 2500000,
+        "allocatedDate": "2025-12-26T14:06:56.979Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "allocated",
+        "actualSpent": 0,
+        "disbursementCount": 0,
+        "balanceReturned": 0,
+        "_id": "694e96808ae9ddb78623d0fd"
+      },
+      {
+        "requisitionId": {
+          "_id": "694bf31b8ae9ddb78623a920",
+          "requisitionNumber": "REQ202512244394",
+          "title": "Civil work and Electrical installation Labor",
+          "status": "pending_supply_chain_review"
+        },
+        "amount": 500000,
+        "allocatedDate": "2025-12-29T14:43:42.822Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "allocated",
+        "actualSpent": 0,
+        "disbursementCount": 0,
+        "balanceReturned": 0,
+        "_id": "6952939e8ae9ddb78624087c"
+      },
+      {
+        "requisitionId": null,
+        "amount": 30000,
+        "allocatedDate": "2026-01-07T13:18:41.073Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "spent",
+        "actualSpent": 30000,
+        "disbursementCount": 1,
+        "balanceReturned": 0,
+        "_id": "695e5d318ae9ddb7862582f9",
+        "lastDisbursement": "2026-01-07T13:18:41.369Z",
+        "spentAt": "2026-01-07T13:18:41.369Z"
+      }
+    ],
+    "budgetRevisions": [],
+    "budgetHistory": [],
+    "fiscalYear": 2025,
+    "createdAt": "2025-11-25T13:44:27.828Z",
+    "updatedAt": "2026-01-12T01:00:00.562Z",
+    "__v": 21,
+    "approvedBy": {
+      "_id": "691abf4ec7430e81c1984699",
+      "email": "ranibellmambo@gratoengineering.com",
+      "fullName": "Ms. Ranibell Mambo"
+    },
+    "transactions": [
+      {
+        "type": "deduction",
+        "amount": 235000,
+        "requisitionId": "691f471a47dc24395e5ce53e",
+        "description": "Disbursement for 691f471a47dc24395e5ce53e (Full payment #1)",
+        "performedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "balanceBefore": 28719000,
+        "balanceAfter": 28484000,
+        "timestamp": "2025-12-11T17:38:30.366Z",
+        "_id": "693b019685985fd6d31512ce"
+      },
+      {
+        "type": "deduction",
+        "amount": 5000,
+        "requisitionId": "6942ab772d65074e89b85b4d",
+        "description": "Disbursement for 6942ab772d65074e89b85b4d (Full payment #1)",
+        "performedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "balanceBefore": 27024500,
+        "balanceAfter": 27019500,
+        "timestamp": "2025-12-17T13:59:44.434Z",
+        "_id": "6942b7502d65074e89b869af"
+      },
+      {
+        "type": "deduction",
+        "amount": 26000,
+        "requisitionId": "6941867367d0e2e492ef49f5",
+        "description": "Disbursement for 6941867367d0e2e492ef49f5 (Full payment #1)",
+        "performedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "balanceBefore": 27019500,
+        "balanceAfter": 26993500,
+        "timestamp": "2025-12-18T09:56:52.832Z",
+        "_id": "6943cfe4934d3ff9b1001103"
+      },
+      {
+        "type": "deduction",
+        "amount": 75000,
+        "requisitionId": "69426ba12d65074e89b82c5b",
+        "description": "Disbursement for 69426ba12d65074e89b82c5b (Full payment #1)",
+        "performedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "balanceBefore": 26993500,
+        "balanceAfter": 26918500,
+        "timestamp": "2025-12-18T13:05:12.763Z",
+        "_id": "6943fc08f0a4eb6c9c2c4ec0"
+      },
+      {
+        "type": "deduction",
+        "amount": 12000,
+        "requisitionId": "6942a8892d65074e89b855ea",
+        "description": "Disbursement for 6942a8892d65074e89b855ea (Full payment #1)",
+        "performedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "balanceBefore": 26918500,
+        "balanceAfter": 26906500,
+        "timestamp": "2025-12-18T13:59:04.711Z",
+        "_id": "694408a8f0a4eb6c9c2c5dad"
+      },
+      {
+        "type": "deduction",
+        "amount": 15000,
+        "requisitionId": "6942a4a02d65074e89b84e0f",
+        "description": "Disbursement for 6942a4a02d65074e89b84e0f (Full payment #1)",
+        "performedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "balanceBefore": 26906500,
+        "balanceAfter": 26891500,
+        "timestamp": "2025-12-18T14:02:40.645Z",
+        "_id": "69440980f0a4eb6c9c2c5f46"
+      },
+      {
+        "type": "deduction",
+        "amount": 55000,
+        "requisitionId": "694412d6f0a4eb6c9c2c66fb",
+        "description": "Disbursement for 694412d6f0a4eb6c9c2c66fb (Full payment #1)",
+        "performedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "balanceBefore": 26891500,
+        "balanceAfter": 26836500,
+        "timestamp": "2025-12-18T16:52:32.915Z",
+        "_id": "69443150f0a4eb6c9c2c877e"
+      },
+      {
+        "type": "deduction",
+        "amount": 30000,
+        "requisitionId": "695231ce8ae9ddb78623ed4f",
+        "description": "Disbursement for 695231ce8ae9ddb78623ed4f (Full payment #1)",
+        "performedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "balanceBefore": 20858215,
+        "balanceAfter": 20828215,
+        "timestamp": "2026-01-07T13:18:41.369Z",
+        "_id": "695e5d318ae9ddb7862582fb"
+      }
+    ]
+  },
+  {
+    "_id": "69206c17dfc03bc5b20c9462",
+    "code": "BUD_RO-Q42025",
+    "name": "ROLL OUT Q4 2025",
+    "description": "ROLL OUT BUDGET Q4 2025",
+    "budget": 13000000,
+    "used": 0,
+    "department": "Roll Out",
+    "budgetType": "OPEX",
+    "budgetPeriod": "quarterly",
+    "budgetOwner": {
+      "_id": "691abf4cc7430e81c1984695",
+      "email": "didier.oyong@gratoengineering.com",
+      "fullName": "Mr. Didier Oyong",
+      "department": "Technical"
+    },
+    "status": "rejected",
+    "approvalChain": [
+      {
+        "level": 1,
+        "approver": {
+          "name": "Mr. E.T Kelvin",
+          "email": "kelvin.eyong@gratoglobal.com",
+          "role": "Departmental Head",
+          "department": "Business Development & Supply Chain"
+        },
+        "status": "rejected",
+        "assignedDate": "2025-11-21T13:41:43.542Z",
+        "_id": "69206c17dfc03bc5b20c9463",
+        "actionDate": "2025-11-25T13:41:35.692Z",
+        "actionTime": "01:41 PM",
+        "comments": "Rejected"
+      },
+      {
+        "level": 2,
+        "approver": {
+          "name": "Ms. Rambell Mambo",
+          "email": "ranibellmambo@gratoengineering.com",
+          "role": "Finance Officer",
+          "department": "Business Development & Supply Chain"
+        },
+        "status": "pending",
+        "assignedDate": "2025-11-21T13:41:43.542Z",
+        "_id": "69206c17dfc03bc5b20c9464"
+      }
+    ],
+    "criticalAlertSent": false,
+    "warningAlertSent": false,
+    "performanceMetrics": {
+      "averageMonthlySpend": 0
+    },
+    "startDate": "2025-11-21T00:00:00.000Z",
+    "endDate": "2025-12-31T00:00:00.000Z",
+    "active": false,
+    "createdBy": {
+      "_id": "691abf4ec7430e81c1984699",
+      "email": "ranibellmambo@gratoengineering.com",
+      "fullName": "Ms. Ranibell Mambo"
+    },
+    "allocations": [],
+    "budgetRevisions": [],
+    "budgetHistory": [],
+    "fiscalYear": 2025,
+    "createdAt": "2025-11-21T13:41:43.547Z",
+    "updatedAt": "2025-11-25T13:41:35.732Z",
+    "__v": 0,
+    "rejectedBy": "691abf4ac7430e81c1984691",
+    "rejectionDate": "2025-11-25T13:41:35.731Z",
+    "rejectionReason": "Rejected"
+  },
+  {
+    "_id": "691f411c47dc24395e5ce389",
+    "code": "HR-Q42025",
+    "name": "HR Q4 2025",
+    "description": "HR Quarter 4 Budget 2025",
+    "budget": 2500000,
+    "used": 947500,
+    "department": "HR",
+    "budgetType": "OPEX",
+    "budgetPeriod": "quarterly",
+    "budgetOwner": {
+      "_id": "691abf4ac7430e81c1984693",
+      "email": "bruiline.tsitoh@gratoglobal.com",
+      "fullName": "Mrs. Bruiline Tsitoh",
+      "department": "HR & Admin"
+    },
+    "status": "active",
+    "approvalChain": [
+      {
+        "level": 1,
+        "approver": {
+          "name": "Mr. E.T Kelvin",
+          "email": "kelvin.eyong@gratoglobal.com",
+          "role": "Departmental Head",
+          "department": "Business Development & Supply Chain"
+        },
+        "status": "approved",
+        "assignedDate": "2025-11-20T16:26:04.121Z",
+        "_id": "691f411c47dc24395e5ce38a",
+        "actionDate": "2025-11-20T17:34:49.206Z",
+        "actionTime": "05:34 PM",
+        "comments": "Approved"
+      },
+      {
+        "level": 2,
+        "approver": {
+          "name": "Ms. Rambell Mambo",
+          "email": "ranibellmambo@gratoengineering.com",
+          "role": "Finance Officer",
+          "department": "Business Development & Supply Chain"
+        },
+        "status": "approved",
+        "assignedDate": "2025-11-20T16:26:04.121Z",
+        "_id": "691f411c47dc24395e5ce38b",
+        "actionDate": "2025-11-21T12:48:17.901Z",
+        "actionTime": "12:48 PM",
+        "comments": "Okay to proceed"
+      }
+    ],
+    "criticalAlertSent": false,
+    "warningAlertSent": false,
+    "performanceMetrics": {
+      "averageMonthlySpend": 0
+    },
+    "startDate": "2025-11-20T00:00:00.000Z",
+    "endDate": "2025-12-31T00:00:00.000Z",
+    "active": true,
+    "createdBy": {
+      "_id": "691abf4ec7430e81c1984699",
+      "email": "ranibellmambo@gratoengineering.com",
+      "fullName": "Ms. Ranibell Mambo"
+    },
+    "allocations": [
+      {
+        "requisitionId": null,
+        "amount": 400000,
+        "allocatedDate": "2025-11-21T12:54:07.673Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "spent",
+        "_id": "692060efba3a4b432de6e712",
+        "actualSpent": 400000,
+        "disbursementCount": 2,
+        "lastDisbursement": "2025-12-10T14:55:22.086Z",
+        "spentAt": "2025-12-10T10:07:00.733Z"
+      },
+      {
+        "requisitionId": null,
+        "amount": 18500,
+        "allocatedDate": "2025-11-28T09:58:55.181Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "spent",
+        "_id": "6929725fa4a6dda713d0b2cb"
+      },
+      {
+        "requisitionId": {
+          "_id": "69305df3e20ae92eeb44aba6",
+          "requisitionNumber": "REQ202512037898",
+          "title": "Employee folders",
+          "status": "approved"
+        },
+        "amount": 168000,
+        "allocatedDate": "2025-12-10T17:10:56.117Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "released",
+        "actualSpent": 0,
+        "disbursementCount": 0,
+        "balanceReturned": 0,
+        "_id": "6939a9a0ae924066de25d475",
+        "releaseDate": "2026-01-10T01:00:00.566Z",
+        "releaseReason": "Auto-released after 30 days"
+      },
+      {
+        "requisitionId": {
+          "_id": "694aa8888ae9ddb786236b84",
+          "requisitionNumber": "REQ202512236336",
+          "title": "Painting of the body work of generator internal and external",
+          "status": "approved"
+        },
+        "amount": 120000,
+        "allocatedDate": "2025-12-23T14:37:50.026Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "allocated",
+        "actualSpent": 0,
+        "disbursementCount": 0,
+        "balanceReturned": 0,
+        "_id": "694aa93e8ae9ddb786236d31"
+      },
+      {
+        "requisitionId": {
+          "_id": "694abb358ae9ddb786237540",
+          "requisitionNumber": "REQ202512233918",
+          "title": "Buffet for NOC Staffs on the 25th december and 1st of january 2026 ",
+          "status": "approved"
+        },
+        "amount": 41000,
+        "allocatedDate": "2025-12-23T16:34:15.478Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "allocated",
+        "actualSpent": 0,
+        "disbursementCount": 0,
+        "balanceReturned": 0,
+        "_id": "694ac4878ae9ddb786238357"
+      }
+    ],
+    "budgetRevisions": [],
+    "budgetHistory": [],
+    "fiscalYear": 2025,
+    "createdAt": "2025-11-20T16:26:04.125Z",
+    "updatedAt": "2026-01-10T01:00:00.570Z",
+    "__v": 6,
+    "approvedBy": {
+      "_id": "691abf4ec7430e81c1984699",
+      "email": "ranibellmambo@gratoengineering.com",
+      "fullName": "Ms. Ranibell Mambo"
+    },
+    "transactions": [
+      {
+        "type": "deduction",
+        "amount": 200000,
+        "requisitionId": "691dcdcd1bcb8238e7ee300b",
+        "description": "Disbursement for 691dcdcd1bcb8238e7ee300b (Full payment #1)",
+        "performedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "balanceBefore": 2281500,
+        "balanceAfter": 2081500,
+        "timestamp": "2025-12-10T10:07:00.734Z",
+        "_id": "69394644997cc9ab918ec7f6"
+      },
+      {
+        "type": "reservation",
+        "amount": 200000,
+        "requisitionId": "691dcdcd1bcb8238e7ee300b",
+        "description": "Increased allocation from XAF 200,000 to XAF 400,000 (additional XAF 200,000 reserved)",
+        "performedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "balanceBefore": 2081500,
+        "balanceAfter": 1881500,
+        "timestamp": "2025-12-10T14:51:39.759Z",
+        "_id": "693988fbef6aa1eb22114ae4"
+      },
+      {
+        "type": "deduction",
+        "amount": 200000,
+        "requisitionId": "691dcdcd1bcb8238e7ee300b",
+        "description": "Disbursement for 691dcdcd1bcb8238e7ee300b (Full payment #1)",
+        "performedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "balanceBefore": 2081500,
+        "balanceAfter": 1881500,
+        "timestamp": "2025-12-10T14:55:22.087Z",
+        "_id": "693989da70f4e90f9134fb61"
+      }
+    ]
+  },
+  {
+    "_id": "691e1e2e7a9ea84e532285bf",
+    "code": "BUD_IT-Q42025",
+    "name": "IT BUDGET Q4 2025",
+    "description": "Technology expenses, including hardware, software, services, staffing, and infrastructure needed to support business operations and innovation.",
+    "budget": 1500000,
+    "used": 995000,
+    "department": "IT",
+    "budgetType": "OPEX",
+    "budgetPeriod": "project",
+    "budgetOwner": {
+      "_id": "691abf4ac7430e81c1984693",
+      "email": "bruiline.tsitoh@gratoglobal.com",
+      "fullName": "Mrs. Bruiline Tsitoh",
+      "department": "HR & Admin"
+    },
+    "status": "active",
+    "approvalChain": [
+      {
+        "level": 1,
+        "approver": {
+          "name": "Mr. E.T Kelvin",
+          "email": "kelvin.eyong@gratoglobal.com",
+          "role": "Departmental Head",
+          "department": "Business Development & Supply Chain"
+        },
+        "status": "approved",
+        "assignedDate": "2025-11-19T19:44:46.544Z",
+        "_id": "691e1e2e7a9ea84e532285c0",
+        "actionDate": "2025-11-20T17:25:39.052Z",
+        "actionTime": "05:25 PM",
+        "comments": "Approved"
+      },
+      {
+        "level": 2,
+        "approver": {
+          "name": "Ms. Rambell Mambo",
+          "email": "ranibellmambo@gratoengineering.com",
+          "role": "Finance Officer",
+          "department": "Business Development & Supply Chain"
+        },
+        "status": "approved",
+        "assignedDate": "2025-11-19T19:44:46.544Z",
+        "_id": "691e1e2e7a9ea84e532285c1",
+        "actionDate": "2025-11-21T12:50:02.578Z",
+        "actionTime": "12:50 PM",
+        "comments": "Okay to proceed!"
+      }
+    ],
+    "criticalAlertSent": false,
+    "warningAlertSent": false,
+    "performanceMetrics": {
+      "averageMonthlySpend": 0
+    },
+    "startDate": "2025-11-19T00:00:00.000Z",
+    "endDate": "2025-12-31T00:00:00.000Z",
+    "active": true,
+    "createdBy": {
+      "_id": "691abf4ec7430e81c1984699",
+      "email": "ranibellmambo@gratoengineering.com",
+      "fullName": "Ms. Ranibell Mambo"
+    },
+    "allocations": [
+      {
+        "requisitionId": null,
+        "amount": 385000,
+        "allocatedDate": "2025-11-21T12:51:48.547Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "spent",
+        "_id": "69206064ba3a4b432de6e68e"
+      },
+      {
+        "requisitionId": null,
+        "amount": 170000,
+        "allocatedDate": "2025-12-01T15:54:17.470Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "spent",
+        "_id": "692dba297ac65f7e5d583a4d"
+      },
+      {
+        "requisitionId": {
+          "_id": "69412cfd85985fd6d315773e",
+          "requisitionNumber": "REQ202512167963",
+          "title": "IT0925 - IT Material",
+          "status": "approved"
+        },
+        "amount": 440000,
+        "allocatedDate": "2025-12-19T10:32:10.180Z",
+        "allocatedBy": {
+          "_id": "691abf4ec7430e81c1984699",
+          "email": "ranibellmambo@gratoengineering.com",
+          "fullName": "Ms. Ranibell Mambo"
+        },
+        "status": "allocated",
+        "actualSpent": 0,
+        "disbursementCount": 0,
+        "balanceReturned": 0,
+        "_id": "694529aaaf64b21538daf361"
+      }
+    ],
+    "budgetRevisions": [],
+    "budgetHistory": [],
+    "fiscalYear": 2025,
+    "createdAt": "2025-11-19T19:44:46.551Z",
+    "updatedAt": "2025-12-19T10:32:10.182Z",
+    "__v": 3,
+    "approvedBy": {
+      "_id": "691abf4ec7430e81c1984699",
+      "email": "ranibellmambo@gratoengineering.com",
+      "fullName": "Ms. Ranibell Mambo"
+    },
+    "transactions": []
+  }
+]
