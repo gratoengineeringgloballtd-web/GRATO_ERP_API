@@ -1,3 +1,5 @@
+const mongoose = require('mongoose');
+
 const analyticLineSchema = new mongoose.Schema({
   analyticAccountId: { type: mongoose.Schema.Types.ObjectId, ref: 'AnalyticAccount', required: true },
   journalEntryId:    { type: mongoose.Schema.Types.ObjectId, ref: 'JournalEntry', required: true },

@@ -1,3 +1,5 @@
+const mongoose = require('mongoose');
+
 const dunningActionSchema = new mongoose.Schema({
   invoiceId:     { type: mongoose.Schema.Types.ObjectId, ref: 'Invoice', required: true },
   customerId:    { type: mongoose.Schema.Types.ObjectId, ref: 'Customer' },

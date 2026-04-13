@@ -1,3 +1,5 @@
+const mongoose = require('mongoose');
+
 const fiscalYearSchema = new mongoose.Schema({
   year:            { type: Number, required: true, unique: true },
   startDate:       { type: Date, required: true },

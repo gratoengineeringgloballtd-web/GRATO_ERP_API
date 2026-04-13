@@ -1,3 +1,5 @@
+const mongoose = require('mongoose');
+
 // ── models/Budget.js ─────────────────────────────────────────────────────────
 const budgetLineSchema = new mongoose.Schema({
   accountCode:       { type: String, required: true, trim: true },

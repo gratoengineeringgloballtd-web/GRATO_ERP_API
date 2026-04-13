@@ -1,3 +1,5 @@
+const mongoose = require('mongoose');
+
 // ── models/CreditNote.js ─────────────────────────────────────────────────────
 const creditNoteSchema = new mongoose.Schema({
   creditNoteNumber: { type: String, required: true, unique: true, trim: true },

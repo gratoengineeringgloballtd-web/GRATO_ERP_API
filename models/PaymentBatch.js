@@ -1,3 +1,5 @@
+const mongoose = require('mongoose');
+
 const paymentBatchSchema = new mongoose.Schema({
   batchNumber:    { type: String, required: true, unique: true },
   type:           { type: String, enum: ['receipt','disbursement'], required: true },
