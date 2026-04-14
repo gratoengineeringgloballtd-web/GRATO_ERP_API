@@ -35,6 +35,27 @@ const SupplierSchema = new mongoose.Schema({
         default: 'Cameroon'
       }
     },
+
+    sddRecords: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'SDDRecord'
+  }],
+  latestSDDScore: {
+    type: Number,
+    default: null
+  },
+  latestSDDStatus: {
+    type: String,
+    default: null
+  },
+  latestSDDRef: {
+    type: String,
+    default: null
+  },
+  latestSDDExpiry: {
+    type: Date,
+    default: null
+  },
     
     // Business Information
     businessType: {

@@ -76,6 +76,7 @@ const projectPlanRoutes = require('./routes/projectPlanRoutes');
 const tenderRoutes = require('./routes/tenderRoutes');
 const salaryPaymentRoutes = require('./routes/salaryPaymentRoutes');
 const customerRoutes = require('./routes/customerRoutes');
+const legalComplianceRoutes = require('./routes/legalComplianceRoutes');
 
 // Critical check for projectRoutes
 if (!projectRoutes) {
@@ -458,6 +459,8 @@ if (buyerRoutes) {
 app.use('/api/project-plans', projectPlanRoutes);
 
 app.use('/api/tenders', tenderRoutes);
+
+app.use('/api/legal', legalComplianceRoutes);
 
 // app.use('/api/salary-payments', salaryPaymentRoutes);
 

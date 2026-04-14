@@ -626,4 +626,272 @@ router.get('/exports/balance-sheet.csv', async (req, res) => {
   }
 });
 
+
+// ── TAX GROUPS ───────────────────────────────────────────────────────────────
+router.get('/tax-groups', async (req, res) => {
+  try {
+    const groups = await accountingService.listTaxGroups({ isActive: req.query.isActive });
+    res.json({ success: true, data: groups, count: groups.length });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+});
+ 
+router.post('/tax-groups', async (req, res) => {
+  try {
+    const group = await accountingService.createTaxGroup(req.body);
+    res.status(201).json({ success: true, data: group, message: 'Tax group created' });
+  } catch (e) { res.status(400).json({ success: false, message: e.message }); }
+});
+ 
+router.put('/tax-groups/:id', async (req, res) => {
+  try {
+    const group = await accountingService.updateTaxGroup(req.params.id, req.body);
+    res.json({ success: true, data: group, message: 'Tax group updated' });
+  } catch (e) { res.status(400).json({ success: false, message: e.message }); }
+});
+ 
+// ── CURRENCIES ───────────────────────────────────────────────────────────────
+router.get('/currencies', async (req, res) => {
+  try {
+    const currencies = await accountingService.listCurrencies();
+    res.json({ success: true, data: currencies, count: currencies.length });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+});
+ 
+router.post('/currencies', async (req, res) => {
+  try {
+    const currency = await accountingService.upsertCurrency(req.body);
+    res.json({ success: true, data: currency, message: 'Currency saved' });
+  } catch (e) { res.status(400).json({ success: false, message: e.message }); }
+});
+ 
+router.post('/currencies/fx-gain-loss', async (req, res) => {
+  try {
+    const entry = await accountingService.postFXGainLoss({ ...req.body, userId: req.user.userId });
+    res.json({ success: true, data: entry, message: entry ? 'FX entry posted' : 'No material FX difference' });
+  } catch (e) { res.status(400).json({ success: false, message: e.message }); }
+});
+ 
+// ── CREDIT NOTES ─────────────────────────────────────────────────────────────
+router.get('/credit-notes', async (req, res) => {
+  try {
+    const result = await accountingService.listCreditNotes({ type: req.query.type, status: req.query.status, page: req.query.page, limit: req.query.limit });
+    res.json({ success: true, ...result });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+});
+ 
+router.post('/credit-notes', async (req, res) => {
+  try {
+    const note = await accountingService.createCreditNote(req.body, req.user.userId);
+    res.status(201).json({ success: true, data: note, message: 'Credit note created' });
+  } catch (e) { res.status(400).json({ success: false, message: e.message }); }
+});
+ 
+router.post('/credit-notes/:id/post-customer', async (req, res) => {
+  try {
+    const entry = await accountingService.postCustomerCreditNote(req.params.id, req.user.userId);
+    res.json({ success: true, data: entry, message: 'Customer credit note posted' });
+  } catch (e) { res.status(400).json({ success: false, message: e.message }); }
+});
+ 
+router.post('/credit-notes/:id/post-supplier', async (req, res) => {
+  try {
+    const entry = await accountingService.postSupplierCreditNote(req.params.id, req.user.userId);
+    res.json({ success: true, data: entry, message: 'Supplier credit note posted' });
+  } catch (e) { res.status(400).json({ success: false, message: e.message }); }
+});
+ 
+// ── DUNNING ───────────────────────────────────────────────────────────────────
+router.get('/dunning', async (req, res) => {
+  try {
+    const result = await accountingService.listDunningActions({ status: req.query.status, level: req.query.level, page: req.query.page, limit: req.query.limit });
+    res.json({ success: true, ...result });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+});
+ 
+router.post('/dunning/run', async (req, res) => {
+  try {
+    const result = await accountingService.runDunningCheck(req.user.userId);
+    res.json({ success: true, ...result, message: `${result.created} dunning actions created` });
+  } catch (e) { res.status(400).json({ success: false, message: e.message }); }
+});
+ 
+router.post('/dunning/:id/send', async (req, res) => {
+  try {
+    const action = await accountingService.sendDunningAction(req.params.id, req.user.userId);
+    res.json({ success: true, data: action, message: 'Dunning action sent' });
+  } catch (e) { res.status(400).json({ success: false, message: e.message }); }
+});
+ 
+// ── PAYMENT BATCHES ───────────────────────────────────────────────────────────
+router.get('/payment-batches', async (req, res) => {
+  try {
+    const result = await accountingService.listPaymentBatches({ type: req.query.type, status: req.query.status, page: req.query.page, limit: req.query.limit });
+    res.json({ success: true, ...result });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+});
+ 
+router.post('/payment-batches', async (req, res) => {
+  try {
+    const batch = await accountingService.createPaymentBatch(req.body, req.user.userId);
+    res.status(201).json({ success: true, data: batch, message: 'Payment batch created' });
+  } catch (e) { res.status(400).json({ success: false, message: e.message }); }
+});
+ 
+router.post('/payment-batches/:id/validate', async (req, res) => {
+  try {
+    const result = await accountingService.validatePaymentBatch(req.params.id, req.user.userId);
+    res.json({ success: true, ...result, message: `Batch validated — ${result.postedCount} entries posted` });
+  } catch (e) { res.status(400).json({ success: false, message: e.message }); }
+});
+ 
+// ── FIXED ASSETS ─────────────────────────────────────────────────────────────
+router.get('/fixed-assets', async (req, res) => {
+  try {
+    const assets = await accountingService.listFixedAssets({ status: req.query.status });
+    res.json({ success: true, data: assets, count: assets.length });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+});
+ 
+router.get('/fixed-assets/register', async (req, res) => {
+  try {
+    const result = await accountingService.getFixedAssetRegister();
+    res.json({ success: true, data: result });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+});
+ 
+router.post('/fixed-assets', async (req, res) => {
+  try {
+    const asset = await accountingService.createFixedAsset(req.body, req.user.userId);
+    res.status(201).json({ success: true, data: asset, message: 'Fixed asset created and acquisition posted' });
+  } catch (e) { res.status(400).json({ success: false, message: e.message }); }
+});
+ 
+router.post('/fixed-assets/:id/depreciate', async (req, res) => {
+  try {
+    const result = await accountingService.postNextDepreciation(req.params.id, req.user.userId);
+    res.json({ success: true, data: result, message: 'Depreciation posted' });
+  } catch (e) { res.status(400).json({ success: false, message: e.message }); }
+});
+ 
+router.post('/fixed-assets/depreciate-all', async (req, res) => {
+  try {
+    const result = await accountingService.postAllPendingDepreciations(req.user.userId);
+    res.json({ success: true, data: result, message: `${result.posted} depreciation entries posted` });
+  } catch (e) { res.status(400).json({ success: false, message: e.message }); }
+});
+ 
+// ── ANALYTIC ACCOUNTING ───────────────────────────────────────────────────────
+router.get('/analytic/accounts', async (req, res) => {
+  try {
+    const accounts = await accountingService.listAnalyticAccounts({ type: req.query.type, isActive: req.query.isActive });
+    res.json({ success: true, data: accounts, count: accounts.length });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+});
+ 
+router.post('/analytic/accounts', async (req, res) => {
+  try {
+    const acc = await accountingService.createAnalyticAccount(req.body);
+    res.status(201).json({ success: true, data: acc, message: 'Analytic account created' });
+  } catch (e) { res.status(400).json({ success: false, message: e.message }); }
+});
+ 
+router.get('/analytic/accounts/:id/report', async (req, res) => {
+  try {
+    const result = await accountingService.getAnalyticReport(req.params.id, { startDate: req.query.startDate, endDate: req.query.endDate });
+    res.json({ success: true, data: result });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+});
+ 
+// ── BUDGETS ───────────────────────────────────────────────────────────────────
+router.get('/budgets', async (req, res) => {
+  try {
+    const budgets = await accountingService.listBudgets({ fiscalYear: req.query.fiscalYear, status: req.query.status });
+    res.json({ success: true, data: budgets, count: budgets.length });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+});
+ 
+router.post('/budgets', async (req, res) => {
+  try {
+    const budget = await accountingService.createBudget(req.body, req.user.userId);
+    res.status(201).json({ success: true, data: budget, message: 'Budget created' });
+  } catch (e) { res.status(400).json({ success: false, message: e.message }); }
+});
+ 
+router.get('/budgets/:id/vs-actual', async (req, res) => {
+  try {
+    const result = await accountingService.getBudgetVsActual(req.params.id);
+    res.json({ success: true, data: result });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+});
+ 
+// ── FISCAL YEARS ──────────────────────────────────────────────────────────────
+router.get('/fiscal-years', async (req, res) => {
+  try {
+    const years = await accountingService.listFiscalYears();
+    res.json({ success: true, data: years, count: years.length });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+});
+ 
+router.post('/fiscal-years', async (req, res) => {
+  try {
+    const fy = await accountingService.createFiscalYear(req.body);
+    res.status(201).json({ success: true, data: fy, message: 'Fiscal year created' });
+  } catch (e) { res.status(400).json({ success: false, message: e.message }); }
+});
+ 
+router.post('/fiscal-years/:year/lock', async (req, res) => {
+  try {
+    const fy = await accountingService.lockFiscalYear(req.params.year, req.user.userId);
+    res.json({ success: true, data: fy, message: `Fiscal year ${req.params.year} locked` });
+  } catch (e) { res.status(400).json({ success: false, message: e.message }); }
+});
+ 
+router.post('/fiscal-years/:year/close', async (req, res) => {
+  try {
+    const result = await accountingService.closeFiscalYear(req.params.year, req.user.userId);
+    res.json({ success: true, data: result, message: `Fiscal year ${req.params.year} closed` });
+  } catch (e) { res.status(400).json({ success: false, message: e.message }); }
+});
+ 
+// ── COMPARATIVE REPORTS ───────────────────────────────────────────────────────
+router.post('/reports/comparative-pl', async (req, res) => {
+  try {
+    // body: { periods: [{ label, startDate, endDate }] }
+    const result = await accountingService.getComparativePL(req.body.periods || []);
+    res.json({ success: true, data: result });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+});
+ 
+router.post('/reports/comparative-balance-sheet', async (req, res) => {
+  try {
+    // body: { dates: [{ label, asOfDate }] }
+    const result = await accountingService.getComparativeBalanceSheet(req.body.dates || []);
+    res.json({ success: true, data: result });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+});
+ 
+// ── MANAGEMENT REPORT ─────────────────────────────────────────────────────────
+router.get('/reports/management', async (req, res) => {
+  try {
+    const result = await accountingService.getManagementReport({
+      startDate:        req.query.startDate,
+      endDate:          req.query.endDate,
+      compareStartDate: req.query.compareStartDate,
+      compareEndDate:   req.query.compareEndDate
+    });
+    res.json({ success: true, data: result });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+});
+ 
+// ── CASH ROUNDING ─────────────────────────────────────────────────────────────
+router.post('/cash-rounding/apply', async (req, res) => {
+  try {
+    const { invoiceId, originalAmount, precision } = req.body;
+    const rounded = accountingService.applyCashRounding(Number(originalAmount), precision || 0.05);
+    const entry = await accountingService.postCashRoundingDifference(invoiceId, Number(originalAmount), rounded, req.user.userId);
+    res.json({ success: true, data: { originalAmount, roundedAmount: rounded, difference: rounded - originalAmount, entry }, message: 'Cash rounding applied' });
+  } catch (e) { res.status(400).json({ success: false, message: e.message }); }
+});
+ 
+
 module.exports = router;
