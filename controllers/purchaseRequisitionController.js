@@ -5850,11 +5850,22 @@ const downloadJustificationReceipt = async (req, res) => {
         }
 
         // Verify user is the employee (requester)
-        if (requisition.employee._id.toString() !== req.user.userId) {
-            return res.status(403).json({
-                success: false,
-                message: 'Only the requester can acknowledge receipt'
-            });
+        // if (requisition.employee._id.toString() !== req.user.userId) {
+        //     return res.status(403).json({
+        //         success: false,
+        //         message: 'Only the requester can acknowledge receipt'
+        //     });
+        // }
+
+        // AFTER
+        const assignedBuyerId = requisition.supplyChainReview?.assignedBuyer?._id?.toString()
+          ?? requisition.supplyChainReview?.assignedBuyer?.toString();
+
+        if (!assignedBuyerId || assignedBuyerId !== req.user.userId) {
+          return res.status(403).json({
+            success: false,
+            message: 'Only the assigned buyer can acknowledge receipt of disbursements'
+          });
         }
 
         // Find the disbursement

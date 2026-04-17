@@ -13,6 +13,15 @@ const ContractRecord      = require('../models/ContractRecord');
 const RegulatoryStandard  = require('../models/RegulatoryStandard');
 const IntellectualProperty= require('../models/IntellectualProperty');
 const SDDRecord           = require('../models/SDDRecord');
+  const AuditSchedule      = require('../models/AuditSchedule');
+  const Incident           = require('../models/Incident');
+  const Policy             = require('../models/Policy');
+  const WhistleblowingCase = require('../models/WhistleblowingCase');
+  const DataPrivacyRecord  = require('../models/DataPrivacyRecord');
+  const TrainingRecord     = require('../models/TrainingRecord');
+  const RiskMatrix         = require('../models/RiskMatrix');
+  const SupplierMonitoring = require('../models/SupplierMonitoring');
+  const DocumentVersion    = require('../models/DocumentVersion');
 const { SDD_SECTIONS, buildBlankAnswers } = require('../config/sddQuestions');
 
 router.use(authMiddleware);
@@ -492,6 +501,630 @@ router.get('/sdd/supplier/:supplierId/profile', async (req, res) => {
     const latest = records[0] || null;
     ok(res, { latest, history: records });
   } catch (e) { err(res, 'Failed to load supplier profile', e, 500); }
+});
+
+
+// ── DOCUMENT VERSIONING ───────────────────────────────────────────────────────
+router.post('/documents/:id/versions', async (req, res) => {
+  try {
+    const doc = await ComplianceDocument.findById(req.params.id);
+    if (!doc) return res.status(404).json({ success: false, message: 'Document not found' });
+    const latestVersion = await DocumentVersion.findOne({ documentId: req.params.id }).sort({ versionNumber: -1 });
+    const nextVersion   = latestVersion ? latestVersion.versionNumber + 1 : 1;
+    const version = await DocumentVersion.create({
+      documentId: req.params.id,
+      versionNumber: nextVersion,
+      changeSummary: req.body.changeSummary || '',
+      changedBy: req.user.userId,
+      file: req.body.file || {},
+      status: 'published',
+      publishedAt: new Date()
+    });
+    // Archive previous version
+    if (latestVersion) await DocumentVersion.findByIdAndUpdate(latestVersion._id, { status: 'superseded' });
+    // Update the parent document file
+    if (req.body.file) { doc.file = req.body.file; await doc.save(); }
+    ok(res, version, `Version ${nextVersion} created`);
+  } catch (e) { err(res, 'Failed to create version', e); }
+});
+ 
+router.get('/documents/:id/versions', async (req, res) => {
+  try {
+    const versions = await DocumentVersion.find({ documentId: req.params.id })
+      .populate('changedBy', 'fullName email').sort({ versionNumber: -1 });
+    ok(res, versions);
+  } catch (e) { err(res, 'Failed to fetch versions', e, 500); }
+});
+ 
+ 
+// ── RISK MATRIX ───────────────────────────────────────────────────────────────
+router.get('/risk-matrix', async (req, res) => {
+  try {
+    const { category, residualRating, module: mod, status, page = 1, limit = 20 } = req.query;
+    const filter = {};
+    if (category)       filter.category       = category;
+    if (residualRating) filter.residualRating  = residualRating;
+    if (mod)            filter.module          = mod;
+    if (status)         filter.status          = status;
+    const skip = (Number(page) - 1) * Number(limit);
+    const [risks, total] = await Promise.all([
+      RiskMatrix.find(filter).populate('owner', 'fullName').sort({ residualScore: -1 }).skip(skip).limit(Number(limit)),
+      RiskMatrix.countDocuments(filter)
+    ]);
+    // Heat map aggregate
+    const heatmap = await RiskMatrix.aggregate([
+      { $match: filter },
+      { $group: { _id: { likelihood: '$residualLikelihood', impact: '$residualImpact' }, count: { $sum: 1 }, titles: { $push: '$title' } } }
+    ]);
+    ok(res, { risks, total, heatmap, page: Number(page), pages: Math.ceil(total / Number(limit)) });
+  } catch (e) { err(res, 'Failed to fetch risk matrix', e, 500); }
+});
+ 
+router.post('/risk-matrix', async (req, res) => {
+  try {
+    const risk = await RiskMatrix.create({ ...req.body, createdBy: req.user.userId });
+    ok(res, risk, 'Risk entry created', 201);
+  } catch (e) { err(res, 'Failed to create risk entry', e); }
+});
+ 
+router.put('/risk-matrix/:id', async (req, res) => {
+  try {
+    const risk = await RiskMatrix.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+    if (!risk) return res.status(404).json({ success: false, message: 'Risk entry not found' });
+    ok(res, risk, 'Risk entry updated');
+  } catch (e) { err(res, 'Failed to update risk entry', e); }
+});
+ 
+ 
+// ── AUDIT SCHEDULER ───────────────────────────────────────────────────────────
+router.get('/audits', async (req, res) => {
+  try {
+    const { auditType, status, module: mod, page = 1, limit = 20 } = req.query;
+    const filter = {};
+    if (auditType) filter.auditType = auditType;
+    if (status)    filter.status    = status;
+    if (mod)       filter.module    = mod;
+    const skip = (Number(page) - 1) * Number(limit);
+    const [audits, total] = await Promise.all([
+      AuditSchedule.find(filter).populate('leadAuditor', 'fullName').sort({ plannedDate: -1 }).skip(skip).limit(Number(limit)),
+      AuditSchedule.countDocuments(filter)
+    ]);
+    ok(res, { audits, total, page: Number(page), pages: Math.ceil(total / Number(limit)) });
+  } catch (e) { err(res, 'Failed to fetch audits', e, 500); }
+});
+ 
+router.post('/audits', async (req, res) => {
+  try {
+    const audit = await AuditSchedule.create({ ...req.body, createdBy: req.user.userId });
+    ok(res, audit, 'Audit scheduled', 201);
+  } catch (e) { err(res, 'Failed to schedule audit', e); }
+});
+ 
+router.get('/audits/:id', async (req, res) => {
+  try {
+    const audit = await AuditSchedule.findById(req.params.id).populate('leadAuditor auditTeam', 'fullName email');
+    if (!audit) return res.status(404).json({ success: false, message: 'Audit not found' });
+    ok(res, audit);
+  } catch (e) { err(res, 'Failed to fetch audit', e, 500); }
+});
+ 
+router.put('/audits/:id', async (req, res) => {
+  try {
+    const audit = await AuditSchedule.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!audit) return res.status(404).json({ success: false, message: 'Audit not found' });
+    ok(res, audit, 'Audit updated');
+  } catch (e) { err(res, 'Failed to update audit', e); }
+});
+ 
+router.post('/audits/:id/findings', async (req, res) => {
+  try {
+    const audit = await AuditSchedule.findById(req.params.id);
+    if (!audit) return res.status(404).json({ success: false, message: 'Audit not found' });
+    audit.findings.push(req.body);
+    await audit.save();
+    ok(res, audit, 'Finding added');
+  } catch (e) { err(res, 'Failed to add finding', e); }
+});
+ 
+router.patch('/audits/:id/findings/:findingId/capa', async (req, res) => {
+  try {
+    const audit = await AuditSchedule.findById(req.params.id);
+    if (!audit) return res.status(404).json({ success: false, message: 'Audit not found' });
+    const finding = audit.findings.id(req.params.findingId);
+    if (!finding) return res.status(404).json({ success: false, message: 'Finding not found' });
+    Object.assign(finding.capa, req.body);
+    await audit.save();
+    ok(res, audit, 'CAPA updated');
+  } catch (e) { err(res, 'Failed to update CAPA', e); }
+});
+ 
+ 
+// ── INCIDENT MANAGEMENT ───────────────────────────────────────────────────────
+router.get('/incidents', async (req, res) => {
+  try {
+    const { incidentType, severity, status, page = 1, limit = 20 } = req.query;
+    const filter = {};
+    if (incidentType) filter.incidentType = incidentType;
+    if (severity)     filter.severity     = severity;
+    if (status)       filter.status       = status;
+    const skip = (Number(page) - 1) * Number(limit);
+    const [incidents, total] = await Promise.all([
+      Incident.find(filter).populate('reportedBy', 'fullName').sort({ occurredAt: -1 }).skip(skip).limit(Number(limit)),
+      Incident.countDocuments(filter)
+    ]);
+    // KPIs
+    const kpis = await Incident.aggregate([
+      { $group: { _id: '$severity', count: { $sum: 1 }, totalLoss: { $sum: '$estimatedLoss' } } }
+    ]);
+    ok(res, { incidents, total, kpis, page: Number(page), pages: Math.ceil(total / Number(limit)) });
+  } catch (e) { err(res, 'Failed to fetch incidents', e, 500); }
+});
+ 
+router.post('/incidents', async (req, res) => {
+  try {
+    const incident = await Incident.create({ ...req.body, createdBy: req.user.userId });
+    ok(res, incident, 'Incident reported', 201);
+  } catch (e) { err(res, 'Failed to report incident', e); }
+});
+ 
+router.put('/incidents/:id', async (req, res) => {
+  try {
+    const incident = await Incident.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!incident) return res.status(404).json({ success: false, message: 'Incident not found' });
+    ok(res, incident, 'Incident updated');
+  } catch (e) { err(res, 'Failed to update incident', e); }
+});
+ 
+router.post('/incidents/:id/corrective-actions', async (req, res) => {
+  try {
+    const incident = await Incident.findById(req.params.id);
+    if (!incident) return res.status(404).json({ success: false, message: 'Incident not found' });
+    incident.correctiveActions.push(req.body);
+    await incident.save();
+    ok(res, incident, 'Corrective action added');
+  } catch (e) { err(res, 'Failed to add corrective action', e); }
+});
+ 
+router.post('/incidents/:id/close', async (req, res) => {
+  try {
+    const incident = await Incident.findById(req.params.id);
+    if (!incident) return res.status(404).json({ success: false, message: 'Incident not found' });
+    incident.status    = 'closed';
+    incident.closedAt  = new Date();
+    incident.closedBy  = req.user.userId;
+    incident.closureNotes = req.body.closureNotes || '';
+    await incident.save();
+    ok(res, incident, 'Incident closed');
+  } catch (e) { err(res, 'Failed to close incident', e); }
+});
+ 
+ 
+// ── POLICY MANAGEMENT ─────────────────────────────────────────────────────────
+router.get('/policies', async (req, res) => {
+  try {
+    const { category, status, page = 1, limit = 20 } = req.query;
+    const filter = {};
+    if (category) filter.category = category;
+    if (status)   filter.status   = status;
+    const skip = (Number(page) - 1) * Number(limit);
+    const [policies, total] = await Promise.all([
+      Policy.find(filter).populate('owner', 'fullName').sort({ nextReviewDue: 1 }).skip(skip).limit(Number(limit)),
+      Policy.countDocuments(filter)
+    ]);
+    ok(res, { policies, total, page: Number(page), pages: Math.ceil(total / Number(limit)) });
+  } catch (e) { err(res, 'Failed to fetch policies', e, 500); }
+});
+ 
+router.post('/policies', async (req, res) => {
+  try {
+    const policy = await Policy.create({ ...req.body, createdBy: req.user.userId });
+    ok(res, policy, 'Policy created', 201);
+  } catch (e) { err(res, 'Failed to create policy', e); }
+});
+ 
+router.put('/policies/:id', async (req, res) => {
+  try {
+    const policy = await Policy.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+    if (!policy) return res.status(404).json({ success: false, message: 'Policy not found' });
+    ok(res, policy, 'Policy updated');
+  } catch (e) { err(res, 'Failed to update policy', e); }
+});
+ 
+router.post('/policies/:id/versions', async (req, res) => {
+  try {
+    const policy = await Policy.findById(req.params.id);
+    if (!policy) return res.status(404).json({ success: false, message: 'Policy not found' });
+    const nextVer = (policy.currentVersion || 0) + 1;
+    // Supersede current published version
+    policy.versions.forEach(v => { if (v.status === 'published') v.status = 'superseded'; });
+    policy.versions.push({ versionNumber: nextVer, ...req.body, status: 'published', publishedAt: new Date(), publishedBy: req.user.userId });
+    policy.currentVersion = nextVer;
+    // Reset acknowledgements when a new version is published
+    policy.acknowledgements = [];
+    policy.totalAcknowledged = 0;
+    policy.coveragePct = 0;
+    await policy.save();
+    ok(res, policy, `Version ${nextVer} published — acknowledgements reset`);
+  } catch (e) { err(res, 'Failed to publish version', e); }
+});
+ 
+router.post('/policies/:id/acknowledge', async (req, res) => {
+  try {
+    const policy = await Policy.findById(req.params.id);
+    if (!policy) return res.status(404).json({ success: false, message: 'Policy not found' });
+    const alreadyAcknowledged = policy.acknowledgements.some(
+      a => String(a.userId) === String(req.user.userId) && a.version === policy.currentVersion
+    );
+    if (alreadyAcknowledged) return ok(res, policy, 'Already acknowledged for current version');
+    policy.acknowledgements.push({
+      userId: req.user.userId,
+      userName: req.body.userName || '',
+      version: policy.currentVersion,
+      acknowledgedAt: new Date(),
+      ipAddress: req.ip || ''
+    });
+    await policy.save();
+    ok(res, { coveragePct: policy.coveragePct, totalAcknowledged: policy.totalAcknowledged }, 'Policy acknowledged');
+  } catch (e) { err(res, 'Failed to acknowledge policy', e); }
+});
+ 
+ 
+// ── WHISTLEBLOWING ────────────────────────────────────────────────────────────
+// Public endpoint — no auth required for submission (protected by design)
+router.post('/whistleblowing/report', async (req, res) => {
+  try {
+    const wbCase = await WhistleblowingCase.create({ ...req.body });
+    // Return only the token — no case details
+    ok(res, { reporterToken: wbCase.reporterToken, message: 'Your report has been received. Use this token to check your case status.' }, 'Report submitted', 201);
+  } catch (e) { err(res, 'Failed to submit report', e); }
+});
+ 
+// Check status by token — public, no auth
+router.get('/whistleblowing/status/:token', async (req, res) => {
+  try {
+    const wbCase = await WhistleblowingCase.findOne({ reporterToken: req.params.token })
+      .select('caseRef status reporterUpdates createdAt');
+    if (!wbCase) return res.status(404).json({ success: false, message: 'Case not found' });
+    ok(res, wbCase);
+  } catch (e) { err(res, 'Failed to fetch status', e, 500); }
+});
+ 
+// Management endpoints — auth required
+router.get('/whistleblowing', async (req, res) => {
+  try {
+    const { status, category, page = 1, limit = 20 } = req.query;
+    const filter = {};
+    if (status)   filter.status   = status;
+    if (category) filter.category = category;
+    const skip = (Number(page) - 1) * Number(limit);
+    // Return sanitised list — no reporter contact details
+    const [cases, total] = await Promise.all([
+      WhistleblowingCase.find(filter).select('-contactDetail -investigationLog').sort({ createdAt: -1 }).skip(skip).limit(Number(limit)),
+      WhistleblowingCase.countDocuments(filter)
+    ]);
+    ok(res, { cases, total, page: Number(page), pages: Math.ceil(total / Number(limit)) });
+  } catch (e) { err(res, 'Failed to fetch cases', e, 500); }
+});
+ 
+router.get('/whistleblowing/:id', async (req, res) => {
+  try {
+    const wbCase = await WhistleblowingCase.findById(req.params.id)
+      .populate('investigatorId', 'fullName email')
+      .populate('authorisedViewers', 'fullName email');
+    if (!wbCase) return res.status(404).json({ success: false, message: 'Case not found' });
+    // Check authorised access
+    const isAuthorised = wbCase.authorisedViewers.some(v => String(v._id) === String(req.user.userId))
+      || req.user.role === 'admin' || req.user.role === 'ceo';
+    if (!isAuthorised) return res.status(403).json({ success: false, message: 'Access restricted to authorised investigators' });
+    ok(res, wbCase);
+  } catch (e) { err(res, 'Failed to fetch case', e, 500); }
+});
+ 
+router.put('/whistleblowing/:id', async (req, res) => {
+  try {
+    const wbCase = await WhistleblowingCase.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!wbCase) return res.status(404).json({ success: false, message: 'Case not found' });
+    ok(res, wbCase, 'Case updated');
+  } catch (e) { err(res, 'Failed to update case', e); }
+});
+ 
+router.post('/whistleblowing/:id/log', async (req, res) => {
+  try {
+    const wbCase = await WhistleblowingCase.findById(req.params.id);
+    if (!wbCase) return res.status(404).json({ success: false, message: 'Case not found' });
+    wbCase.investigationLog.push({ entry: req.body.entry, addedBy: req.user.userId, logDate: new Date() });
+    await wbCase.save();
+    ok(res, wbCase, 'Log entry added');
+  } catch (e) { err(res, 'Failed to add log entry', e); }
+});
+ 
+router.post('/whistleblowing/:id/reporter-update', async (req, res) => {
+  try {
+    const wbCase = await WhistleblowingCase.findById(req.params.id);
+    if (!wbCase) return res.status(404).json({ success: false, message: 'Case not found' });
+    wbCase.reporterUpdates.push({ message: req.body.message, updateDate: new Date() });
+    await wbCase.save();
+    ok(res, { message: 'Reporter update sent' });
+  } catch (e) { err(res, 'Failed to send update', e); }
+});
+ 
+ 
+// ── DATA PRIVACY ─────────────────────────────────────────────────────────────
+const getOrCreatePrivacyRecord = async () => {
+  let record = await DataPrivacyRecord.findOne();
+  if (!record) record = await DataPrivacyRecord.create({ organisationName: 'Grato Engineering' });
+  return record;
+};
+ 
+router.get('/privacy', async (req, res) => {
+  try { ok(res, await getOrCreatePrivacyRecord()); }
+  catch (e) { err(res, 'Failed to fetch privacy record', e, 500); }
+});
+ 
+router.post('/privacy/processing', async (req, res) => {
+  try {
+    const record = await getOrCreatePrivacyRecord();
+    record.processingActivities.push({ ...req.body, createdBy: req.user.userId });
+    await record.save();
+    ok(res, record, 'Processing activity added');
+  } catch (e) { err(res, 'Failed to add processing activity', e); }
+});
+ 
+router.post('/privacy/dpias', async (req, res) => {
+  try {
+    const record = await getOrCreatePrivacyRecord();
+    const Counter = require('../models/Counter');
+    const year    = new Date().getFullYear();
+    const counter = await Counter.findByIdAndUpdate(`DPIA-${year}`, { $inc: { seq: 1 } }, { upsert: true, new: true });
+    record.dpias.push({ dpiaRef: `DPIA-${year}-${String(counter.seq).padStart(3, '0')}`, ...req.body, createdBy: req.user.userId });
+    await record.save();
+    ok(res, record, 'DPIA added');
+  } catch (e) { err(res, 'Failed to add DPIA', e); }
+});
+ 
+router.post('/privacy/breaches', async (req, res) => {
+  try {
+    const record = await getOrCreatePrivacyRecord();
+    const Counter = require('../models/Counter');
+    const now     = new Date();
+    const period  = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const counter = await Counter.findByIdAndUpdate(`BREACH-${period}`, { $inc: { seq: 1 } }, { upsert: true, new: true });
+    const breachData = { breachRef: `BREACH-${period}-${String(counter.seq).padStart(3, '0')}`, ...req.body, createdBy: req.user.userId };
+    // 72-hour notification deadline
+    if (breachData.notificationRequired) {
+      const deadline = new Date(breachData.discoveredAt || now);
+      deadline.setHours(deadline.getHours() + 72);
+      breachData.notificationDeadline = deadline;
+    }
+    record.breaches.push(breachData);
+    await record.save();
+    ok(res, record, 'Data breach recorded');
+  } catch (e) { err(res, 'Failed to record breach', e); }
+});
+ 
+router.post('/privacy/sars', async (req, res) => {
+  try {
+    const record = await getOrCreatePrivacyRecord();
+    const Counter = require('../models/Counter');
+    const year    = new Date().getFullYear();
+    const counter = await Counter.findByIdAndUpdate(`SAR-${year}`, { $inc: { seq: 1 } }, { upsert: true, new: true });
+    const receivedAt = new Date(req.body.receivedAt || new Date());
+    const deadline   = new Date(receivedAt); deadline.setDate(deadline.getDate() + 30);
+    record.sars.push({
+      sarRef: `SAR-${year}-${String(counter.seq).padStart(3, '0')}`,
+      ...req.body, receivedAt, deadline, createdBy: req.user.userId
+    });
+    await record.save();
+    ok(res, record, 'SAR recorded — 30-day deadline set');
+  } catch (e) { err(res, 'Failed to record SAR', e); }
+});
+ 
+ 
+// ── TRAINING & COMPETENCY ─────────────────────────────────────────────────────
+router.get('/training', async (req, res) => {
+  try {
+    const { userId, department, page = 1, limit = 20 } = req.query;
+    const filter = {};
+    if (userId)     filter.userId     = userId;
+    if (department) filter.department = department;
+    const skip = (Number(page) - 1) * Number(limit);
+    const [records, total] = await Promise.all([
+      TrainingRecord.find(filter).populate('userId', 'fullName email department').sort({ updatedAt: -1 }).skip(skip).limit(Number(limit)),
+      TrainingRecord.countDocuments(filter)
+    ]);
+    ok(res, { records, total, page: Number(page), pages: Math.ceil(total / Number(limit)) });
+  } catch (e) { err(res, 'Failed to fetch training records', e, 500); }
+});
+ 
+router.post('/training', async (req, res) => {
+  try {
+    const existing = await TrainingRecord.findOne({ userId: req.body.userId });
+    if (existing) return ok(res, existing, 'Record already exists — use PUT to update');
+    const record = await TrainingRecord.create({ ...req.body, createdBy: req.user.userId });
+    ok(res, record, 'Training record created', 201);
+  } catch (e) { err(res, 'Failed to create training record', e); }
+});
+ 
+router.put('/training/:id', async (req, res) => {
+  try {
+    const record = await TrainingRecord.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+    if (!record) return res.status(404).json({ success: false, message: 'Record not found' });
+    ok(res, record, 'Training record updated');
+  } catch (e) { err(res, 'Failed to update training record', e); }
+});
+ 
+router.post('/training/:id/sessions', async (req, res) => {
+  try {
+    const record = await TrainingRecord.findById(req.params.id);
+    if (!record) return res.status(404).json({ success: false, message: 'Record not found' });
+    record.trainingSessions.push(req.body);
+    await record.save();
+    ok(res, record, 'Training session added');
+  } catch (e) { err(res, 'Failed to add session', e); }
+});
+ 
+router.post('/training/:id/certifications', async (req, res) => {
+  try {
+    const record = await TrainingRecord.findById(req.params.id);
+    if (!record) return res.status(404).json({ success: false, message: 'Record not found' });
+    record.certifications.push(req.body);
+    await record.save();
+    ok(res, record, 'Certification added');
+  } catch (e) { err(res, 'Failed to add certification', e); }
+});
+ 
+router.post('/training/:id/competencies', async (req, res) => {
+  try {
+    const record = await TrainingRecord.findById(req.params.id);
+    if (!record) return res.status(404).json({ success: false, message: 'Record not found' });
+    // Upsert competency
+    const existing = record.competencies.find(c => c.competency === req.body.competency);
+    if (existing) { Object.assign(existing, req.body); }
+    else { record.competencies.push(req.body); }
+    await record.save();
+    ok(res, record, 'Competency updated');
+  } catch (e) { err(res, 'Failed to update competency', e); }
+});
+ 
+// Organisation-wide gap analysis
+router.get('/training/gap-analysis', async (req, res) => {
+  try {
+    const { department } = req.query;
+    const filter = {};
+    if (department) filter.department = department;
+    const records = await TrainingRecord.find(filter).lean();
+    const competencyMap = new Map();
+    records.forEach(r => {
+      (r.competencies || []).forEach(c => {
+        if (!competencyMap.has(c.competency)) {
+          competencyMap.set(c.competency, { competency: c.competency, category: c.category, gaps: 0, totalAssessed: 0, avgGap: 0, totalGap: 0 });
+        }
+        const entry = competencyMap.get(c.competency);
+        entry.totalAssessed++;
+        entry.totalGap += c.gap || 0;
+        if (c.gap > 0) entry.gaps++;
+      });
+    });
+    const result = Array.from(competencyMap.values()).map(e => ({
+      ...e,
+      avgGap: e.totalAssessed > 0 ? Math.round((e.totalGap / e.totalAssessed) * 10) / 10 : 0
+    })).sort((a, b) => b.avgGap - a.avgGap);
+    ok(res, { gaps: result, totalStaff: records.length });
+  } catch (e) { err(res, 'Failed to generate gap analysis', e, 500); }
+});
+ 
+ 
+// ── SUPPLIER MONITORING ───────────────────────────────────────────────────────
+router.get('/supplier-monitoring', async (req, res) => {
+  try {
+    const { status, sanctionsCheckResult, page = 1, limit = 20 } = req.query;
+    const filter = {};
+    if (status)               filter.status               = status;
+    if (sanctionsCheckResult) filter.sanctionsCheckResult = sanctionsCheckResult;
+    const skip = (Number(page) - 1) * Number(limit);
+    const [records, total] = await Promise.all([
+      SupplierMonitoring.find(filter).populate('supplierId', 'name email').sort({ nextReviewDue: 1 }).skip(skip).limit(Number(limit)),
+      SupplierMonitoring.countDocuments(filter)
+    ]);
+    ok(res, { records, total, page: Number(page), pages: Math.ceil(total / Number(limit)) });
+  } catch (e) { err(res, 'Failed to fetch monitoring records', e, 500); }
+});
+ 
+router.post('/supplier-monitoring', async (req, res) => {
+  try {
+    const existing = await SupplierMonitoring.findOne({ supplierId: req.body.supplierId });
+    if (existing) return ok(res, existing, 'Monitoring record already exists');
+    const record = await SupplierMonitoring.create({ ...req.body, createdBy: req.user.userId });
+    ok(res, record, 'Supplier monitoring record created', 201);
+  } catch (e) { err(res, 'Failed to create monitoring record', e); }
+});
+ 
+router.put('/supplier-monitoring/:id', async (req, res) => {
+  try {
+    const record = await SupplierMonitoring.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!record) return res.status(404).json({ success: false, message: 'Record not found' });
+    ok(res, record, 'Record updated');
+  } catch (e) { err(res, 'Failed to update record', e); }
+});
+ 
+router.post('/supplier-monitoring/:id/sanctions-check', async (req, res) => {
+  try {
+    const record = await SupplierMonitoring.findById(req.params.id);
+    if (!record) return res.status(404).json({ success: false, message: 'Record not found' });
+    record.sanctionsCheckDate   = new Date();
+    record.sanctionsCheckResult = req.body.result || 'clear';
+    record.sanctionsCheckSource = req.body.source || '';
+    record.sanctionsNotes       = req.body.notes  || '';
+    if (req.body.result === 'flagged') {
+      record.alerts.push({ alertType: 'sanctions_flag', message: 'Supplier flagged in sanctions check', severity: 'high' });
+    }
+    await record.save();
+    ok(res, record, 'Sanctions check recorded');
+  } catch (e) { err(res, 'Failed to record sanctions check', e); }
+});
+ 
+router.post('/supplier-monitoring/:id/reassessment', async (req, res) => {
+  try {
+    const record = await SupplierMonitoring.findById(req.params.id);
+    if (!record) return res.status(404).json({ success: false, message: 'Record not found' });
+    record.reassessmentTriggers.push({ ...req.body, triggeredBy: req.user.userId, triggeredAt: new Date() });
+    await record.save();
+    ok(res, record, 'Re-assessment trigger recorded');
+  } catch (e) { err(res, 'Failed to record re-assessment trigger', e); }
+});
+ 
+ 
+// ── COMPLIANCE REPORTS ENDPOINTS ──────────────────────────────────────────────
+router.get('/reports/compliance-summary', async (req, res) => {
+  try {
+    const now = new Date();
+    const thisYear = now.getFullYear();
+ 
+    const [
+      openRisks,
+      criticalRisks,
+      withinAppetite,
+      openIncidents,
+      openAudits,
+      overdueCapas,
+      openWBCases,
+      activePolicies,
+      uncoveredPolicies,
+      openSARs,
+      openBreaches,
+      blacklistedSuppliers,
+      expiringCerts,
+      openRiskCases
+    ] = await Promise.all([
+      RiskMatrix.countDocuments({ status: 'open' }),
+      RiskMatrix.countDocuments({ residualRating: 'critical', status: 'open' }),
+      RiskMatrix.countDocuments({ withinAppetite: true }),
+      Incident.countDocuments({ status: { $nin: ['closed', 'archived'] } }),
+      AuditSchedule.countDocuments({ status: { $in: ['planned', 'in_progress'] } }),
+      AuditSchedule.countDocuments({ 'findings.capa.status': 'overdue' }),
+      WhistleblowingCase.countDocuments({ status: { $nin: ['closed_substantiated', 'closed_unsubstantiated', 'closed_inconclusive'] } }),
+      Policy.countDocuments({ status: 'active' }),
+      Policy.countDocuments({ status: 'active', coveragePct: { $lt: 80 } }),
+      DataPrivacyRecord.aggregate([{ $project: { openSARs: { $filter: { input: '$sars', cond: { $ne: ['$$this.status', 'completed'] } } } } }, { $project: { count: { $size: '$openSARs' } } }]),
+      DataPrivacyRecord.aggregate([{ $project: { ob: { $filter: { input: '$breaches', cond: { $ne: ['$$this.status', 'closed'] } } } } }, { $project: { count: { $size: '$ob' } } }]),
+      SupplierMonitoring.countDocuments({ isBlacklisted: true }),
+      TrainingRecord.countDocuments({ 'certifications.isExpired': true }),
+      RiskCase.countDocuments({ status: { $nin: ['resolved', 'closed'] } })
+    ]);
+ 
+    ok(res, {
+      generatedAt: now,
+      risks:       { open: openRisks, critical: criticalRisks, withinAppetite },
+      incidents:   { open: openIncidents },
+      audits:      { open: openAudits, overdueCapas },
+      whistleblowing: { open: openWBCases },
+      policies:    { active: activePolicies, belowCoverage: uncoveredPolicies },
+      privacy:     { openSARs: openSARs[0]?.count || 0, openBreaches: openBreaches[0]?.count || 0 },
+      suppliers:   { blacklisted: blacklistedSuppliers },
+      training:    { expiredCerts: expiringCerts },
+      riskCases:   { open: openRiskCases }
+    });
+  } catch (e) { err(res, 'Failed to generate compliance summary', e, 500); }
 });
 
 module.exports = router;
