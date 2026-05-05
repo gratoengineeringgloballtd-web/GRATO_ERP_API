@@ -21,7 +21,7 @@ const {
 router.post(
   '/',
   authMiddleware,
-  requireRoles('finance', 'admin'),
+  requireRoles('finance', 'admin', 'ceo'),
   createScheduledReport
 );
 
@@ -33,7 +33,7 @@ router.post(
 router.get(
   '/',
   authMiddleware,
-  requireRoles('finance', 'admin'),
+  requireRoles('finance', 'admin', 'ceo'),
   getScheduledReports
 );
 
@@ -56,7 +56,7 @@ router.get(
 router.get(
   '/statistics',
   authMiddleware,
-  requireRoles('finance', 'admin'),
+  requireRoles('finance', 'admin', 'ceo'),
   getReportStatistics
 );
 
@@ -101,7 +101,7 @@ router.delete(
 router.post(
   '/:reportId/trigger',
   authMiddleware,
-  requireRoles('finance', 'admin'),
+  requireRoles('finance', 'admin', 'ceo'),
   triggerReport
 );
 

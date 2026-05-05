@@ -111,6 +111,173 @@ async function deleteSignatureFile(localPath) {
 }
 
 /**
+ * Attach an existing image from the signatures folder to a user.
+ * Scans SIGNATURES_DIR for image files, picks the best match for the
+ * given email (filename contains the email prefix), or falls back to the
+ * first image found if no match exists.
+ *
+ * Usage:
+ *   node scripts/addUserSignature.js attach-local tom@gratoengineering.com
+ *   node scripts/addUserSignature.js attach-local tom@gratoengineering.com tom_signature.png
+ */
+async function attachLocalSignature(email, specificFilename = null) {
+  try {
+    console.log('📎 ATTACHING LOCAL SIGNATURE TO USER');
+    console.log('='.repeat(80) + '\n');
+
+    await connectDB();
+
+    // ── 1. Find the user ──────────────────────────────────────────────────────
+    const user = await User.findOne({ email: email.toLowerCase() });
+
+    if (!user) {
+      console.error(`❌ User not found: ${email}`);
+      process.exit(1);
+    }
+
+    console.log('✅ Found user:', user.fullName);
+    console.log('   Position   :', user.position);
+    console.log('   Department :', user.department);
+    console.log('');
+
+    // ── 2. Make sure the signatures directory exists ──────────────────────────
+    if (!fsSync.existsSync(SIGNATURES_DIR)) {
+      console.error(`❌ Signatures directory not found: ${SIGNATURES_DIR}`);
+      console.error('   Please create the directory and place the image file inside it.');
+      process.exit(1);
+    }
+
+    // ── 3. List all image files in the directory ──────────────────────────────
+    const allowedExtensions = ['.png', '.jpg', '.jpeg', '.svg'];
+
+    const allFiles = fsSync.readdirSync(SIGNATURES_DIR).filter(f =>
+      allowedExtensions.includes(path.extname(f).toLowerCase())
+    );
+
+    if (allFiles.length === 0) {
+      console.error(`❌ No image files found in: ${SIGNATURES_DIR}`);
+      console.error(`   Supported formats: ${allowedExtensions.join(', ')}`);
+      process.exit(1);
+    }
+
+    console.log(`📁 Images found in signatures folder (${allFiles.length}):`);
+    allFiles.forEach(f => console.log(`   • ${f}`));
+    console.log('');
+
+    // ── 4. Resolve which file to use ─────────────────────────────────────────
+    let chosenFile = null;
+
+    if (specificFilename) {
+      // User explicitly named a file
+      const candidate = path.join(SIGNATURES_DIR, specificFilename);
+      if (!fsSync.existsSync(candidate)) {
+        console.error(`❌ Specified file not found in signatures folder: ${specificFilename}`);
+        process.exit(1);
+      }
+      chosenFile = specificFilename;
+      console.log(`✓ Using specified file: ${chosenFile}`);
+    } else {
+      // Auto-detect: prefer a file whose name contains the email local-part
+      const emailLocalPart = email.split('@')[0].toLowerCase(); // e.g. "tom"
+
+      const exactMatch = allFiles.find(f =>
+        f.toLowerCase().includes(email.toLowerCase())
+      );
+      const partialMatch = allFiles.find(f =>
+        f.toLowerCase().includes(emailLocalPart)
+      );
+
+      if (exactMatch) {
+        chosenFile = exactMatch;
+        console.log(`✓ Auto-matched by email: ${chosenFile}`);
+      } else if (partialMatch) {
+        chosenFile = partialMatch;
+        console.log(`✓ Auto-matched by username "${emailLocalPart}": ${chosenFile}`);
+      } else {
+        // Fall back to the first image in the folder
+        chosenFile = allFiles[0];
+        console.log(`⚠️  No filename match found — using first available image: ${chosenFile}`);
+      }
+    }
+
+    console.log('');
+
+    const sourceFilePath = path.join(SIGNATURES_DIR, chosenFile);
+    const fileStats = fsSync.statSync(sourceFilePath);
+    const fileExt = path.extname(chosenFile).toLowerCase();
+
+    console.log('📁 File details:');
+    console.log('   Path   :', sourceFilePath);
+    console.log('   Size   :', (fileStats.size / 1024).toFixed(2), 'KB');
+    console.log('   Format :', fileExt);
+    console.log('');
+
+    // ── 5. Remove old signature if one exists ─────────────────────────────────
+    if (user.signature && user.signature.localPath) {
+      console.log('⚠️  Existing signature found — removing old file...');
+      await deleteSignatureFile(user.signature.localPath);
+      console.log('');
+    }
+
+    // ── 6. Copy the file into the signatures folder under the user's ID ───────
+    console.log('💾 Registering signature...');
+
+    const newFilename   = generateSignatureFilename(user._id, fileExt);
+    const destPath      = path.join(SIGNATURES_DIR, newFilename);
+
+    // Only copy if source and destination are different files
+    if (path.resolve(sourceFilePath) !== path.resolve(destPath)) {
+      await fs.copyFile(sourceFilePath, destPath);
+    }
+
+    const destStats = fsSync.statSync(destPath);
+    const relativePath = path.relative(BASE_UPLOAD_DIR, destPath).replace(/\\/g, '/');
+    const fileUrl = `/uploads/${relativePath}`;
+
+    const signatureData = {
+      url:          fileUrl,
+      localPath:    destPath,
+      filename:     newFilename,
+      originalName: chosenFile,
+      format:       fileExt.substring(1),
+      size:         destStats.size,
+      uploadedAt:   new Date()
+    };
+
+    // ── 7. Persist to database ────────────────────────────────────────────────
+    user.signature = signatureData;
+    await user.save();
+
+    // ── 8. Summary ────────────────────────────────────────────────────────────
+    console.log('\n✅ User updated with signature!\n');
+
+    console.log('📊 SIGNATURE DETAILS');
+    console.log('='.repeat(80));
+    console.log(`User               : ${user.fullName}`);
+    console.log(`Email              : ${user.email}`);
+    console.log(`Position           : ${user.position}`);
+    console.log(`Source Image       : ${chosenFile}`);
+    console.log(`Signature URL      : ${signatureData.url}`);
+    console.log(`Local Path         : ${signatureData.localPath}`);
+    console.log(`Format             : ${signatureData.format}`);
+    console.log(`Size               : ${(signatureData.size / 1024).toFixed(2)} KB`);
+    console.log(`Uploaded           : ${signatureData.uploadedAt.toLocaleString()}`);
+    console.log('='.repeat(80) + '\n');
+
+    console.log('✅ SIGNATURE ATTACHED SUCCESSFULLY!\n');
+    console.log('💡 TIP: Make sure your Express app serves static files from:');
+    console.log(`   app.use('/uploads', express.static('${BASE_UPLOAD_DIR}'));\n`);
+
+    process.exit(0);
+
+  } catch (error) {
+    console.error('\n❌ Failed to attach local signature:', error);
+    console.error(error.stack);
+    process.exit(1);
+  }
+}
+
+/**
  * Add sample signature to any user (testing/placeholder)
  */
 async function addSampleSignature(email) {
@@ -554,6 +721,22 @@ const command = args[0];
 
 if (require.main === module) {
   switch (command) {
+    case 'attach-local':
+    case '--attach-local':
+      if (!args[1]) {
+        console.log('Usage: node scripts/addUserSignature.js attach-local <email> [filename]');
+        console.log('');
+        console.log('Examples:');
+        console.log('  # Auto-detect image for tom (picks file whose name contains "tom")');
+        console.log('  node scripts/addUserSignature.js attach-local tom@gratoengineering.com');
+        console.log('');
+        console.log('  # Pin a specific file from the signatures folder');
+        console.log('  node scripts/addUserSignature.js attach-local tom@gratoengineering.com tom_signature.png\n');
+        process.exit(0);
+      }
+      attachLocalSignature(args[1], args[2] || null);
+      break;
+
     case 'sample':
     case '--sample':
       if (!args[1]) {
@@ -578,7 +761,7 @@ if (require.main === module) {
     case '--url':
       if (!args[1] || !args[2]) {
         console.log('Usage: node scripts/addUserSignature.js add-url <email> <signature_url> [local_path]');
-        console.log('Example: node scripts/addUserSignature.js add-url kelvin.eyong@gratoglobal.com /uploads/user-signatures/kelvin.png\n');
+        console.log('Example: node scripts/addUserSignature.js add-url kelvin.eyong@gratoglobal.com /uploads/user-signatures/sig.png\n');
         process.exit(0);
       }
       addSignatureURL(args[1], args[2], args[3]);
@@ -639,15 +822,19 @@ Usage:
 
 Commands:
 
+  attach-local <email> [filename]                              ← NEW
+    Attach an image already present in the signatures folder to a user.
+    Auto-detects the best match by email/username, or you can name the file.
+    Example: node scripts/addUserSignature.js attach-local tom@gratoengineering.com
+    Example: node scripts/addUserSignature.js attach-local tom@gratoengineering.com tom_signature.png
+
   sample <email>
     Add a sample/placeholder signature to any user (for testing)
     Example: node scripts/addUserSignature.js sample kelvin.eyong@gratoglobal.com
-    Example: node scripts/addUserSignature.js sample bruiline.tsitoh@gratoglobal.com
 
   upload <email> <file_path>
     Upload a signature file to local storage and add to user
     Example: node scripts/addUserSignature.js upload kelvin.eyong@gratoglobal.com ./signatures/kelvin.png
-    Example: node scripts/addUserSignature.js upload bruiline.tsitoh@gratoglobal.com public/signatures/bruiline.jpeg
 
   add-url <email> <signature_url> [local_path]
     Add an already uploaded signature URL to user
@@ -678,26 +865,6 @@ Supported Formats:
   ✅ PNG (.png)
   ✅ JPEG (.jpg, .jpeg)
   ✅ SVG (.svg)
-
-Features:
-  ✅ Store files locally (no cloud dependency)
-  ✅ Automatic file naming and organization
-  ✅ Replace existing signatures (with --force)
-  ✅ Bulk upload multiple signatures
-  ✅ Delete signatures (file + database)
-  ✅ List all user signatures
-
-Signature Usage:
-  - Display on approval documents
-  - Show on requisition forms
-  - Include in official reports
-  - Verify document authenticity
-
-Next Steps:
-  1. Update your User model with signature field
-  2. Ensure Express serves /uploads directory
-  3. Upload signature files
-  4. Integrate into approval workflows
       `);
       process.exit(0);
   }
@@ -707,6 +874,7 @@ module.exports = {
   addSampleSignature,
   uploadAndAddSignature,
   addSignatureURL,
+  attachLocalSignature,
   bulkAddSignatures,
   listAllSignatures,
   deleteUserSignature

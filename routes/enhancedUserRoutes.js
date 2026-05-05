@@ -11,7 +11,7 @@ const enhancedUserController = require('../controllers/enhancedUserController');
 router.get(
   '/positions/available',
   authMiddleware,
-  requireRoles('admin', 'supply_chain'),
+  requireRoles('admin', 'supply_chain', 'ceo'),
   enhancedUserController.getAvailablePositions
 );
 
@@ -24,7 +24,7 @@ router.get(
 router.get(
   '/positions/supervisors',
   authMiddleware,
-  requireRoles('admin', 'supply_chain'),
+  requireRoles('admin', 'supply_chain', 'ceo'),
   enhancedUserController.getPotentialSupervisorsForPosition
 );
 
@@ -36,7 +36,7 @@ router.get(
 router.post(
   '/users/create-with-hierarchy',
   authMiddleware,
-  requireRoles('admin', 'supply_chain'),
+  requireRoles('admin', 'supply_chain', 'ceo'),
   enhancedUserController.createUserWithHierarchy
 );
 
@@ -70,7 +70,7 @@ router.get(
 router.get(
   '/users/:userId/approval-chain',
   authMiddleware,
-  requireRoles('admin', 'supply_chain'),
+  requireRoles('admin', 'supply_chain', 'ceo'),
   enhancedUserController.getUserApprovalChain
 );
 

@@ -20,7 +20,7 @@ const {
 router.post(
   '/',
   authMiddleware,
-  requireRoles('finance', 'admin'),
+  requireRoles('finance', 'admin', 'ceo'),
   requestBudgetTransfer
 );
 
@@ -32,7 +32,7 @@ router.post(
 router.get(
   '/',
   authMiddleware,
-  requireRoles('finance', 'admin'),
+  requireRoles('finance', 'admin', 'ceo'),
   getBudgetTransfers
 );
 
@@ -56,7 +56,7 @@ router.get(
 router.get(
   '/statistics',
   authMiddleware,
-  requireRoles('finance', 'admin'),
+  requireRoles('finance', 'admin', 'ceo'),
   getTransferStatistics
 );
 
@@ -68,7 +68,7 @@ router.get(
 router.get(
   '/:transferId',
   authMiddleware,
-  requireRoles('finance', 'admin', 'supervisor'),
+  requireRoles('finance', 'admin', 'supervisor', 'ceo'),
   getBudgetTransfer
 );
 
@@ -104,7 +104,7 @@ router.post(
 router.post(
   '/:transferId/cancel',
   authMiddleware,
-  requireRoles('finance', 'admin'),
+  requireRoles('finance', 'admin', 'ceo'),
   cancelBudgetTransfer
 );
 

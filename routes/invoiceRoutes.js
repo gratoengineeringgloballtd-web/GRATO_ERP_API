@@ -31,7 +31,7 @@ router.get('/files/:type/:publicId',
       }
 
       const isEmployee = invoice.employee._id.toString() === req.user.userId;
-      const isFinance = ['finance', 'admin'].includes(req.user.role);
+      const isFinance = ['finance', 'admin', 'ceo'].includes(req.user.role);
       const isApprover = invoice.approvalChain?.some(
         step => step.approver.email === req.user.email
       );
@@ -112,28 +112,28 @@ router.get(
 // Get all invoices for finance management (LIST)
 router.get('/finance',
   authMiddleware,
-  requireRoles('finance', 'admin'),
+  requireRoles('finance', 'admin', 'ceo'),
   invoiceApprovalController.getInvoicesForFinance
 );
 
 // Assign single invoice to department
 router.post('/finance/assign/:invoiceId',
   authMiddleware,
-  requireRoles('finance', 'admin'),
+  requireRoles('finance', 'admin', 'ceo'),
   invoiceApprovalController.assignInvoiceToDepartment
 );
 
 // Bulk assign invoices to department
 router.post('/finance/bulk-assign',
   authMiddleware,
-  requireRoles('finance', 'admin'),
+  requireRoles('finance', 'admin', 'ceo'),
   invoiceApprovalController.bulkAssignInvoices
 );
 
 // Mark invoice as processed (final finance step)
 router.put('/finance/process/:invoiceId',
   authMiddleware,
-  requireRoles('finance', 'admin'),
+  requireRoles('finance', 'admin', 'ceo'),
   invoiceApprovalController.markInvoiceAsProcessed
 );
 
@@ -158,54 +158,54 @@ router.get('/employee',
 // Get pending approvals for current user
 router.get('/supervisor/pending',
   authMiddleware,
-  requireRoles('supervisor', 'admin', 'finance', 'hr', 'it', 'buyer', 'supply_chain'),
+  requireRoles('supervisor', 'admin', 'finance', 'hr', 'it', 'buyer', 'supply_chain', 'ceo'),
   invoiceApprovalController.getPendingApprovalsForUser
 );
 
 // Get all invoices for supervisor (including upcoming)
 router.get('/supervisor/all',
   authMiddleware,
-  requireRoles('supervisor', 'admin', 'finance'),
+  requireRoles('supervisor', 'admin', 'finance', 'ceo'),
   invoiceApprovalController.getSupervisorInvoices
 );
 
 // Process approval decision
 router.put('/supervisor/approve/:invoiceId',
   authMiddleware,
-  requireRoles('supervisor', 'admin', 'hr', 'it', 'finance', 'buyer', 'supply_chain'),
+  requireRoles('supervisor', 'admin', 'hr', 'it', 'finance', 'buyer', 'supply_chain', 'ceo'),
   invoiceApprovalController.processApprovalStep
 );
 
 // Alternative approval routes
 router.get('/approvals/pending',
   authMiddleware,
-  requireRoles('supervisor', 'admin'),
+  requireRoles('supervisor', 'admin', 'ceo'),
   invoiceApprovalController.getPendingApprovalsForUser
 );
 
 router.put('/approvals/:invoiceId/decision',
   authMiddleware,
-  requireRoles('supervisor', 'admin'),
+  requireRoles('supervisor', 'admin', 'ceo'),
   invoiceApprovalController.processApprovalStep
 );
 
 // ==================== ANALYTICS & REPORTING ====================
 router.get('/analytics/dashboard',
   authMiddleware,
-  requireRoles('finance', 'admin'),
+  requireRoles('finance', 'admin', 'ceo'),
   invoiceApprovalController.getApprovalStatistics
 );
 
 // ==================== DEPARTMENT MANAGEMENT ====================
 router.get('/departments',
   authMiddleware,
-  requireRoles('finance', 'admin'),
+  requireRoles('finance', 'admin', 'ceo'),
   invoiceApprovalController.getDepartments
 );
 
 router.get('/departments/:department/employees',
   authMiddleware,
-  requireRoles('finance', 'admin'),
+  requireRoles('finance', 'admin', 'ceo'),
   invoiceApprovalController.getDepartmentEmployees
 );
 
@@ -218,7 +218,7 @@ router.get('/departments/:department/employees',
 router.get(
   '/finance/po-list',
   authMiddleware,
-  requireRoles('finance', 'admin'),
+  requireRoles('finance', 'admin', 'ceo'),
   financeInvoiceController.getPOsForInvoicing
 );
 
@@ -230,7 +230,7 @@ router.get(
 router.get(
   '/finance/prepared',
   authMiddleware,
-  requireRoles('finance', 'admin'),
+  requireRoles('finance', 'admin', 'ceo'),
   financeInvoiceController.getFinancePreparedInvoices
 );
 
@@ -238,7 +238,7 @@ router.get(
 router.get(
   '/finance/prepared/:invoiceId/pdf',
   authMiddleware,
-  requireRoles('finance', 'admin'),
+  requireRoles('finance', 'admin', 'ceo'),
   financeInvoiceController.downloadFinanceInvoicePDF
 );
 
@@ -250,7 +250,7 @@ router.get(
 router.post(
   '/finance/prepare',
   authMiddleware,
-  requireRoles('finance', 'admin'),
+  requireRoles('finance', 'admin', 'ceo'),
   upload.single('invoiceFile'),
   financeInvoiceController.prepareInvoiceFromPO
 );
@@ -263,7 +263,7 @@ router.post(
 router.put(
   '/:invoiceId/finance/submit',
   authMiddleware,
-  requireRoles('finance', 'admin'),
+  requireRoles('finance', 'admin', 'ceo'),
   financeInvoiceController.submitInvoiceForApproval
 );
 
@@ -275,7 +275,7 @@ router.put(
 router.delete(
   '/:invoiceId/finance',
   authMiddleware,
-  requireRoles('finance', 'admin'),
+  requireRoles('finance', 'admin', 'ceo'),
   financeInvoiceController.deleteFinanceInvoice
 );
 
@@ -291,13 +291,13 @@ router.get('/:invoiceId',
 // ==================== LEGACY ROUTES (Backward Compatibility) ====================
 router.get('/all',
   authMiddleware,
-  requireRoles('finance', 'admin'),
+  requireRoles('finance', 'admin', 'ceo'),
   invoiceController.getAllInvoices
 );
 
 router.put('/:invoiceId/decision',
   authMiddleware,
-  requireRoles('finance', 'admin'),
+  requireRoles('finance', 'admin', 'ceo'),
   invoiceController.processInvoiceDecision
 );
 

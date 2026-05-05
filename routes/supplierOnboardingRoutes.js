@@ -18,8 +18,8 @@ router.post(
     supplierOnboardingController.submitApplication
 );
 
-router.get('/onboarding/applications', authMiddleware, requireRoles('admin', 'supply_chain'), supplierOnboardingController.getAllApplications);
-router.get('/onboarding/applications/:id', authMiddleware, requireRoles('admin', 'supply_chain'), supplierOnboardingController.getApplicationById);
-router.put('/onboarding/applications/:id/status', authMiddleware, requireRoles('admin', 'supply_chain'), supplierOnboardingController.updateApplicationStatus);
+router.get('/onboarding/applications', authMiddleware, requireRoles('admin', 'supply_chain', 'ceo'), supplierOnboardingController.getAllApplications);
+router.get('/onboarding/applications/:id', authMiddleware, requireRoles('admin', 'supply_chain', 'ceo'), supplierOnboardingController.getApplicationById);
+router.put('/onboarding/applications/:id/status', authMiddleware, requireRoles('admin', 'supply_chain', 'ceo'), supplierOnboardingController.updateApplicationStatus);
 
 module.exports = router;

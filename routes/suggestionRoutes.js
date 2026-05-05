@@ -21,7 +21,7 @@ router.get('/role',
 // Admin routes (before :suggestionId)
 router.get('/admin', 
   authMiddleware, 
-  requireRoles('admin'), 
+  requireRoles('admin', 'ceo'), 
   suggestionController.getAllSuggestions
 );
 
@@ -63,20 +63,20 @@ router.get('/:suggestionId/comments',
 // HR routes
 router.put('/hr/:suggestionId/review', 
   authMiddleware, 
-  requireRoles('hr', 'admin'), 
+  requireRoles('hr', 'admin', 'ceo'), 
   suggestionController.processHRReview
 );
 
 router.put('/hr/:suggestionId/status', 
   authMiddleware, 
-  requireRoles('hr', 'admin'), 
+  requireRoles('hr', 'admin', 'ceo'), 
   suggestionController.updateSuggestionStatus
 );
 
 // Management routes
 router.put('/management/:suggestionId/implementation', 
   authMiddleware, 
-  requireRoles('admin'), 
+  requireRoles('admin', 'ceo'), 
   suggestionController.updateImplementationStatus
 );
 

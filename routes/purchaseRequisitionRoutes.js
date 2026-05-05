@@ -41,26 +41,26 @@ router.get('/employee',
 // Finance routes
 router.get('/finance', 
   authMiddleware, 
-  requireRoles('finance', 'admin'),
+  requireRoles('finance', 'admin', 'ceo'),
   purchaseRequisitionController.getFinanceRequisitions
 );
 
 router.get('/finance/dashboard-data', 
   authMiddleware, 
-  requireRoles('finance', 'admin'),
+  requireRoles('finance', 'admin', 'ceo'),
   purchaseRequisitionController.getFinanceDashboardData
 );
 
 // ✅ NEW: Pending disbursements (BEFORE generic routes)
 router.get('/finance/pending-disbursements',
   authMiddleware,
-  requireRoles('finance', 'admin'),
+  requireRoles('finance', 'admin', 'ceo'),
   purchaseRequisitionController.getPendingDisbursements
 );
 
 router.get('/finance/budget-codes', 
   authMiddleware,
-  requireRoles('finance', 'admin'),
+  requireRoles('finance', 'admin', 'ceo'),
   purchaseRequisitionController.getBudgetCodesForVerification
 );
 
@@ -79,20 +79,20 @@ router.get('/pr-dashboard-stats',
 // Supervisor routes
 router.get('/supervisor', 
   authMiddleware, 
-  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical'), 
+  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'ceo'), 
   purchaseRequisitionController.getSupervisorRequisitions
 );
 
 // Supply Chain Coordinator routes
 router.get('/supply-chain', 
   authMiddleware, 
-  requireRoles('supply_chain', 'admin'),
+  requireRoles('supply_chain', 'admin', 'ceo'),
   purchaseRequisitionController.getSupplyChainRequisitions
 );
 
 router.get('/supply-chain/pending-decisions',
   authMiddleware,
-  requireRoles('supply_chain', 'admin'),
+  requireRoles('supply_chain', 'admin', 'ceo'),
   async (req, res) => {
     try {
       // Get requisitions pending supply chain business decisions
@@ -122,26 +122,26 @@ router.get('/supply-chain/pending-decisions',
 // Buyer routes
 router.get('/buyers/available',
   authMiddleware,
-  requireRoles('supply_chain', 'admin'),
+  requireRoles('supply_chain', 'admin', 'ceo'),
   purchaseRequisitionController.getAvailableBuyers
 );
 
 router.get('/buyer', 
   authMiddleware, 
-  requireRoles('buyer', 'supply_chain', 'admin'),
+  requireRoles('buyer', 'supply_chain', 'admin', 'ceo'),
   purchaseRequisitionController.getBuyerRequisitions
 );
 
 // Head approval routes
 router.get('/head-approval', 
   authMiddleware, 
-  requireRoles('supply_chain', 'admin'),
+  requireRoles('supply_chain', 'admin', 'ceo'),
   purchaseRequisitionController.getHeadApprovalRequisitions
 );
 
 router.get('/head-approval/stats',
   authMiddleware,
-  requireRoles('supply_chain', 'admin'),
+  requireRoles('supply_chain', 'admin', 'ceo'),
   async (req, res) => {
     try {
       const pending = await PurchaseRequisition.countDocuments({
@@ -178,7 +178,7 @@ router.get('/head-approval/stats',
 // Admin routes
 router.get('/admin', 
   authMiddleware, 
-  requireRoles('admin'), 
+  requireRoles('admin', 'ceo'), 
   purchaseRequisitionController.getAllRequisitions
 );
 
@@ -197,52 +197,52 @@ router.get(
 // STEP 1: Finance Verification (Budget Check)
 router.put('/:requisitionId/finance-verification', 
   authMiddleware, 
-  requireRoles('finance', 'admin'),
+  requireRoles('finance', 'admin', 'ceo'),
   purchaseRequisitionController.processFinanceVerification
 );
 
 router.post('/:requisitionId/finance-verification', 
   authMiddleware, 
-  requireRoles('finance', 'admin'),
+  requireRoles('finance', 'admin', 'ceo'),
   purchaseRequisitionController.processFinanceVerification
 );
 
 // STEP 2: Supply Chain Coordinator Business Decisions
 router.put('/:requisitionId/supply-chain-decisions', 
   authMiddleware, 
-  requireRoles('supply_chain', 'admin'),
+  requireRoles('supply_chain', 'admin', 'ceo'),
   purchaseRequisitionController.processSupplyChainBusinessDecisions
 );
 
 router.post('/:requisitionId/supply-chain-decisions', 
   authMiddleware, 
-  requireRoles('supply_chain', 'admin'),
+  requireRoles('supply_chain', 'admin', 'ceo'),
   purchaseRequisitionController.processSupplyChainBusinessDecisions
 );
 
 // Supply Chain Reject
 router.post('/:requisitionId/supply-chain-reject',
   authMiddleware,
-  requireRoles('supply_chain', 'admin'),
+  requireRoles('supply_chain', 'admin', 'ceo'),
   supplyChainRejectionController.rejectSupplyChainRequisition
 );
 
 router.get('/head-approval/:requisitionId', 
   authMiddleware, 
-  requireRoles('supply_chain', 'admin'),
+  requireRoles('supply_chain', 'admin', 'ceo'),
   purchaseRequisitionController.getHeadApprovalRequisition
 );
 
 // Supervisor decision
 router.put('/:requisitionId/supervisor', 
   authMiddleware, 
-  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical'), 
+  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'ceo'), 
   purchaseRequisitionController.processSupervisorDecision
 );
 
 router.post('/:requisitionId/supervisor', 
   authMiddleware, 
-  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical'), 
+  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'ceo'), 
   purchaseRequisitionController.processSupervisorDecision
 );
 
@@ -280,6 +280,7 @@ router.get('/:requisitionId/attachments/:attachmentId/download',
         user.role === 'admin' || // Admin
         user.role === 'finance' || // Finance
         user.role === 'supply_chain' || // Supply Chain
+        user.role === 'ceo' ||
         requisition.approvalChain?.some(step => step.approver.email === user.email); // Approver
 
       if (!canView) {
@@ -379,6 +380,7 @@ router.get('/:requisitionId/attachments/:attachmentId/preview',
         user.role === 'admin' ||
         user.role === 'finance' ||
         user.role === 'supply_chain' ||
+        user.role === 'ceo' ||
         requisition.approvalChain?.some(step => step.approver.email === user.email);
 
       if (!canView) {
@@ -467,6 +469,7 @@ router.get('/:requisitionId/attachments/:attachmentId',
         user.role === 'admin' ||
         user.role === 'finance' ||
         user.role === 'supply_chain' ||
+        user.role === 'ceo' ||
         requisition.approvalChain?.some(step => step.approver.email === user.email);
 
       if (!canView) {
@@ -522,7 +525,7 @@ router.get('/:requisitionId/attachments/:attachmentId',
  */
 router.delete('/:requisitionId/attachments/:attachmentId',
   authMiddleware,
-  requireRoles('admin'),
+  requireRoles('admin', 'ceo'),
   async (req, res) => {
     try {
       const { requisitionId, attachmentId } = req.params;
@@ -585,7 +588,7 @@ router.delete('/:requisitionId/attachments/:attachmentId',
 // ✅ NEW: Process disbursement
 router.post('/:requisitionId/disburse',
   authMiddleware,
-  requireRoles('finance', 'admin'),
+  requireRoles('finance', 'admin', 'ceo'),
   purchaseRequisitionController.processDisbursement
 );
 

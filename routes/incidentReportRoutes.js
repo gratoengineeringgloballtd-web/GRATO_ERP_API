@@ -113,6 +113,7 @@ router.get(
         user.role === 'admin' || // Admin
         user.role === 'hse' || // HSE
         user.role === 'hr' || // HR
+        user.role === 'ceo' || // CEO
         (user.role === 'supervisor' && report.department === user.department); // Supervisor
 
       if (!canDownload) {
@@ -181,7 +182,7 @@ router.get(
 router.get(
   '/employee/my-reports',
   authMiddleware,
-  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project'),
+  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project', 'ceo'),
   getEmployeeIncidentReports
 );
 
@@ -193,7 +194,7 @@ router.get(
 router.get(
   '/employee',
   authMiddleware,
-  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project'),
+  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project', 'ceo'),
   getEmployeeIncidentReports
 );
 
@@ -209,7 +210,7 @@ router.get(
 router.get(
   '/hse/dashboard',
   authMiddleware,
-  requireRoles('hse', 'admin'),
+  requireRoles('hse', 'admin', 'ceo'),
   getHSEDashboardStats
 );
 
@@ -221,7 +222,7 @@ router.get(
 router.get(
   '/hse/all',
   authMiddleware,
-  requireRoles('hse', 'admin'),
+  requireRoles('hse', 'admin', 'ceo'),
   getHSEIncidentReports
 );
 
@@ -233,7 +234,7 @@ router.get(
 router.get(
   '/hse',
   authMiddleware,
-  requireRoles('hse', 'admin'),
+  requireRoles('hse', 'admin', 'ceo'),
   getHSEIncidentReports
 );
 
@@ -249,7 +250,7 @@ router.get(
 router.get(
   '/supervisor/view',
   authMiddleware,
-  requireRoles('technical', 'admin'),
+  requireRoles('technical', 'admin', 'ceo'),
   getIncidentReportsByRole
 );
 
@@ -261,7 +262,7 @@ router.get(
 router.get(
   '/supervisor',
   authMiddleware,
-  requireRoles('supervisor', 'admin'),
+  requireRoles('supervisor', 'admin', 'ceo'),
   getIncidentReportsByRole
 );
 
@@ -273,7 +274,7 @@ router.get(
 router.get(
   '/hr/view',
   authMiddleware,
-  requireRoles('hr', 'admin'),
+  requireRoles('hr', 'admin', 'ceo'),
   getIncidentReportsByRole
 );
 
@@ -285,7 +286,7 @@ router.get(
 router.get(
   '/hr',
   authMiddleware,
-  requireRoles('hr', 'admin'),
+  requireRoles('hr', 'admin', 'ceo'),
   getIncidentReportsByRole
 );
 
@@ -297,7 +298,7 @@ router.get(
 router.get(
   '/admin/all',
   authMiddleware,
-  requireRoles('admin'),
+  requireRoles('admin', 'ceo'),
   getIncidentReportsByRole
 );
 
@@ -309,7 +310,7 @@ router.get(
 router.get(
   '/admin',
   authMiddleware,
-  requireRoles('admin'),
+  requireRoles('admin', 'ceo'),
   getIncidentReportsByRole
 );
 
@@ -325,7 +326,7 @@ router.get(
 router.patch(
   '/:reportId/status',
   authMiddleware,
-  requireRoles('hse', 'admin'),
+  requireRoles('hse', 'admin', 'ceo'),
   updateIncidentStatus
 );
 
@@ -337,7 +338,7 @@ router.patch(
 router.post(
   '/:reportId/investigation/start',
   authMiddleware,
-  requireRoles('hse', 'admin'),
+  requireRoles('hse', 'admin', 'ceo'),
   startInvestigation
 );
 
@@ -349,7 +350,7 @@ router.post(
 router.post(
   '/:reportId/investigation/complete',
   authMiddleware,
-  requireRoles('hse', 'admin'),
+  requireRoles('hse', 'admin', 'ceo'),
   completeInvestigation
 );
 
@@ -361,7 +362,7 @@ router.post(
 router.post(
   '/:reportId/corrective-action',
   authMiddleware,
-  requireRoles('hse', 'admin'),
+  requireRoles('hse', 'admin', 'ceo'),
   addCorrectiveAction
 );
 
@@ -373,7 +374,7 @@ router.post(
 router.post(
   '/:reportId/preventive-action',
   authMiddleware,
-  requireRoles('hse', 'admin'),
+  requireRoles('hse', 'admin', 'ceo'),
   addPreventiveAction
 );
 
@@ -396,7 +397,7 @@ router.patch(
 router.post(
   '/:reportId/resolve',
   authMiddleware,
-  requireRoles('hse', 'admin'),
+  requireRoles('hse', 'admin', 'ceo'),
   resolveIncident
 );
 
@@ -408,7 +409,7 @@ router.post(
 router.post(
   '/:reportId/update',
   authMiddleware,
-  requireRoles('hse', 'admin'),
+  requireRoles('hse', 'admin', 'ceo'),
   addHSEUpdate
 );
 

@@ -630,7 +630,7 @@ function getPermissionsForRole(role, approvalCapacities = []) {
     return permissions;
 }
 
-module.exports = exports;
+// module.exports = exports;
 
 
 

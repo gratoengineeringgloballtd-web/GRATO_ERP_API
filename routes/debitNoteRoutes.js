@@ -5,7 +5,7 @@ const router = express.Router();
 const { authMiddleware, requireRoles } = require('../middlewares/authMiddleware');
 const debitNoteController = require('../controllers/debitNoteController');
 
-const buyerSupplyChainAuth = requireRoles('buyer', 'supply_chain', 'admin');
+const buyerSupplyChainAuth = requireRoles('buyer', 'supply_chain', 'admin', 'ceo');
 
 // CRUD operations
 router.post('/',

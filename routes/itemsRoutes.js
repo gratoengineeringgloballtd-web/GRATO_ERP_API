@@ -23,7 +23,7 @@ router.get('/categories',
 // Upload item image
 router.post('/upload-image', 
   authMiddleware, 
-  requireRoles('admin', 'supply_chain'),
+  requireRoles('admin', 'supply_chain', 'ceo'),
   uploadMiddleware.single('image'),
   itemController.uploadItemImage
 );
@@ -36,13 +36,13 @@ router.get('/search',
 
 router.post('/import', 
   authMiddleware, 
-  requireRoles('admin', 'supply_chain'),
+  requireRoles('admin', 'supply_chain', 'ceo'),
   itemController.importItems
 );
 
 router.get('/export', 
   authMiddleware, 
-  requireRoles('admin', 'supply_chain'),
+  requireRoles('admin', 'supply_chain', 'ceo'),
   itemController.exportItems
 );
 
@@ -123,7 +123,7 @@ router.get('/requests/employee',
 // Process item request (Supply Chain only)
 router.patch('/requests/:requestId', 
   authMiddleware, 
-  requireRoles('admin', 'supply_chain'),
+  requireRoles('admin', 'supply_chain', 'ceo'),
   itemController.processItemRequest
 );
 
@@ -137,28 +137,28 @@ router.get('/:id',
 // Create new item (Supply Chain only)
 router.post('/', 
   authMiddleware, 
-  requireRoles('admin', 'supply_chain'),
+  requireRoles('admin', 'supply_chain', 'ceo'),
   itemController.createItem
 );
 
 // Update item (Supply Chain only)
 router.put('/:id', 
   authMiddleware, 
-  requireRoles('admin', 'supply_chain'),
+  requireRoles('admin', 'supply_chain', 'ceo'),
   itemController.updateItem
 );
 
 // Toggle item status (Supply Chain only)
 router.patch('/:id/status', 
   authMiddleware, 
-  requireRoles('admin', 'supply_chain'),
+  requireRoles('admin', 'supply_chain', 'ceo'),
   itemController.toggleItemStatus
 );
 
 // Delete item (Supply Chain only)
 router.delete('/:id', 
   authMiddleware, 
-  requireRoles('admin', 'supply_chain'),
+  requireRoles('admin', 'supply_chain', 'ceo'),
   itemController.deleteItem
 );
 

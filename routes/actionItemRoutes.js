@@ -29,7 +29,7 @@ const {
 router.get(
   '/reports/team',
   authMiddleware,
-  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project'),
+  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project', 'ceo'),
   getTeamTasks
 );
 
@@ -37,7 +37,7 @@ router.get(
 router.get(
   '/reports/department',
   authMiddleware,
-  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project'),
+  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project', 'ceo'),
   getDepartmentTasks
 );
 
@@ -52,7 +52,7 @@ router.get(
 router.get(
   '/reports/team/export',
   authMiddleware,
-  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project'),
+  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project', 'ceo'),
   exportTeamReport
 );
 
@@ -75,7 +75,7 @@ router.post(
 router.post(
   '/:id/assignee/:assigneeId/approve-l1',
   authMiddleware,
-  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project'),
+  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project', 'ceo'),
   approveL1WithGrade
 );
 
@@ -83,7 +83,7 @@ router.post(
 router.post(
   '/:id/assignee/:assigneeId/approve-l2',
   authMiddleware,
-  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project'),
+  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project', 'ceo'),
   approveL2Review
 );
 
@@ -91,7 +91,7 @@ router.post(
 router.post(
   '/:id/assignee/:assigneeId/approve-l3',
   authMiddleware,
-  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project'),
+  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project', 'ceo'),
   approveL3Final
 );
 
@@ -130,7 +130,7 @@ router.post(
 // router.post(
 //   '/milestone/task',
 //   authMiddleware,
-//   requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project'),
+//   requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project', 'ceo'),
 //   actionItemController.createTaskUnderMilestone
 // );
 
@@ -146,7 +146,7 @@ router.get(
 router.post(
   '/milestone/task',
   authMiddleware,
-  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project'),
+  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project', 'ceo'),
   actionItemController.createTaskUnderMilestone
 );
 
@@ -154,7 +154,7 @@ router.post(
 router.post(
   '/sub-milestone-task',
   authMiddleware,
-  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project'),
+  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project', 'ceo'),
   actionItemController.createTaskUnderSubMilestone
 );
 
@@ -175,7 +175,7 @@ router.post(
 router.post(
   '/:id/reassign',
   authMiddleware,
-  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project'),
+  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project', 'ceo'),
   actionItemController.reassignTask
 );
 
@@ -232,7 +232,7 @@ router.delete(
 router.post(
   '/:id/assignee/:assigneeId/approve-completion',
   authMiddleware,
-  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project'),
+  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project', 'ceo'),
   (req, res) => {
     res.status(410).json({
       success: false,
@@ -252,7 +252,7 @@ router.post(
 router.post(
   '/:id/assignee/:assigneeId/reject-completion',
   authMiddleware,
-  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project'),
+  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project', 'ceo'),
   (req, res) => {
     res.status(410).json({
       success: false,

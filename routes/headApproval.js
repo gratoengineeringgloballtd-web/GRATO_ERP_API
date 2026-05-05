@@ -11,7 +11,7 @@ const headApprovalController = require('../controllers/headApprovalController');
 router.get(
   '/requisitions',
   authMiddleware,
-  requireRoles('admin', 'supply_chain'),
+  requireRoles('admin', 'supply_chain', 'ceo'),
   headApprovalController.getPendingHeadApprovals
 );
 
@@ -23,7 +23,7 @@ router.get(
 router.get(
   '/stats',
   authMiddleware,
-  requireRoles('admin', 'supply_chain'),
+  requireRoles('admin', 'supply_chain', 'ceo'),
   headApprovalController.getHeadApprovalStats
 );
 
@@ -35,7 +35,7 @@ router.get(
 router.get(
   '/requisitions/:requisitionId',
   authMiddleware,
-  requireRoles('admin', 'supply_chain'),
+  requireRoles('admin', 'supply_chain', 'ceo'),
   headApprovalController.getRequisitionDetails
 );
 
@@ -47,7 +47,7 @@ router.get(
 router.post(
   '/requisitions/:requisitionId/approve',
   authMiddleware,
-  requireRoles('admin', 'supply_chain'),
+  requireRoles('admin', 'supply_chain', 'ceo'),
   headApprovalController.processHeadApproval
 );
 

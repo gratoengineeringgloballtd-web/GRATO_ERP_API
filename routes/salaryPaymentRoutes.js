@@ -6,7 +6,7 @@ const salaryPaymentController = require('../controllers/salaryPaymentController'
 
 // Protect all routes - Finance only
 router.use(authMiddleware);
-router.use(requireRoles('finance', 'admin'));
+router.use(requireRoles('finance', 'admin', 'ceo'));
 
 router.post(
   '/',

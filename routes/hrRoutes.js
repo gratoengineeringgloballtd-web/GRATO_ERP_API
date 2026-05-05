@@ -8,7 +8,7 @@ const { handleMulterError, validateFiles, cleanupTempFiles } = require('../middl
 
 // Protect all routes - only HR and Admin
 router.use(authMiddleware);
-router.use(requireRoles('hr', 'admin'));
+router.use(requireRoles('hr', 'admin', 'ceo'));
 
 // ============================================
 // EMPLOYEE MANAGEMENT ROUTES
@@ -120,7 +120,7 @@ router.post('/contracts/:id/renew', hrController.requestContractRenewal);
 // Approve/reject contract renewal (Admin only)
 router.put(
   '/contracts/:id/approve',
-  requireRoles('admin'),
+  requireRoles('admin', 'ceo'),
   hrController.approveContractRenewal
 );
 

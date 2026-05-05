@@ -11,7 +11,7 @@ router.post('/folders',            authMiddleware, sharepointController.createFo
 router.get('/folders',             authMiddleware, sharepointController.getFolders);
 router.get('/folders/:folderId',   authMiddleware, sharepointController.getFolder);
 router.put('/folders/:folderId',   authMiddleware, sharepointController.updateFolder);
-router.delete('/folders/:folderId', authMiddleware, requireRoles('admin'), sharepointController.deleteFolder);
+router.delete('/folders/:folderId', authMiddleware, requireRoles('admin', 'ceo'), sharepointController.deleteFolder);
 
 // ── FOLDER ACCESS MANAGEMENT ────────────────────────────────────────────────────
 router.post('/folders/:folderId/invite',              authMiddleware, accessController.inviteUsersToFolder);
@@ -77,8 +77,8 @@ router.post('/folders/:folderId/bulk-upload',
   sharepointController.bulkUploadFiles, cleanupTempFiles);
 
 // ── ANALYTICS (admin) ──────────────────────────────────────────────────────────
-router.get('/stats/storage',           authMiddleware, requireRoles('admin'), sharepointController.getStorageStats);
-router.get('/stats/activity',          authMiddleware, requireRoles('admin'), sharepointController.getActivityLog);
+router.get('/stats/storage',           authMiddleware, requireRoles('admin', 'ceo'), sharepointController.getStorageStats);
+router.get('/stats/activity',          authMiddleware, requireRoles('admin', 'ceo'), sharepointController.getActivityLog);
 router.get('/stats/department/:department', authMiddleware, sharepointController.getDepartmentStats);
 router.get('/dashboard-stats',         authMiddleware, sharepointController.getSharePointDashboardStats);
 

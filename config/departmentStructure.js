@@ -1,15 +1,15 @@
 const DEPARTMENT_STRUCTURE = {
-  // 'CEO Office': {
-  //   name: 'CEO Office',
-  //   head: {
-  //     email: 'tom@gratoengineering.com',
-  //     name: 'Mr. Tom',
-  //     position: 'General Overseer',
-  //     reportsTo: null, 
-  //     hierarchyLevel: 6  
-  //   },
-  //   positions: {}
-  // },
+  'CEO Office': {
+    name: 'CEO Office',
+    head: {
+      email: 'tom@gratoengineering.com',
+      name: 'Mr. Tom',
+      position: 'General Overseer',
+      reportsTo: null, 
+      hierarchyLevel: 6  
+    },
+    positions: {}
+  },
 
   'IT': {
     name: 'IT',

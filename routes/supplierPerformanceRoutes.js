@@ -6,7 +6,7 @@ const { authMiddleware, requireRoles } = require('../middlewares/authMiddleware'
 // Evaluations
 router.post('/evaluate',
   authMiddleware,
-  requireRoles('admin', 'supply_chain'),
+  requireRoles('admin', 'supply_chain', 'ceo'),
   supplierPerformanceController.createEvaluation
 );
 
@@ -22,32 +22,32 @@ router.get('/supplier/:supplierId',
 
 router.put('/evaluation/:evaluationId',
   authMiddleware,
-  requireRoles('admin', 'supply_chain'),
+  requireRoles('admin', 'supply_chain', 'ceo'),
   supplierPerformanceController.updateEvaluation
 );
 
 router.post('/evaluation/:evaluationId/submit',
   authMiddleware,
-  requireRoles('admin', 'supply_chain'),
+  requireRoles('admin', 'supply_chain', 'ceo'),
   supplierPerformanceController.submitEvaluation
 );
 
 router.post('/evaluation/:evaluationId/review',
   authMiddleware,
-  requireRoles('admin', 'supply_chain'),
+  requireRoles('admin', 'supply_chain', 'ceo'),
   supplierPerformanceController.reviewEvaluation
 );
 
 // Incidents
 router.post('/evaluation/:evaluationId/incident',
   authMiddleware,
-  requireRoles('admin', 'supply_chain'),
+  requireRoles('admin', 'supply_chain', 'ceo'),
   supplierPerformanceController.addIncident
 );
 
 router.patch('/evaluation/:evaluationId/incident/:incidentId/resolve',
   authMiddleware,
-  requireRoles('admin', 'supply_chain'),
+  requireRoles('admin', 'supply_chain', 'ceo'),
   supplierPerformanceController.resolveIncident
 );
 
@@ -60,7 +60,7 @@ router.get('/rankings',
 // Auto-calculate metrics
 router.post('/calculate-metrics',
   authMiddleware,
-  requireRoles('admin', 'supply_chain'),
+  requireRoles('admin', 'supply_chain', 'ceo'),
   supplierPerformanceController.calculateMetricsFromTransactions
 );
 

@@ -19,7 +19,7 @@ const { authMiddleware, requireRoles } = require('../middlewares/authMiddleware'
 router.post(
   '/',
   authMiddleware,
-  requireRoles('admin', 'hr'),
+  requireRoles('admin', 'hr', 'ceo'),
   upload.array('attachments', 10),
   communicationController.createCommunication
 );
@@ -32,7 +32,7 @@ router.post(
 router.get(
   '/',
   authMiddleware,
-  requireRoles('admin', 'hr'),
+  requireRoles('admin', 'hr', 'ceo'),
   communicationController.getCommunications
 );
 
@@ -44,7 +44,7 @@ router.get(
 router.get(
   '/:id',
   authMiddleware,
-  requireRoles('admin', 'hr'),
+  requireRoles('admin', 'hr', 'ceo'),
   communicationController.getCommunication
 );
 
@@ -56,7 +56,7 @@ router.get(
 router.put(
   '/:id',
   authMiddleware,
-  requireRoles('admin', 'hr'),
+  requireRoles('admin', 'hr', 'ceo'),
   upload.array('attachments', 10),
   communicationController.updateCommunication
 );
@@ -69,7 +69,7 @@ router.put(
 router.delete(
   '/:id',
   authMiddleware,
-  requireRoles('admin', 'hr'),
+  requireRoles('admin', 'hr', 'ceo'),
   communicationController.deleteCommunication
 );
 
@@ -85,7 +85,7 @@ router.delete(
 router.post(
   '/:id/send',
   authMiddleware,
-  requireRoles('admin', 'hr'),
+  requireRoles('admin', 'hr', 'ceo'),
   communicationController.sendCommunication
 );
 
@@ -97,7 +97,7 @@ router.post(
 router.post(
   '/preview-recipients',
   authMiddleware,
-  requireRoles('admin', 'hr'),
+  requireRoles('admin', 'hr', 'ceo'),
   communicationController.previewRecipients
 );
 
@@ -113,7 +113,7 @@ router.post(
 router.delete(
   '/:id/attachments/:attachmentId',
   authMiddleware,
-  requireRoles('admin', 'hr'),
+  requireRoles('admin', 'hr', 'ceo'),
   communicationController.deleteAttachment
 );
 
@@ -172,7 +172,7 @@ router.get(
 router.get(
   '/stats/dashboard',
   authMiddleware,
-  requireRoles('admin', 'hr'),
+  requireRoles('admin', 'hr', 'ceo'),
   communicationController.getDashboardStats
 );
 
@@ -184,7 +184,7 @@ router.get(
 router.get(
   '/stats/analytics',
   authMiddleware,
-  requireRoles(['admin']),
+  requireRoles('admin', 'hr', 'ceo'),
   communicationController.getAnalytics
 );
 
@@ -200,7 +200,7 @@ router.get(
 router.get(
   '/templates/list',
   authMiddleware,
-  requireRoles('admin', 'hr'),
+  requireRoles('admin', 'hr', 'ceo'),
   communicationController.getTemplates
 );
 
@@ -212,7 +212,7 @@ router.get(
 router.post(
   '/:id/save-template',
   authMiddleware,
-  requireRoles('admin', 'hr'),
+  requireRoles('admin', 'hr', 'ceo'),
   communicationController.saveAsTemplate
 );
 

@@ -7,7 +7,7 @@ const supplyChainPOController = require('../controllers/supplyChainPOController'
 
 // All routes require supply_chain role
 router.use(authMiddleware);
-router.use(requireRoles('supply_chain', 'admin'));
+router.use(requireRoles('supply_chain', 'admin', 'ceo'));
 
 // Get pending POs
 router.get('/pending', supplyChainPOController.getSupplyChainPendingPOs);

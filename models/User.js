@@ -70,6 +70,101 @@ const UserSchema = new mongoose.Schema({
         size: Number,          
         uploadedAt: Date
     },
+
+    // CEO AVAILABILITY & DELEGATION
+    // Only used for Tom's account. Controls whether he is the active final
+    // approver or whether a delegate should act in his place.
+    ceoAvailability: {
+ 
+        // Set to true when Tom is away / unavailable
+        isUnavailable: {
+            type:    Boolean,
+            default: false,
+        },
+ 
+        // Free-text reason shown to approvers in email notifications
+        // e.g. "International travel", "Medical leave"
+        unavailabilityReason: {
+            type: String,
+            trim: true,
+        },
+ 
+        // When did the unavailability start
+        unavailableFrom: {
+            type: Date,
+        },
+ 
+        // When is Tom expected back — the system auto-clears delegation after this date
+        unavailableUntil: {
+            type: Date,
+        },
+ 
+        // Email of the person acting in Tom's place while he is away.
+        // Defaults to Kelvin but Tom can change it.
+        delegateEmail: {
+            type:    String,
+            default: 'kelvin.eyong@gratoglobal.com',
+        },
+ 
+        // Resolved full name of the delegate (denormalised for display)
+        delegateName: {
+            type:    String,
+            default: 'Mr. E.T Kelvin',
+        },
+ 
+        // Should the delegate receive email notifications for items
+        // queued for CEO approval while Tom is unavailable?
+        notifyDelegate: {
+            type:    Boolean,
+            default: true,
+        },
+ 
+        // Should Tom still receive email notifications (read-only copy)
+        // even when a delegate is active? Useful so Tom stays informed.
+        keepTomInformed: {
+            type:    Boolean,
+            default: true,
+        },
+ 
+        // Log of past delegation periods (audit trail)
+        delegationHistory: [{
+            delegateEmail:  String,
+            delegateName:   String,
+            reason:         String,
+            from:           Date,
+            until:          Date,
+            clearedAt:      Date,      // when delegation was lifted
+            clearedBy:      String,    // email of whoever lifted it
+        }],
+ 
+        // Auto-escalation tracking — populated by the cron job
+        autoEscalation: {
+ 
+            // Is the auto-escalation job actively watching for overdue CEO items?
+            enabled: {
+                type:    Boolean,
+                default: true,
+            },
+ 
+            // Days after a request reaches Tom's step before reminder email
+            reminderAfterDays: {
+                type:    Number,
+                default: 2,
+            },
+ 
+            // Days after a request reaches Tom's step before auto-delegating
+            autoDelegateAfterDays: {
+                type:    Number,
+                default: 5,
+            },
+        },
+ 
+        // Timestamp of when the availability was last updated
+        lastUpdatedAt: Date,
+ 
+        // Who last changed this setting (email)
+        lastUpdatedBy: String,
+    },
     
     isActive: {
         type: Boolean,
@@ -666,6 +761,50 @@ UserSchema.pre('save', async function(next) {
 
 UserSchema.methods.comparePassword = async function(candidatePassword) {
     return await bcrypt.compare(candidatePassword, this.password);
+};
+
+/**
+ * Check if this CEO user currently has an active delegate.
+ * Automatically handles expired unavailability periods.
+ */
+UserSchema.methods.hasActiveDelegate = function () {
+    if (this.role !== 'ceo') return false;
+ 
+    const av = this.ceoAvailability;
+    if (!av || !av.isUnavailable) return false;
+ 
+    // If an expiry date was set and it has passed, treat as available
+    if (av.unavailableUntil && new Date(av.unavailableUntil) < new Date()) {
+        return false;
+    }
+ 
+    return Boolean(av.delegateEmail);
+};
+ 
+/**
+ * Get the effective final approver object for chain-building.
+ * Returns CEO details if available, or delegate details if not.
+ */
+UserSchema.methods.getEffectiveApproverDetails = function () {
+    if (this.role !== 'ceo') return null;
+ 
+    if (this.hasActiveDelegate()) {
+        return {
+            name:        this.ceoAvailability.delegateName,
+            email:       this.ceoAvailability.delegateEmail,
+            role:        'Acting CEO (Delegate)',
+            department:  'Business Development & Supply Chain',
+            isDelegated: true,
+        };
+    }
+ 
+    return {
+        name:        this.fullName,
+        email:       this.email,
+        role:        'CEO - Final Authority',
+        department:  'CEO Office',
+        isDelegated: false,
+    };
 };
 
 module.exports = mongoose.model('User', UserSchema);

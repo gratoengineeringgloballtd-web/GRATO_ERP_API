@@ -17,61 +17,61 @@ router.use((req, res, next) => {
 
 // Dashboard stats
 router.get('/dashboard-stats', 
-  requireRoles('admin', 'supply_chain', 'finance', 'buyer'),
+  requireRoles('admin', 'supply_chain', 'finance', 'buyer', 'ceo'),
   customerController.getCustomerDashboardStats
 );
 
 // Pending approvals for current user
 router.get('/pending-approvals',
-  requireRoles('admin', 'supply_chain', 'finance'),
+  requireRoles('admin', 'supply_chain', 'finance', 'ceo'),
   customerController.getPendingApprovals
 );
 
 // Get all customers
 router.get('/',
-  requireRoles('admin', 'supply_chain', 'finance', 'buyer'),
+  requireRoles('admin', 'supply_chain', 'finance', 'buyer', 'ceo'),
   customerController.getAllCustomers
 );
 
 // Create customer manually
 router.post('/',
-  requireRoles('admin', 'supply_chain', 'finance', 'it'),
+  requireRoles('admin', 'supply_chain', 'finance', 'it', 'ceo'),
   customerController.createCustomer
 );
 
 // Get customer by ID
 router.get('/:id',
-  requireRoles('admin', 'supply_chain', 'finance', 'buyer'),
+  requireRoles('admin', 'supply_chain', 'finance', 'buyer', 'ceo'),
   customerController.getCustomerById
 );
 
 // Update customer
 router.put('/:id',
-  requireRoles('admin', 'supply_chain'),
+  requireRoles('admin', 'supply_chain', 'ceo'),
   customerController.updateCustomer
 );
 
 // Update customer status
 router.patch('/:id/status',
-  requireRoles('admin', 'supply_chain'),
+  requireRoles('admin', 'supply_chain', 'ceo'),
   customerController.updateCustomerStatus
 );
 
 // Approve customer
 router.post('/:id/approve',
-  requireRoles('admin', 'supply_chain', 'finance'),
+  requireRoles('admin', 'supply_chain', 'finance', 'ceo'),
   customerController.approveCustomer
 );
 
 // Reject customer
 router.post('/:id/reject',
-  requireRoles('admin', 'supply_chain', 'finance'),
+  requireRoles('admin', 'supply_chain', 'finance', 'ceo'),
   customerController.rejectCustomer
 );
 
 // Add note to customer
 router.post('/:id/notes',
-  requireRoles('admin', 'supply_chain', 'finance', 'buyer'),
+  requireRoles('admin', 'supply_chain', 'finance', 'buyer', 'ceo'),
   customerController.addCustomerNote
 );
 
@@ -81,19 +81,19 @@ router.post('/:id/notes',
 
 // Get all onboarding applications
 router.get('/onboarding/applications',
-  requireRoles('admin', 'supply_chain'),
+  requireRoles('admin', 'supply_chain', 'ceo'),
   customerController.getOnboardingApplications
 );
 
 // Create onboarding application
 router.post('/onboarding/applications',
-  requireRoles('admin', 'supply_chain'),
+  requireRoles('admin', 'supply_chain', 'ceo'),
   customerController.createOnboardingApplication
 );
 
 // Approve onboarding application
 router.post('/onboarding/applications/:id/approve',
-  requireRoles('admin', 'supply_chain', 'finance'),
+  requireRoles('admin', 'supply_chain', 'finance', 'ceo'),
   customerController.approveOnboardingApplication
 );
 
@@ -103,33 +103,33 @@ router.post('/onboarding/applications/:id/approve',
 
 // Upload PO for customer
 router.post('/:customerId/purchase-orders',
-  requireRoles('admin', 'finance'),
+  requireRoles('admin', 'finance', 'ceo'),
   upload.single('file'),
   customerController.uploadPurchaseOrder
 );
 
 // Get customer's purchase orders
 router.get('/:customerId/purchase-orders',
-  requireRoles('admin', 'supply_chain', 'finance', 'buyer'),
+  requireRoles('admin', 'supply_chain', 'finance', 'buyer', 'ceo'),
   customerController.getCustomerPurchaseOrders
 );
 
 // Update PO (full edit)
 router.put('/:customerId/purchase-orders/:poId',
-  requireRoles('admin', 'supply_chain', 'finance'),
+  requireRoles('admin', 'supply_chain', 'finance', 'ceo'),
   upload.single('file'),
   customerController.updatePurchaseOrder
 );
 
 // Update PO status
 router.patch('/:customerId/purchase-orders/:poId',
-  requireRoles('admin', 'finance'),
+  requireRoles('admin', 'finance', 'ceo'),
   customerController.updatePurchaseOrderStatus
 );
 
 // Delete PO
 router.delete('/:customerId/purchase-orders/:poId',
-  requireRoles('admin', 'finance'),
+  requireRoles('admin', 'finance', 'ceo'),
   customerController.deletePurchaseOrder
 );
 

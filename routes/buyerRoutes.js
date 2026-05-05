@@ -17,7 +17,7 @@ const debitNoteController = require('../controllers/debitNoteController');
 const { tenderJustificationUpload } = buyerPurchaseOrderController;
 
 // Middleware to ensure only buyers, supply_chain users, and admins can access
-const buyerAuthMiddleware = requireRoles('buyer', 'supply_chain', 'admin');
+const buyerAuthMiddleware = requireRoles('buyer', 'supply_chain', 'admin', 'ceo');
 
 // =============================================
 // ROUTE PARAMETER VALIDATION (MUST BE EARLY)
@@ -89,13 +89,13 @@ router.param('formId', async (req, res, next, formId) => {
 
 router.get('/purchase-orders/supply-chain/stats',
   authMiddleware,
-  requireRoles('supply_chain', 'admin'),
+  requireRoles('supply_chain', 'admin', 'ceo'),
   buyerPurchaseOrderController.getSupplyChainPOStats
 );
 
 router.get('/purchase-orders/supply-chain/pending',
   authMiddleware,
-  requireRoles('supply_chain', 'admin'),
+  requireRoles('supply_chain', 'admin', 'ceo'),
   buyerPurchaseOrderController.getSupplyChainPendingPOs
 );
 
@@ -105,7 +105,7 @@ router.get('/purchase-orders/supply-chain/pending',
 
 router.get('/purchase-orders/supervisor/pending',
   authMiddleware,
-  requireRoles('supervisor', 'admin', 'hr', 'technical', 'finance', 'it', 'employee'),
+  requireRoles('supervisor', 'admin', 'hr', 'technical', 'finance', 'it', 'employee', 'ceo'),
   async (req, res) => {
     try {
       res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
@@ -169,7 +169,7 @@ router.get('/purchase-orders/supervisor/pending',
 
 router.get('/purchase-orders/supervisor/stats',
   authMiddleware,
-  requireRoles('supervisor', 'admin'),
+  requireRoles('supervisor', 'admin', 'ceo'),
   async (req, res) => {
     try {
       const PurchaseOrder = require('../models/PurchaseOrder');
@@ -325,7 +325,7 @@ router.post('/purchase-orders/:poId/approve',
 
 router.post('/purchase-orders/:poId/supervisor-reject',
   authMiddleware,
-  requireRoles('supervisor', 'admin'),
+  requireRoles('supervisor', 'admin', 'ceo'),
   async (req, res) => {
     try {
       const { poId } = req.params;
@@ -390,7 +390,7 @@ router.post('/purchase-orders/validate-bulk',
 );
 
 router.post('/purchase-orders/bulk-download', authMiddleware, buyerAuthMiddleware, buyerPurchaseOrderController.bulkDownloadPurchaseOrders);
-router.get('/purchase-orders/:poId/download-for-signing', authMiddleware, requireRoles('supply_chain', 'admin'), buyerPurchaseOrderController.downloadPOForSigning);
+router.get('/purchase-orders/:poId/download-for-signing', authMiddleware, requireRoles('supply_chain', 'admin', 'ceo'), buyerPurchaseOrderController.downloadPOForSigning);
 
 router.get('/purchase-orders/:poId/pdf-data',
   authMiddleware,
@@ -458,11 +458,11 @@ router.get('/purchase-orders/:poId/pdf-data',
   }
 );
 
-router.get('/purchase-orders/:poId/download-pdf', authMiddleware, requireRoles('buyer', 'supply_chain', 'admin', 'supervisor', 'manager', 'finance', 'hr', 'technical', 'hse'), buyerPurchaseOrderController.downloadPurchaseOrderPDF);
-router.get('/purchase-orders/:poId/preview-pdf', authMiddleware, requireRoles('buyer', 'supply_chain', 'admin', 'supervisor', 'manager', 'finance', 'hr', 'technical', 'hse'), buyerPurchaseOrderController.previewPurchaseOrderPDF);
-router.post('/purchase-orders/:poId/email-pdf', authMiddleware, requireRoles('buyer', 'supply_chain', 'admin', 'supervisor', 'manager', 'finance', 'hr', 'technical', 'hse'), buyerPurchaseOrderController.emailPurchaseOrderPDF);
-router.post('/purchase-orders/:poId/assign-department', authMiddleware, requireRoles('supply_chain', 'admin'), buyerPurchaseOrderController.assignPOToDepartment);
-router.post('/purchase-orders/:poId/reject', authMiddleware, requireRoles('supply_chain', 'admin'), buyerPurchaseOrderController.rejectPO);
+router.get('/purchase-orders/:poId/download-pdf', authMiddleware, requireRoles('buyer', 'supply_chain', 'admin', 'supervisor', 'manager', 'finance', 'hr', 'technical', 'hse', 'ceo'), buyerPurchaseOrderController.downloadPurchaseOrderPDF);
+router.get('/purchase-orders/:poId/preview-pdf', authMiddleware, requireRoles('buyer', 'supply_chain', 'admin', 'supervisor', 'manager', 'finance', 'hr', 'technical', 'hse', 'ceo'), buyerPurchaseOrderController.previewPurchaseOrderPDF);
+router.post('/purchase-orders/:poId/email-pdf', authMiddleware, requireRoles('buyer', 'supply_chain', 'admin', 'supervisor', 'manager', 'finance', 'hr', 'technical', 'hse', 'ceo'), buyerPurchaseOrderController.emailPurchaseOrderPDF);
+router.post('/purchase-orders/:poId/assign-department', authMiddleware, requireRoles('supply_chain', 'admin', 'ceo'), buyerPurchaseOrderController.assignPOToDepartment);
+router.post('/purchase-orders/:poId/reject', authMiddleware, requireRoles('supply_chain', 'admin', 'ceo'), buyerPurchaseOrderController.rejectPO);
 router.post('/purchase-orders/:poId/send', authMiddleware, buyerAuthMiddleware, buyerPurchaseOrderController.sendPurchaseOrderToSupplier);
 router.post('/purchase-orders/:poId/cancel', authMiddleware, buyerAuthMiddleware, buyerPurchaseOrderController.cancelPurchaseOrder);
 
@@ -517,7 +517,7 @@ router.post('/quotations/:quoteId/email-pdf', authMiddleware, buyerAuthMiddlewar
 
 router.get('/debit-note-approvals',
   authMiddleware,
-  requireRoles('supervisor', 'technical', 'hr', 'finance', 'admin'),
+  requireRoles('supervisor', 'technical', 'hr', 'finance', 'admin', 'ceo'),
   async (req, res) => {
     try {
       const DebitNote = require('../models/DebitNote');
@@ -546,8 +546,8 @@ router.get('/debit-note-approvals',
   }
 );
 
-router.get('/debit-note-approvals/:debitNoteId/download-pdf', authMiddleware, requireRoles('supervisor', 'technical', 'hr', 'finance', 'admin'), debitNoteController.downloadDebitNotePDF);
-router.post('/debit-note-approvals/:debitNoteId/process', authMiddleware, requireRoles('supervisor', 'technical', 'hr', 'finance', 'admin'), debitNoteController.processDebitNoteApproval);
+router.get('/debit-note-approvals/:debitNoteId/download-pdf', authMiddleware, requireRoles('supervisor', 'technical', 'hr', 'finance', 'admin', 'ceo'), debitNoteController.downloadDebitNotePDF);
+router.post('/debit-note-approvals/:debitNoteId/process', authMiddleware, requireRoles('supervisor', 'technical', 'hr', 'finance', 'admin', 'ceo'), debitNoteController.processDebitNoteApproval);
 router.get('/debit-notes', authMiddleware, buyerAuthMiddleware, debitNoteController.getDebitNotes);
 router.post('/debit-notes', authMiddleware, buyerAuthMiddleware, debitNoteController.createDebitNote);
 router.get('/debit-notes/:debitNoteId', authMiddleware, buyerAuthMiddleware, debitNoteController.getDebitNoteDetails);

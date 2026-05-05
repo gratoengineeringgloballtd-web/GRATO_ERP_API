@@ -5,7 +5,7 @@ const { authMiddleware, requireRoles } = require('../middlewares/authMiddleware'
 
 // All migration endpoints require admin access
 router.use(authMiddleware);
-router.use(requireRoles('admin'));
+router.use(requireRoles('admin', 'ceo'));
 
 router.post('/available-stock', migrationController.migrateAvailableStock);
 router.post('/inbound', migrationController.migrateInbound);

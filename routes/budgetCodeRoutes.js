@@ -35,7 +35,7 @@ const {
 router.get(
   '/dashboard',
   authMiddleware,
-  requireRoles('finance', 'admin'),
+  requireRoles('finance', 'admin', 'ceo'),
   getBudgetDashboard
 );
 
@@ -58,7 +58,7 @@ router.get(
 router.get(
   '/reports/utilization',
   authMiddleware,
-  requireRoles('finance', 'admin'),
+  requireRoles('finance', 'admin', 'ceo'),
   getBudgetUtilizationReport
 );
 
@@ -70,7 +70,7 @@ router.get(
 router.get(
   '/revisions/pending',
   authMiddleware,
-  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project'),
+  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project', 'ceo'),
   getPendingRevisions
 );
 
@@ -174,7 +174,7 @@ router.get(
 router.get(
   '/pending-approvals',
   authMiddleware,
-  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project'),
+  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project', 'ceo'),
   getPendingApprovalsForUser
 );
 
@@ -190,7 +190,7 @@ router.get(
 router.post(
   '/',
   authMiddleware,
-  requireRoles('finance', 'admin'),
+  requireRoles('finance', 'admin', 'ceo'),
   createBudgetCode
 );
 
@@ -289,7 +289,7 @@ router.get(
 router.get(
   '/:codeId/forecast',
   authMiddleware,
-  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project'),
+  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project', 'ceo'),
   getBudgetForecast
 );
 
@@ -301,7 +301,7 @@ router.get(
 router.get(
   '/:codeId/revisions',
   authMiddleware,
-  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project'),
+  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project', 'ceo'),
   getBudgetRevisions
 );
 
@@ -313,7 +313,7 @@ router.get(
 router.post(
   '/:codeId/revisions',
   authMiddleware,
-  requireRoles('finance', 'admin'),
+  requireRoles('finance', 'admin', 'ceo'),
   requestBudgetRevision
 );
 
@@ -325,7 +325,7 @@ router.post(
 router.post(
   '/:codeId/revisions/:revisionId/approve',
   authMiddleware,
-  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project'),
+  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project', 'ceo'),
   approveBudgetRevision
 );
 
@@ -337,7 +337,7 @@ router.post(
 router.post(
   '/:codeId/revisions/:revisionId/reject',
   authMiddleware,
-  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project'),
+  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project', 'ceo'),
   rejectBudgetRevision
 );
 
@@ -349,7 +349,7 @@ router.post(
 router.get(
   '/:codeId/utilization',
   authMiddleware,
-  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project'),
+  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project', 'ceo'),
   getBudgetCodeUtilization
 );
 
@@ -384,7 +384,7 @@ router.post(
 router.post(
   '/:codeId/approve',
   authMiddleware,
-  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project'),
+  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project', 'ceo'),
   processBudgetCodeApproval
 );
 
@@ -397,7 +397,7 @@ router.post(
 router.post(
   '/:codeId/release-stale',
   authMiddleware,
-  requireRoles('finance', 'admin'),
+  requireRoles('finance', 'admin', 'ceo'),
   async (req, res) => {
     try {
       const { codeId } = req.params;
@@ -444,7 +444,7 @@ router.post(
 router.post(
   '/:codeId/release/:requestId',
   authMiddleware,
-  requireRoles('finance', 'admin'),
+  requireRoles('finance', 'admin', 'ceo'),
   async (req, res) => {
     try {
       const { codeId, requestId } = req.params;
@@ -500,7 +500,7 @@ router.get(
 router.put(
   '/:codeId',
   authMiddleware,
-  requireRoles('finance', 'admin'),
+  requireRoles('finance', 'admin', 'ceo'),
   updateBudgetCode
 );
 
@@ -512,7 +512,7 @@ router.put(
 router.delete(
   '/:codeId',
   authMiddleware,
-  requireRoles('finance', 'admin'),
+  requireRoles('finance', 'admin', 'ceo'),
   deleteBudgetCode
 );
 

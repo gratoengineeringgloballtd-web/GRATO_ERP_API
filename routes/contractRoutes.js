@@ -7,21 +7,21 @@ const upload = require('../middlewares/uploadMiddleware');
 // Get all contracts
 router.get('/',
   authMiddleware,
-  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project'),
+  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project', 'ceo'),
   contractController.getAllContracts
 );
 
 // Get specific contract by ID
 router.get('/:contractId',
   authMiddleware,
-  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project'),
+  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project', 'ceo'),
   contractController.getContractById
 );
 
 // Create new contract
 router.post('/',
   authMiddleware,
-  requireRoles('admin', 'supply_chain'),
+  requireRoles('admin', 'supply_chain', 'ceo'),
   upload.fields([
     { name: 'contractDocuments', maxCount: 10 }
   ]),
@@ -33,7 +33,7 @@ router.post('/',
 // Update contract
 router.put('/:contractId',
   authMiddleware,
-  requireRoles('admin', 'supply_chain'),
+  requireRoles('admin', 'supply_chain', 'ceo'),
   upload.fields([
     { name: 'contractDocuments', maxCount: 10 }
   ]),
@@ -45,21 +45,21 @@ router.put('/:contractId',
 // Delete contract (Admin only)
 router.delete('/:contractId',
   authMiddleware,
-  requireRoles('admin'),
+  requireRoles('admin', 'ceo'),
   contractController.deleteContract
 );
 
 // Update contract status
 router.put('/:contractId/status',
   authMiddleware,
-  requireRoles('admin', 'supply_chain'),
+  requireRoles('admin', 'supply_chain', 'ceo'),
   contractController.updateContractStatus
 );
 
 // Approve contract
 router.post('/:contractId/approve',
   authMiddleware,
-  requireRoles('admin', 'supply_chain'),
+  requireRoles('admin', 'supply_chain', 'ceo'),
   async (req, res) => {
     req.body.status = 'approved';
     return contractController.updateContractStatus(req, res);
@@ -69,7 +69,7 @@ router.post('/:contractId/approve',
 // Terminate contract
 router.post('/:contractId/terminate',
   authMiddleware,
-  requireRoles('admin', 'supply_chain'),
+  requireRoles('admin', 'supply_chain', 'ceo'),
   async (req, res) => {
     req.body.status = 'terminated';
     return contractController.updateContractStatus(req, res);
@@ -79,7 +79,7 @@ router.post('/:contractId/terminate',
 // Suspend contract
 router.post('/:contractId/suspend',
   authMiddleware,
-  requireRoles('admin', 'supply_chain'),
+  requireRoles('admin', 'supply_chain', 'ceo'),
   async (req, res) => {
     req.body.status = 'suspended';
     return contractController.updateContractStatus(req, res);
@@ -90,7 +90,7 @@ router.post('/:contractId/suspend',
 // Renew contract
 router.post('/:contractId/renew',
   authMiddleware,
-  requireRoles('admin', 'supply_chain'),
+  requireRoles('admin', 'supply_chain', 'ceo'),
   contractController.renewContract
 );
 
@@ -98,7 +98,7 @@ router.post('/:contractId/renew',
 // Create contract amendment
 router.post('/:contractId/amendments',
   authMiddleware,
-  requireRoles('admin', 'supply_chain'),
+  requireRoles('admin', 'supply_chain', 'ceo'),
   upload.fields([
     { name: 'amendmentDocuments', maxCount: 5 }
   ]),
@@ -110,7 +110,7 @@ router.post('/:contractId/amendments',
 // Approve amendment
 router.put('/:contractId/amendments/:amendmentId/approve',
   authMiddleware,
-  requireRoles('admin', 'supply_chain'),
+  requireRoles('admin', 'supply_chain', 'ceo'),
   async (req, res) => {
     try {
       const { contractId, amendmentId } = req.params;
@@ -165,7 +165,7 @@ router.put('/:contractId/amendments/:amendmentId/approve',
 // Add milestone to contract
 router.post('/:contractId/milestones',
   authMiddleware,
-  requireRoles('admin', 'supply_chain'),
+  requireRoles('admin', 'supply_chain', 'ceo'),
   async (req, res) => {
     try {
       const { contractId } = req.params;
@@ -199,7 +199,7 @@ router.post('/:contractId/milestones',
 // Update milestone status
 router.put('/:contractId/milestones/:milestoneId',
   authMiddleware,
-  requireRoles('admin', 'supply_chain'),
+  requireRoles('admin', 'supply_chain', 'ceo'),
   async (req, res) => {
     try {
       const { contractId, milestoneId } = req.params;
@@ -242,7 +242,7 @@ router.put('/:contractId/milestones/:milestoneId',
 // Add communication record
 router.post('/:contractId/communications',
   authMiddleware,
-  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project'),
+  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project', 'ceo'),
   async (req, res) => {
     try {
       const { contractId } = req.params;
@@ -276,7 +276,7 @@ router.post('/:contractId/communications',
 // Upload additional documents
 router.post('/:contractId/documents',
   authMiddleware,
-  requireRoles('admin', 'supply_chain'),
+  requireRoles('admin', 'supply_chain', 'ceo'),
   upload.fields([
     { name: 'documents', maxCount: 10 }
   ]),
@@ -349,7 +349,7 @@ router.post('/:contractId/documents',
 // Download contract document
 router.get('/:contractId/documents/:documentId',
   authMiddleware,
-  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project'),
+  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project', 'ceo'),
   async (req, res) => {
     try {
       const { contractId, documentId } = req.params;
@@ -386,7 +386,7 @@ router.get('/:contractId/documents/:documentId',
 // Get contract statistics
 router.get('/analytics/statistics',
   authMiddleware,
-  requireRoles('admin', 'supply_chain', 'finance'),
+  requireRoles('admin', 'supply_chain', 'finance', 'ceo'),
   async (req, res) => {
     try {
       const stats = await contractController.getContractStatistics();
@@ -408,14 +408,14 @@ router.get('/analytics/statistics',
 // Get expiring contracts
 router.get('/analytics/expiring',
   authMiddleware,
-  requireRoles('admin', 'supply_chain', 'finance'),
+  requireRoles('admin', 'supply_chain', 'finance', 'ceo'),
   contractController.getExpiringContracts
 );
 
 // Get contracts by supplier
 router.get('/analytics/by-supplier/:supplierId',
   authMiddleware,
-  requireRoles('admin', 'supply_chain', 'finance'),
+  requireRoles('admin', 'supply_chain', 'finance', 'ceo'),
   async (req, res) => {
     try {
       const { supplierId } = req.params;
@@ -443,7 +443,7 @@ router.get('/analytics/by-supplier/:supplierId',
 // Get contracts by department
 router.get('/analytics/by-department/:department',
   authMiddleware,
-  requireRoles('admin', 'supply_chain', 'finance'),
+  requireRoles('admin', 'supply_chain', 'finance', 'ceo'),
   async (req, res) => {
     try {
       const { department } = req.params;
@@ -473,7 +473,7 @@ router.get('/analytics/by-department/:department',
 // Export contracts to Excel/JSON
 router.get('/export',
   authMiddleware,
-  requireRoles('admin', 'supply_chain', 'finance'),
+  requireRoles('admin', 'supply_chain', 'finance', 'ceo'),
   contractController.exportContracts
 );
 
@@ -580,7 +580,7 @@ router.put('/notifications/:contractId/:notificationId/acknowledge',
 // Bulk update contract statuses
 router.put('/bulk/status',
   authMiddleware,
-  requireRoles('admin', 'supply_chain'),
+  requireRoles('admin', 'supply_chain', 'ceo'),
   async (req, res) => {
     try {
       const { contractIds, status, reason } = req.body;
@@ -652,7 +652,7 @@ router.put('/bulk/status',
 // Advanced contract search
 router.post('/search',
   authMiddleware,
-  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project'),
+  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project', 'ceo'),
   async (req, res) => {
     try {
       const {

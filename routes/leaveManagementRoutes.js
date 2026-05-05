@@ -32,49 +32,49 @@ router.post('/preview-approval-chain',
 
 router.get('/supervisor', 
   authMiddleware, 
-  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project'), 
+  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project', 'ceo'), 
   leaveController.getSupervisorLeaves
 );
 
 router.get('/supervisor/:leaveId', 
   authMiddleware, 
-  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project'),
+  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project', 'ceo'),
   leaveController.getEmployeeLeave
 );
 
 router.get('/hr', 
   authMiddleware, 
-  requireRoles('hr', 'admin'),
+  requireRoles('hr', 'admin', 'ceo'),
   leaveController.getHRLeaves
 );
 
 router.get('/hr/:leaveId', 
   authMiddleware, 
-  requireRoles('hr', 'admin'),
+  requireRoles('hr', 'admin', 'ceo'),
   leaveController.getEmployeeLeave
 );
 
 router.get('/admin', 
   authMiddleware, 
-  requireRoles('admin'), 
+  requireRoles('admin', 'ceo'), 
   leaveController.getAllLeaves
 );
 
 router.get('/admin/:leaveId', 
   authMiddleware, 
-  requireRoles('admin'),
+  requireRoles('admin', 'ceo'),
   leaveController.getEmployeeLeave
 );
 
 router.put('/:leaveId/supervisor', 
   authMiddleware, 
-  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project'), 
+  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project', 'ceo'), 
   leaveController.processSupervisorDecision
 );
 
 router.put('/:leaveId/hr', 
   authMiddleware, 
-  requireRoles('hr', 'admin'),
+  requireRoles('hr', 'admin', 'ceo'),
   leaveController.processHRDecision
 );
 
@@ -100,25 +100,25 @@ router.get('/dashboard/stats',
 
 router.get('/analytics/general',
   authMiddleware,
-  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project'),
+  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project', 'ceo'),
   leaveController.getLeaveAnalytics
 );
 
 router.get('/analytics/trends',
   authMiddleware,
-  requireRoles('admin', 'hr'),
+  requireRoles('admin', 'hr', 'ceo'),
   leaveController.getLeaveTrends
 );
 
 router.get('/hr/analytics',
   authMiddleware,
-  requireRoles('hr', 'admin'),
+  requireRoles('hr', 'admin', 'ceo'),
   leaveController.getHRAnalytics
 );
 
 router.get('/statistics',
   authMiddleware,
-  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project'),
+  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project', 'ceo'),
   leaveController.getLeaveStats
 );
 
@@ -134,13 +134,13 @@ router.delete('/:leaveId',
 
 router.post('/bulk/approve',
   authMiddleware,
-  requireRoles('hr', 'admin'),
+  requireRoles('hr', 'admin', 'ceo'),
   leaveController.bulkApprove
 );
 
 router.post('/bulk/reject',
   authMiddleware,
-  requireRoles('hr', 'admin'),
+  requireRoles('hr', 'admin', 'ceo'),
   leaveController.bulkReject
 );
 
@@ -246,7 +246,7 @@ router.get('/info/policies',
 // Employee wellness tracking
 router.get('/wellness/employee/:employeeId',
   authMiddleware,
-  requireRoles('hr', 'admin'),
+  requireRoles('hr', 'admin', 'ceo'),
   async (req, res) => {
     try {
       const { employeeId } = req.params;
@@ -307,7 +307,7 @@ router.get('/wellness/employee/:employeeId',
 // Department wellness overview
 router.get('/wellness/department/:department',
   authMiddleware,
-  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project'),
+  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project', 'ceo'),
   async (req, res) => {
     try {
       const { department } = req.params;

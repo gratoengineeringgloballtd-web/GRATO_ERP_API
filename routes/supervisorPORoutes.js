@@ -7,7 +7,7 @@ const supervisorPOController = require('../controllers/supervisorPOController');
 
 // All routes require supervisor or higher roles
 router.use(authMiddleware);
-router.use(requireRoles('supervisor', 'admin', 'manager', 'finance', 'hr', 'technical', 'hse', 'supply_chain'));
+router.use(requireRoles('supervisor', 'admin', 'manager', 'finance', 'hr', 'technical', 'hse', 'supply_chain', 'ceo'));
 
 // Get pending PO approvals
 router.get('/pending', supervisorPOController.getSupervisorPendingPOs);
