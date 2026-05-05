@@ -1,6 +1,6 @@
 const SalaryPayment = require('../models/SalaryPayment');
 const BudgetCode = require('../models/BudgetCode');
-const { saveFile, STORAGE_CATEGORIES } = require('../utils/localFileStorage'); // ✅ Use local storage
+const { saveFile, STORAGE_CATEGORIES } = require('../utils/cloudinaryStorage'); // ✅ Use local storage
 const fs = require('fs');
 const path = require('path');
 const accountingService = require('../services/accountingService');
@@ -118,7 +118,7 @@ const createSalaryPayment = async (req, res) => {
     
     // ✅ Cleanup uploaded files on error
     if (req.files && req.files.length > 0) {
-      const { deleteFiles } = require('../utils/localFileStorage');
+      const { deleteFiles } = require('../utils/cloudinaryStorage');
       await deleteFiles(req.files.map(f => ({ localPath: f.path })));
     }
     

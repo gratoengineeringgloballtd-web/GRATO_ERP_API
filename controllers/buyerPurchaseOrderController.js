@@ -10,7 +10,7 @@ const pdfService = require('../services/pdfService');
 const archiver = require('archiver');
 const PurchaseRequisition = require('../models/PurchaseRequisition');
 const RFQ = require('../models/RFQ');
-const { saveFile, STORAGE_CATEGORIES } = require('../utils/localFileStorage');
+const { saveFile, STORAGE_CATEGORIES } = require('../utils/cloudinaryStorage');
 const { buildPurchaseOrderPdfData } = require('../services/purchaseOrderPdfData');
 const { sendEmail } = require('../services/emailService');
 

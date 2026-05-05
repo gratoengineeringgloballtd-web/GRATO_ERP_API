@@ -8,7 +8,7 @@
     "bcryptjs": "^2.4.3",
     "bwip-js": "^4.7.0",
     "chart.js": "^4.5.1",
-    "cloudinary": "^2.9.0",
+    "cloudinary": "^2.10.0",
     "cors": "^2.8.5",
     "cron": "^4.3.4",
     "datauri": "^4.1.0",

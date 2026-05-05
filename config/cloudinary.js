@@ -2,9 +2,9 @@ const cloudinary = require('cloudinary').v2;
 
 // Configure Cloudinary with your credentials
 cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME || process.env.CLOUD_NAME || 'ddlhwv65t',
-  api_key: process.env.CLOUDINARY_API_KEY || process.env.API_KEY || '471725712229734',
-  api_secret: process.env.CLOUDINARY_API_SECRET || process.env.SECRET_KEY || '-5UKqZG7YkSXfCWA6iyhUQTCTEA',
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME || process.env.CLOUD_NAME || 'dnoroctvb',
+  api_key: process.env.CLOUDINARY_API_KEY || process.env.API_KEY || '796345244753139',
+  api_secret: process.env.CLOUDINARY_API_SECRET || process.env.SECRET_KEY || '8MNFnw55tBFXoeiaubIAB4U3kJU',
   secure: true // Use HTTPS URLs
 });
 

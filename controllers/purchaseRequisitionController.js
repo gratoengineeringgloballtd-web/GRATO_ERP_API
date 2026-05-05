@@ -9,7 +9,7 @@ const {
   deleteFile,
   deleteFiles,
   STORAGE_CATEGORIES 
-} = require('../utils/localFileStorage');
+} = require('../utils/cloudinaryStorage');
 const cancellationController = require('../controllers/Cancellationcontroller');
 
 

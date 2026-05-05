@@ -12,7 +12,7 @@ const {
   deleteFile,
   deleteFiles,
   STORAGE_CATEGORIES 
-} = require('../utils/localFileStorage');
+} = require('../utils/cloudinaryStorage');
 const fsSync = require('fs');
 
 // Helper function to find sub-milestone by ID recursively

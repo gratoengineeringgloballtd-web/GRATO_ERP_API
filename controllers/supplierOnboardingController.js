@@ -5,7 +5,7 @@ const {
   saveFile, 
   deleteFile, 
   STORAGE_CATEGORIES 
-} = require('../utils/localFileStorage');
+} = require('../utils/cloudinaryStorage');
 const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');

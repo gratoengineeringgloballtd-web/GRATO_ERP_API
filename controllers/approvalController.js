@@ -63,7 +63,7 @@ const submitCompletionForAssignee = async (req, res) => {
 
       for (const file of req.files) {
         try {
-          const { saveFile, STORAGE_CATEGORIES } = require('../utils/localFileStorage');
+          const { saveFile, STORAGE_CATEGORIES } = require('../utils/cloudinaryStorage');
           
           const fileMetadata = await saveFile(
             file,

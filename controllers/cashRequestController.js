@@ -9,7 +9,7 @@ const {
   deleteFile,
   deleteFiles,
   STORAGE_CATEGORIES 
-} = require('../utils/localFileStorage');
+} = require('../utils/cloudinaryStorage');
 const fs = require('fs');
 const fsSync = require('fs');
 const path = require('path');
@@ -1201,7 +1201,7 @@ const submitJustification = async (req, res) => {
     if (req.files && req.files.length > 0) {
       console.log(`📎 Processing ${req.files.length} document(s)...`);
       
-      const { saveFile, STORAGE_CATEGORIES } = require('../utils/localFileStorage');
+      const { saveFile, STORAGE_CATEGORIES } = require('../utils/cloudinaryStorage');
       
       for (const file of req.files) {
         try {

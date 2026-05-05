@@ -11,7 +11,7 @@ const {
   // deleteFile,
   deleteFiles,
   STORAGE_CATEGORIES 
-} = require('../utils/localFileStorage');
+} = require('../utils/cloudinaryStorage');
 
 
 exports.createContract = async (req, res) => {

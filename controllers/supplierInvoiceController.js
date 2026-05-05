@@ -6,7 +6,7 @@ const {
   saveFile, 
   deleteFile, 
   STORAGE_CATEGORIES 
-} = require('../utils/localFileStorage');
+} = require('../utils/cloudinaryStorage');
 const fs = require('fs').promises;
 const accountingService = require('../services/accountingService');
 

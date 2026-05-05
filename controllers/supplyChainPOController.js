@@ -8,7 +8,7 @@ const { buildPurchaseOrderPdfData } = require('../services/purchaseOrderPdfData'
 const { 
   saveFile, 
   STORAGE_CATEGORIES 
-} = require('../utils/localFileStorage');
+} = require('../utils/cloudinaryStorage');
 
 /**
  * Get POs pending Supply Chain assignment

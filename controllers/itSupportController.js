@@ -8,7 +8,7 @@ const {
   deleteFile,
   deleteFiles,
   STORAGE_CATEGORIES 
-} = require('../utils/localFileStorage');
+} = require('../utils/cloudinaryStorage');
 const fs = require('fs').promises;
 const fsSync = require('fs');
 const path = require('path');
