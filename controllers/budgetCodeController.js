@@ -127,7 +127,9 @@ const createBudgetCode = async (req, res) => {
     }
 
     // Generate approval chain
-    const approvalChain = getBudgetCodeApprovalChain(creator.fullName, department, budgetType);
+    // const approvalChain = getBudgetCodeApprovalChain(creator.fullName, department, budgetType);
+
+    const approvalChain = getBudgetCodeApprovalChain(creator.fullName, department, budgetType, req.body.budget)
 
     // Determine initial status
     let initialStatus = 'pending';

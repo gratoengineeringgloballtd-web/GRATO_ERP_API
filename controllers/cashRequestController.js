@@ -2639,7 +2639,8 @@ const createRequest = async (req, res) => {
 
     // Generate approval chain
     console.log('\n📋 Generating approval chain...');
-    const approvalChain = getCashRequestApprovalChain(employee.email, requestType);
+    // const approvalChain = getCashRequestApprovalChain(employee.email, requestType);
+    const approvalChain = getCashRequestApprovalChain(employee.email, requestType, parseFloat(amountRequested));
 
     if (!approvalChain || approvalChain.length === 0) {
       console.error('❌ Failed to generate approval chain');

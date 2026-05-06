@@ -1352,7 +1352,8 @@ const assignPOToDepartment = async (req, res) => {
     );
 
     const { getPOApprovalChain } = require('../config/poApprovalChain');
-    const approvalChain = getPOApprovalChain(department);
+    // const approvalChain = getPOApprovalChain(department);
+    const approvalChain = getPOApprovalChain(department, req.body.totalAmount);
     if (!approvalChain || approvalChain.length !== 3) {
       return res.status(500).json({ success: false, message: `Failed to create approval chain for ${department}` });
     }

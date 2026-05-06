@@ -29,7 +29,9 @@ exports.createDebitNote = async (req, res) => {
     // Get department for approval chain
     const user = await User.findById(req.user.userId);
     const { getDebitNoteApprovalChain } = require('../config/debitNoteApprovalChain');
-    const approvalChain = getDebitNoteApprovalChain(user.department);
+    // const approvalChain = getDebitNoteApprovalChain(user.department);
+    const approvalChain = getDebitNoteApprovalChain(user.department, req.body.amount);
+
 
     // Create debit note
     const debitNote = new DebitNote({

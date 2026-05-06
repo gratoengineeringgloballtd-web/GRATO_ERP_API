@@ -187,7 +187,8 @@ const createRequisition = async (req, res) => {
       projectName: item.projectName || ''
     }));
 
-    const approvalChain = getApprovalChainForRequisition(employee.email);
+    // const approvalChain = getApprovalChainForRequisition(employee.email);
+    const approvalChain = getApprovalChainForRequisition(employee.email, estimatedCost);
     if (!approvalChain || approvalChain.length === 0) {
       return res.status(400).json({ success: false, message: 'Unable to determine approval chain. Please contact HR for assistance.' });
     }
