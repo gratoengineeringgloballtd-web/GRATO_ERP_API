@@ -1314,94 +1314,147 @@ const downloadPOForSigning = async (req, res) => {
   }
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// assignPOToDepartment
-// ─────────────────────────────────────────────────────────────────────────────
 const assignPOToDepartment = async (req, res) => {
   try {
     const { poId } = req.params;
     const { department, comments } = req.body;
 
-    if (!department) return res.status(400).json({ success: false, message: 'Department selection is required' });
+    if (!department) {
+      return res.status(400).json({ success: false, message: 'Department selection is required' });
+    }
 
     const purchaseOrder = await PurchaseOrder.findById(poId);
-    if (!purchaseOrder) return res.status(404).json({ success: false, message: 'Purchase order not found' });
+    if (!purchaseOrder) {
+      return res.status(404).json({ success: false, message: 'Purchase order not found' });
+    }
     if (!['draft', 'pending_supply_chain_assignment'].includes(purchaseOrder.status)) {
-      return res.status(400).json({ success: false, message: `PO cannot be assigned from status: ${purchaseOrder.status}` });
+      return res.status(400).json({
+        success: false,
+        message: `PO cannot be assigned from status: ${purchaseOrder.status}`
+      });
     }
 
     const supplyChainUser = await User.findById(req.user.userId).select('fullName signature email');
     const reviewDate = new Date();
 
+    // ✅ FIX 1: Pass full signature object so resolveSignaturePath handles
+    //           both local paths and Cloudinary URLs correctly
     const signatureBlocks = [
-      { label: 'Supply Chain', signaturePath: supplyChainUser?.signature?.localPath || null, signedAt: reviewDate },
+      { label: 'Supply Chain', signaturePath: supplyChainUser?.signature || null, signedAt: reviewDate },
       { label: 'Department Head' },
       { label: 'Head of Business' },
       { label: 'Finance' }
     ];
 
-    const pdfData = { ...buildPurchaseOrderPdfData(purchaseOrder), signatures: signatureBlocks };
+    const pdfData   = { ...buildPurchaseOrderPdfData(purchaseOrder), signatures: signatureBlocks };
     const pdfResult = await pdfService.generatePurchaseOrderPDF(pdfData);
-    if (!pdfResult.success) return res.status(500).json({ success: false, message: pdfResult.error || 'Failed to generate signed document' });
+    if (!pdfResult.success) {
+      return res.status(500).json({ success: false, message: pdfResult.error || 'Failed to generate signed document' });
+    }
 
     const signedDocData = await saveFile(
-      { buffer: pdfResult.buffer, originalname: `PO-${purchaseOrder.poNumber}-SC-signed.pdf`, mimetype: 'application/pdf', size: pdfResult.buffer.length },
+      {
+        buffer:       pdfResult.buffer,
+        originalname: `PO-${purchaseOrder.poNumber}-SC-signed.pdf`,
+        mimetype:     'application/pdf',
+        size:         pdfResult.buffer.length
+      },
       STORAGE_CATEGORIES.SIGNED_DOCUMENTS,
       'supply-chain',
       `PO-${purchaseOrder.poNumber}-SC-signed-${Date.now()}.pdf`
     );
 
     const { getPOApprovalChain } = require('../config/poApprovalChain');
-    // const approvalChain = getPOApprovalChain(department);
-    const approvalChain = getPOApprovalChain(department, req.body.totalAmount);
-    if (!approvalChain || approvalChain.length !== 3) {
-      return res.status(500).json({ success: false, message: `Failed to create approval chain for ${department}` });
+
+    // ✅ FIX 2: Use purchaseOrder.totalAmount (already on the document) instead
+    //           of req.body.totalAmount which is undefined at this point
+    const approvalChain = getPOApprovalChain(department, purchaseOrder.totalAmount);
+
+    // ✅ FIX 3: Allow 3 or 4 levels — chain is 4 when CEO threshold is met
+    if (!approvalChain || approvalChain.length < 3) {
+      return res.status(500).json({
+        success: false,
+        message: `Failed to create approval chain for ${department}`
+      });
     }
 
-    purchaseOrder.status = 'pending_department_approval';
+    purchaseOrder.status             = 'pending_department_approval';
     purchaseOrder.assignedDepartment = department;
-    purchaseOrder.assignedBy = req.user.userId;
-    purchaseOrder.assignmentDate = new Date();
-    purchaseOrder.assignmentTime = new Date().toTimeString().split(' ')[0];
-    purchaseOrder.progress = 30;
-    purchaseOrder.currentStage = 'created';
+    purchaseOrder.assignedBy         = req.user.userId;
+    purchaseOrder.assignmentDate     = new Date();
+    purchaseOrder.assignmentTime     = new Date().toTimeString().split(' ')[0];
+    purchaseOrder.progress           = 30;
+    purchaseOrder.currentStage       = 'created';
 
     purchaseOrder.supplyChainReview = {
-      reviewedBy: req.user.userId,
+      reviewedBy:  req.user.userId,
       reviewDate,
-      reviewTime: reviewDate.toTimeString().split(' ')[0],
-      action: 'assigned',
-      comments: comments || `Assigned to ${department} department`,
-      signedDocument: { url: signedDocData.url, localPath: signedDocData.localPath, originalName: signedDocData.originalName, uploadedAt: signedDocData.uploadedAt }
+      reviewTime:  reviewDate.toTimeString().split(' ')[0],
+      action:      'assigned',
+      comments:    comments || `Assigned to ${department} department`,
+      signedDocument: {
+        url:          signedDocData.url,
+        localPath:    signedDocData.localPath,
+        originalName: signedDocData.originalName,
+        uploadedAt:   signedDocData.uploadedAt
+      }
     };
 
     purchaseOrder.approvalChain = approvalChain.map((step, index) => ({
-      level: step.level,
-      approver: { name: step.approver, email: step.email, role: step.role, department: step.department },
-      status: 'pending',
+      level:    step.level,
+      approver: {
+        name:       step.approver,
+        email:      step.email,
+        role:       step.role,
+        department: step.department
+      },
+      status:        'pending',
       activatedDate: index === 0 ? new Date() : null
     }));
 
     purchaseOrder.currentApprovalLevel = 1;
-    purchaseOrder.activities.push({ type: 'updated', description: `Purchase order assigned to ${department} by Supply Chain`, user: req.user.fullName, timestamp: new Date() });
+    purchaseOrder.activities.push({
+      type:        'updated',
+      description: `Purchase order assigned to ${department} by Supply Chain`,
+      user:        req.user.fullName,
+      timestamp:   new Date()
+    });
 
     await purchaseOrder.save();
 
     try {
       const firstApprover = purchaseOrder.approvalChain[0];
       await sendEmail({
-        to: firstApprover.approver.email,
+        to:      firstApprover.approver.email,
         subject: `Purchase Order Approval Required - ${purchaseOrder.poNumber}`,
-        html: `<p>Dear ${firstApprover.approver.name},</p><p>PO ${purchaseOrder.poNumber} (${purchaseOrder.currency} ${purchaseOrder.totalAmount.toLocaleString()}) requires your approval as Department Head.</p><p>Please log in to review and approve.</p>`
+        html:    `
+          <p>Dear ${firstApprover.approver.name},</p>
+          <p>PO ${purchaseOrder.poNumber} (${purchaseOrder.currency} ${purchaseOrder.totalAmount.toLocaleString()}) requires your approval as Department Head.</p>
+          <p>Please log in to review and approve.</p>
+        `
       });
     } catch (emailError) {
       console.error('Failed to send approval notification:', emailError);
     }
 
-    res.json({ success: true, message: 'Purchase order assigned successfully', data: { poNumber: purchaseOrder.poNumber, assignedTo: department, currentApprover: purchaseOrder.approvalChain[0].approver.name, status: purchaseOrder.status } });
+    res.json({
+      success: true,
+      message: 'Purchase order assigned successfully',
+      data: {
+        poNumber:       purchaseOrder.poNumber,
+        assignedTo:     department,
+        currentApprover:purchaseOrder.approvalChain[0].approver.name,
+        status:         purchaseOrder.status,
+        approvalLevels: purchaseOrder.approvalChain.length
+      }
+    });
   } catch (error) {
     console.error('Assign PO error:', error);
-    res.status(500).json({ success: false, message: 'Failed to assign purchase order', error: error.message });
+    res.status(500).json({
+      success: false,
+      message: 'Failed to assign purchase order',
+      error:   error.message
+    });
   }
 };
 

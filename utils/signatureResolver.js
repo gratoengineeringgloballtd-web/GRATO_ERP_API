@@ -1,90 +1,112 @@
 /**
  * signatureResolver.js
+ * Place at: utils/signatureResolver.js
  *
- * Resolves signature image paths reliably across local Windows dev and Render (Linux).
- * Place in: utils/signatureResolver.js
+ * Returns { type: 'local', filePath } or { type: 'cloudinary', url } or null.
+ * This matches what renderSignatureImage() in pdfService.js expects.
  */
 
 const fs   = require('fs');
 const path = require('path');
 
-// Search dirs in priority order — first match wins
 const SIGNATURE_SEARCH_DIRS = [
-  process.env.SIGNATURE_PATH,                                    // Render env var (highest priority)
-  '/var/data/user-signatures',                                   // Render persistent disk (actual folder)
-  '/var/data/signatures',                                        // Render persistent disk (fallback)
-  path.resolve(__dirname, '../uploads/user-signatures'),         // ✅ actual local storage folder
-  path.resolve(__dirname, '../public/signatures'),               // old migration folder
-  path.resolve(__dirname, '../uploads/signatures'),              // generic fallback
+  process.env.SIGNATURE_PATH,
+  '/var/data/user-signatures',
+  '/var/data/signatures',
+  path.resolve(__dirname, '../uploads/user-signatures'),
+  path.resolve(__dirname, '../public/signatures'),
+  path.resolve(__dirname, '../uploads/signatures'),
 ].filter(Boolean);
 
+const isCloudinaryUrl = (str = '') =>
+  str.startsWith('https://res.cloudinary.com') ||
+  str.startsWith('http://res.cloudinary.com');
+
 /**
- * Resolves a stored signature path/object to an absolute local path.
- *
- * Accepts:
- *   - User.signature object  { localPath, filename, url }
- *   - A raw path string      "C:\Users\...\uploads\user-signatures\abc.png"
- *   - A filename string      "abc.png"
+ * resolveSignaturePath
  *
  * @param {object|string|null} signatureData
- * @returns {string|null}  Absolute path if found, null otherwise
+ *   - User.signature object { url, localPath, filename }
+ *   - Raw path string  "C:\Users\...\uploads\user-signatures\abc.png"
+ *   - Cloudinary URL   "https://res.cloudinary.com/..."
+ *
+ * @returns {{ type: 'cloudinary', url: string }
+ *          |{ type: 'local',     filePath: string }
+ *          | null }
  */
 const resolveSignaturePath = (signatureData) => {
   if (!signatureData) return null;
 
-  const storedPath = typeof signatureData === 'string'
+  // Accept object or plain string
+  const storedUrl = typeof signatureData === 'string'
     ? signatureData
-    : (signatureData.localPath || signatureData.filename || signatureData.url || null);
+    : (signatureData.url || signatureData.localPath || signatureData.filename || null);
 
-  if (!storedPath) return null;
+  if (!storedUrl) return null;
 
-  // Strategy 1: stored absolute path still works (local dev happy path)
-  if (path.isAbsolute(storedPath) && fs.existsSync(storedPath)) {
-    return storedPath;
+  // ── Cloudinary URL (new files after migration) ────────────────────────────
+  if (isCloudinaryUrl(storedUrl)) {
+    return { type: 'cloudinary', url: storedUrl };
   }
 
-  // Strategy 2: extract filename and search all known signature dirs
-  // Normalise Windows backslashes first
-  const normalised = storedPath.replace(/\\/g, '/');
+  // ── Local absolute path (works on dev machine) ────────────────────────────
+  if (path.isAbsolute(storedUrl) && fs.existsSync(storedUrl)) {
+    return { type: 'local', filePath: storedUrl };
+  }
+
+  // ── Search by filename across known dirs ──────────────────────────────────
+  const normalised = storedUrl.replace(/\\/g, '/');
   const filename   = path.basename(normalised);
 
   for (const dir of SIGNATURE_SEARCH_DIRS) {
     const candidate = path.join(dir, filename);
     if (fs.existsSync(candidate)) {
       console.log(`✅ Signature resolved: ${candidate}`);
-      return candidate;
+      return { type: 'local', filePath: candidate };
     }
   }
 
-  // Strategy 3: strip leading slash and resolve relative to project root
-  const relative = normalised.replace(/^\/+/, '');
+  // ── Relative path fallback ────────────────────────────────────────────────
+  const relative   = normalised.replace(/^\/+/, '');
   const candidates = [
     path.resolve(__dirname, '..', relative),
     path.resolve(process.cwd(), relative),
   ];
-
   for (const candidate of candidates) {
     if (fs.existsSync(candidate)) {
       console.log(`✅ Signature resolved (relative): ${candidate}`);
-      return candidate;
+      return { type: 'local', filePath: candidate };
     }
   }
 
-  console.warn(`⚠️  Signature not found. Stored path: "${storedPath}"`);
+  console.warn(`⚠️  Signature not found. Stored path: "${storedUrl}"`);
   console.warn(`   Searched dirs: ${SIGNATURE_SEARCH_DIRS.join(', ')}`);
   return null;
 };
 
 /**
- * Migrates signature files to Render persistent disk.
- *
- * Copies from BOTH known local signature folders:
- *   - uploads/user-signatures/   ← where new signatures are saved
- *   - public/signatures/         ← where old signatures lived
- *
- * Run once after attaching the Render disk:
- *   node -e "require('./utils/signatureResolver').migrateSignaturesToDisk()"
+ * downloadCloudinaryToBuffer
+ * Downloads a Cloudinary URL to a Buffer so PDFKit can use doc.image(buffer).
  */
+const downloadCloudinaryToBuffer = (url) => {
+  const https = require('https');
+  const http  = require('http');
+  const lib   = url.startsWith('https') ? https : http;
+
+  return new Promise((resolve) => {
+    lib.get(url, (res) => {
+      if (res.statusCode !== 200) {
+        console.warn(`⚠️  Could not download signature (${res.statusCode}): ${url}`);
+        return resolve(null);
+      }
+      const chunks = [];
+      res.on('data', chunk => chunks.push(chunk));
+      res.on('end',  ()    => resolve(Buffer.concat(chunks)));
+      res.on('error', err  => { console.warn('⚠️  Signature download error:', err.message); resolve(null); });
+    }).on('error', (err) => { console.warn('⚠️  Signature download error:', err.message); resolve(null); });
+  });
+};
+
 const migrateSignaturesToDisk = async () => {
   const targetDir = '/var/data/user-signatures';
   fs.mkdirSync(targetDir, { recursive: true });
@@ -95,38 +117,21 @@ const migrateSignaturesToDisk = async () => {
   ];
 
   let totalCopied = 0;
-
   for (const sourceDir of sourceDirs) {
-    if (!fs.existsSync(sourceDir)) {
-      console.log(`ℹ️  Skipping (not found): ${sourceDir}`);
-      continue;
-    }
-
+    if (!fs.existsSync(sourceDir)) { console.log(`ℹ️  Skipping: ${sourceDir}`); continue; }
     console.log(`\n📂 Copying from: ${sourceDir}`);
-    const files = fs.readdirSync(sourceDir);
-
-    for (const file of files) {
+    for (const file of fs.readdirSync(sourceDir)) {
       const src  = path.join(sourceDir, file);
       const dest = path.join(targetDir, file);
-
-      if (!fs.statSync(src).isFile()) continue; // skip subdirs
-
-      if (!fs.existsSync(dest)) {
-        fs.copyFileSync(src, dest);
-        totalCopied++;
-        console.log(`  ✅ Copied: ${file}`);
-      } else {
-        console.log(`  ⏭️  Already exists: ${file}`);
-      }
+      if (!fs.statSync(src).isFile()) continue;
+      if (!fs.existsSync(dest)) { fs.copyFileSync(src, dest); totalCopied++; console.log(`  ✅ Copied: ${file}`); }
+      else console.log(`  ⏭️  Already exists: ${file}`);
     }
   }
-
   console.log(`\nDone. ${totalCopied} file(s) copied to ${targetDir}`);
 };
 
-module.exports = { resolveSignaturePath, migrateSignaturesToDisk, SIGNATURE_SEARCH_DIRS };
-
-
+module.exports = { resolveSignaturePath, downloadCloudinaryToBuffer, migrateSignaturesToDisk, SIGNATURE_SEARCH_DIRS };
 
 
 

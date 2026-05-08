@@ -77,6 +77,8 @@ const tenderRoutes = require('./routes/tenderRoutes');
 const salaryPaymentRoutes = require('./routes/salaryPaymentRoutes');
 const customerRoutes = require('./routes/customerRoutes');
 const legalComplianceRoutes = require('./routes/legalComplianceRoutes');
+const ceoEscalation = require('./jobs/ceoApprovalEscalation');
+const ceoRoutes = require('./routes/ceoavailabilityroutes');
 
 // Critical check for projectRoutes
 if (!projectRoutes) {
@@ -441,6 +443,9 @@ if (headApprovalRoutes) {
   console.log('✅ Mounted: /api/head-approval');
 }
 
+app.use('/api/ceo', require('./routes/ceoavailabilityroutes'));
+console.log('✅ Mounted: /api/ceo (availability & delegation)');
+
 if (quotationRoutes) {
   app.use('/api/quotations', quotationRoutes);
   console.log('✅ Mounted: /api/quotaions');
@@ -459,6 +464,8 @@ if (buyerRoutes) {
 app.use('/api/project-plans', projectPlanRoutes);
 
 app.use('/api/tenders', tenderRoutes);
+
+app.use('/api/ceo', ceoRoutes);
 
 app.use('/api/legal', legalComplianceRoutes);
 
@@ -522,6 +529,7 @@ app.use(handleMulterError);
 releaseStaleReservationsJob.start();
 scheduleBudgetAlerts();
 initializeScheduledReports();
+ceoEscalation.start();
 
 // Global error handler
 app.use((err, req, res, next) => {
