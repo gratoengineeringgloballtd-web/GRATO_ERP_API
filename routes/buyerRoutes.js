@@ -3,8 +3,9 @@ const router = express.Router();
 const { authMiddleware, requireRoles } = require('../middlewares/authMiddleware');
 const { upload, handleMulterError } = require('../middlewares/uploadMiddleware');
 const pdfService = require('../services/pdfService');
-const { saveFile, STORAGE_CATEGORIES } = require('../utils/localFileStorage');
+// const { saveFile, STORAGE_CATEGORIES } = require('../utils/localFileStorage');
 const { buildPurchaseOrderPdfData } = require('../services/purchaseOrderPdfData');
+const { saveFile, STORAGE_CATEGORIES } = require('../utils/cloudinaryStorage');
 
 // Import controllers
 const buyerRequisitionController = require('../controllers/buyerRequisitionController');
@@ -18,6 +19,22 @@ const { tenderJustificationUpload } = buyerPurchaseOrderController;
 
 // Middleware to ensure only buyers, supply_chain users, and admins can access
 const buyerAuthMiddleware = requireRoles('buyer', 'supply_chain', 'admin', 'ceo');
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HELPER — uploads a PDF buffer directly to Cloudinary (no local filesystem)
+// ─────────────────────────────────────────────────────────────────────────────
+const uploadPDFToCloudinary = (buffer, folder, publicId) => {
+  const cloudinary = require('cloudinary').v2;
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { folder, resource_type: 'raw', public_id: publicId, format: 'pdf' },
+      (err, result) => (err ? reject(err) : resolve(result))
+    );
+    stream.end(buffer);
+  });
+};
+
 
 // =============================================
 // ROUTE PARAMETER VALIDATION (MUST BE EARLY)
@@ -196,132 +213,317 @@ router.get('/purchase-orders/supervisor/stats',
   }
 );
 
-// Approve PO (Supervisor)
+// // Approve PO (Supervisor)
+// router.post('/purchase-orders/:poId/approve',
+//   authMiddleware,
+//   async (req, res) => {
+//     try {
+//       const { poId } = req.params;
+//       const { decision, comments } = req.body;
+
+//       const PurchaseOrder = require('../models/PurchaseOrder');
+//       const User = require('../models/User');
+
+//       const po = await PurchaseOrder.findById(poId)
+//         .populate('supplierId', 'fullName email phone supplierDetails')
+//         .populate('items.itemId', 'code description category unitOfMeasure');
+
+//       if (!po) return res.status(404).json({ success: false, message: 'Purchase order not found' });
+
+//       const currentUser = await User.findById(req.user.userId).select('fullName email signature');
+
+//       const currentStep = po.approvalChain?.find(step =>
+//         step.level === po.currentApprovalLevel &&
+//         step.approver?.email === currentUser.email &&
+//         step.status === 'pending'
+//       );
+
+//       if (!currentStep) return res.status(403).json({ success: false, message: 'You are not authorized to approve this purchase order at this stage' });
+//       if (!['approved', 'rejected'].includes(decision)) return res.status(400).json({ success: false, message: 'Invalid decision. Must be "approved" or "rejected"' });
+
+//       currentStep.status = decision;
+//       const actionDate = new Date();
+//       currentStep.actionDate = actionDate;
+//       currentStep.actionTime = actionDate.toTimeString().split(' ')[0];
+//       currentStep.comments = comments;
+
+//       if (decision === 'approved') {
+//         const signatureBlocks = [
+//           { label: 'Supply Chain', signaturePath: null, signedAt: po.supplyChainReview?.reviewDate || null },
+//           { label: 'Department Head' },
+//           { label: 'Head of Business' },
+//           { label: 'Finance' }
+//         ];
+
+//         if (po.supplyChainReview?.reviewedBy) {
+//           const scUser = await User.findById(po.supplyChainReview.reviewedBy).select('signature');
+//           signatureBlocks[0].signaturePath = scUser?.signature?.localPath || null;
+//         }
+
+//         const approverEmails = po.approvalChain
+//           ?.filter(step => step.status === 'approved' || step.level === currentStep.level)
+//           .map(step => step.approver?.email).filter(Boolean) || [];
+
+//         const approverUsers = approverEmails.length
+//           ? await User.find({ email: { $in: approverEmails } }).select('email signature')
+//           : [];
+//         const approverByEmail = new Map(approverUsers.map(u => [u.email, u]));
+
+//         po.approvalChain?.forEach(step => {
+//           const blockIndex = step.level;
+//           if (!signatureBlocks[blockIndex]) return;
+//           if (step.level === currentStep.level) {
+//             signatureBlocks[blockIndex].signaturePath = currentUser?.signature?.localPath || null;
+//             signatureBlocks[blockIndex].signedAt = actionDate;
+//             return;
+//           }
+//           if (step.status === 'approved') {
+//             const approverUser = approverByEmail.get(step.approver?.email);
+//             signatureBlocks[blockIndex].signaturePath = approverUser?.signature?.localPath || null;
+//             signatureBlocks[blockIndex].signedAt = step.actionDate || step.updatedAt || null;
+//           }
+//         });
+
+//         const pdfData = { ...buildPurchaseOrderPdfData(po), signatures: signatureBlocks };
+//         const pdfResult = await pdfService.generatePurchaseOrderPDF(pdfData);
+//         if (!pdfResult.success) return res.status(500).json({ success: false, message: pdfResult.error || 'Failed to generate signed document' });
+
+//         const signedDocData = await saveFile(
+//           { buffer: pdfResult.buffer, originalname: `PO-${po.poNumber}-Level-${currentStep.level}-signed.pdf`, mimetype: 'application/pdf', size: pdfResult.buffer.length },
+//           STORAGE_CATEGORIES.SIGNED_DOCUMENTS,
+//           `level-${currentStep.level}`,
+//           `PO-${po.poNumber}-Level-${currentStep.level}-signed-${Date.now()}.pdf`
+//         );
+
+//         currentStep.signedDocument = {
+//           publicId: signedDocData.publicId,
+//           url: signedDocData.url,
+//           localPath: signedDocData.localPath,
+//           format: signedDocData.format,
+//           resourceType: signedDocData.resourceType,
+//           bytes: signedDocData.bytes,
+//           originalName: signedDocData.originalName,
+//           uploadedAt: signedDocData.uploadedAt
+//         };
+//       }
+
+//       const maxLevel = Math.max(...po.approvalChain.map(step => step.level));
+
+//       if (decision === 'approved' && currentStep.level < maxLevel) {
+//         po.currentApprovalLevel = currentStep.level + 1;
+//         const nextStep = po.approvalChain.find(step => step.level === po.currentApprovalLevel);
+//         if (nextStep) {
+//           if (po.currentApprovalLevel === 2) po.status = 'pending_head_of_business_approval';
+//           else if (po.currentApprovalLevel === 3) po.status = 'pending_finance_approval';
+//           else po.status = 'pending_department_approval';
+//           nextStep.activatedDate = new Date();
+//         }
+//       } else if (decision === 'approved' && currentStep.level === maxLevel) {
+//         po.status = 'approved';
+//         po.approvalDate = new Date();
+//         po.currentApprovalLevel = maxLevel;
+//       } else if (decision === 'rejected') {
+//         po.status = 'rejected';
+//         po.rejectionDetails = { rejectedBy: req.user.userId, rejectedAt: new Date(), reason: comments || 'Rejected during approval process', stage: `level_${currentStep.level}` };
+//       }
+
+//       po.activities = po.activities || [];
+//       po.activities.push({ type: decision === 'approved' ? 'updated' : 'cancelled', description: comments || `Purchase order ${decision} by ${currentUser.fullName}`, user: currentUser.fullName, timestamp: new Date() });
+
+//       await po.save();
+
+//       res.json({ success: true, message: `Purchase order ${decision} successfully`, data: { poNumber: po.poNumber, status: po.status, currentLevel: po.currentApprovalLevel, decision } });
+//     } catch (error) {
+//       console.error('Approve PO error:', error);
+//       res.status(500).json({ success: false, message: 'Failed to process approval', error: error.message });
+//     }
+//   }
+// );
+
+
+
+
 router.post('/purchase-orders/:poId/approve',
   authMiddleware,
   async (req, res) => {
     try {
-      const { poId } = req.params;
+      const { poId }               = req.params;
       const { decision, comments } = req.body;
-
+ 
       const PurchaseOrder = require('../models/PurchaseOrder');
-      const User = require('../models/User');
-
+      const User          = require('../models/User');
+ 
       const po = await PurchaseOrder.findById(poId)
         .populate('supplierId', 'fullName email phone supplierDetails')
         .populate('items.itemId', 'code description category unitOfMeasure');
-
-      if (!po) return res.status(404).json({ success: false, message: 'Purchase order not found' });
-
+ 
+      if (!po)
+        return res.status(404).json({ success: false, message: 'Purchase order not found' });
+ 
       const currentUser = await User.findById(req.user.userId).select('fullName email signature');
-
+ 
       const currentStep = po.approvalChain?.find(step =>
         step.level === po.currentApprovalLevel &&
         step.approver?.email === currentUser.email &&
         step.status === 'pending'
       );
-
-      if (!currentStep) return res.status(403).json({ success: false, message: 'You are not authorized to approve this purchase order at this stage' });
-      if (!['approved', 'rejected'].includes(decision)) return res.status(400).json({ success: false, message: 'Invalid decision. Must be "approved" or "rejected"' });
-
-      currentStep.status = decision;
-      const actionDate = new Date();
+ 
+      if (!currentStep)
+        return res.status(403).json({ success: false, message: 'You are not authorized to approve this purchase order at this stage' });
+ 
+      if (!['approved', 'rejected'].includes(decision))
+        return res.status(400).json({ success: false, message: 'Invalid decision. Must be "approved" or "rejected"' });
+ 
+      currentStep.status     = decision;
+      const actionDate       = new Date();
       currentStep.actionDate = actionDate;
       currentStep.actionTime = actionDate.toTimeString().split(' ')[0];
-      currentStep.comments = comments;
-
+      currentStep.comments   = comments;
+ 
       if (decision === 'approved') {
+        // Four signature slots — filled in for every level that has approved so far
         const signatureBlocks = [
-          { label: 'Supply Chain', signaturePath: null, signedAt: po.supplyChainReview?.reviewDate || null },
-          { label: 'Department Head' },
-          { label: 'Head of Business' },
-          { label: 'Finance' }
+          { label: 'Supply Chain',     signaturePath: null, signedAt: po.supplyChainReview?.reviewDate || null },
+          { label: 'Department Head',  signaturePath: null, signedAt: null },
+          { label: 'Head of Business', signaturePath: null, signedAt: null },
+          { label: 'Finance',          signaturePath: null, signedAt: null }
         ];
-
+ 
+        // ✅ FIX 5 — full signature object for supply chain signer
         if (po.supplyChainReview?.reviewedBy) {
           const scUser = await User.findById(po.supplyChainReview.reviewedBy).select('signature');
-          signatureBlocks[0].signaturePath = scUser?.signature?.localPath || null;
+          signatureBlocks[0].signaturePath = scUser?.signature || null;
         }
-
+ 
+        // Collect all approvers who have approved + the current one
         const approverEmails = po.approvalChain
           ?.filter(step => step.status === 'approved' || step.level === currentStep.level)
-          .map(step => step.approver?.email).filter(Boolean) || [];
-
+          .map(step => step.approver?.email)
+          .filter(Boolean) || [];
+ 
         const approverUsers = approverEmails.length
           ? await User.find({ email: { $in: approverEmails } }).select('email signature')
           : [];
         const approverByEmail = new Map(approverUsers.map(u => [u.email, u]));
-
+ 
         po.approvalChain?.forEach(step => {
-          const blockIndex = step.level;
+          const blockIndex = step.level; // level 1 → index 1, level 2 → index 2, etc.
           if (!signatureBlocks[blockIndex]) return;
+ 
           if (step.level === currentStep.level) {
-            signatureBlocks[blockIndex].signaturePath = currentUser?.signature?.localPath || null;
-            signatureBlocks[blockIndex].signedAt = actionDate;
+            // ✅ FIX 6 — full signature object for current approver
+            signatureBlocks[blockIndex].signaturePath = currentUser?.signature || null;
+            signatureBlocks[blockIndex].signedAt      = actionDate;
             return;
           }
+ 
           if (step.status === 'approved') {
             const approverUser = approverByEmail.get(step.approver?.email);
-            signatureBlocks[blockIndex].signaturePath = approverUser?.signature?.localPath || null;
-            signatureBlocks[blockIndex].signedAt = step.actionDate || step.updatedAt || null;
+            // ✅ FIX 7 — full signature object for previous approvers
+            signatureBlocks[blockIndex].signaturePath = approverUser?.signature || null;
+            signatureBlocks[blockIndex].signedAt      = step.actionDate || step.updatedAt || null;
           }
         });
-
-        const pdfData = { ...buildPurchaseOrderPdfData(po), signatures: signatureBlocks };
+ 
+        const pdfData   = { ...buildPurchaseOrderPdfData(po), signatures: signatureBlocks };
         const pdfResult = await pdfService.generatePurchaseOrderPDF(pdfData);
-        if (!pdfResult.success) return res.status(500).json({ success: false, message: pdfResult.error || 'Failed to generate signed document' });
-
+        if (!pdfResult.success)
+          return res.status(500).json({ success: false, message: pdfResult.error || 'Failed to generate signed document' });
+ 
+        // ✅ FIX 8 — saveFile from cloudinaryStorage; no filesystem, no EACCES
         const signedDocData = await saveFile(
-          { buffer: pdfResult.buffer, originalname: `PO-${po.poNumber}-Level-${currentStep.level}-signed.pdf`, mimetype: 'application/pdf', size: pdfResult.buffer.length },
+          {
+            buffer:       pdfResult.buffer,
+            originalname: `PO-${po.poNumber}-Level-${currentStep.level}-signed.pdf`,
+            mimetype:     'application/pdf',
+            size:         pdfResult.buffer.length
+          },
           STORAGE_CATEGORIES.SIGNED_DOCUMENTS,
           `level-${currentStep.level}`,
           `PO-${po.poNumber}-Level-${currentStep.level}-signed-${Date.now()}.pdf`
         );
-
+ 
         currentStep.signedDocument = {
-          publicId: signedDocData.publicId,
-          url: signedDocData.url,
-          localPath: signedDocData.localPath,
-          format: signedDocData.format,
+          publicId:     signedDocData.publicId,
+          url:          signedDocData.url,
+          localPath:    signedDocData.localPath,
+          format:       signedDocData.format,
           resourceType: signedDocData.resourceType,
-          bytes: signedDocData.bytes,
+          bytes:        signedDocData.bytes,
           originalName: signedDocData.originalName,
-          uploadedAt: signedDocData.uploadedAt
+          uploadedAt:   signedDocData.uploadedAt
         };
       }
-
+ 
       const maxLevel = Math.max(...po.approvalChain.map(step => step.level));
-
+ 
       if (decision === 'approved' && currentStep.level < maxLevel) {
         po.currentApprovalLevel = currentStep.level + 1;
         const nextStep = po.approvalChain.find(step => step.level === po.currentApprovalLevel);
         if (nextStep) {
-          if (po.currentApprovalLevel === 2) po.status = 'pending_head_of_business_approval';
+          if      (po.currentApprovalLevel === 2) po.status = 'pending_head_of_business_approval';
           else if (po.currentApprovalLevel === 3) po.status = 'pending_finance_approval';
-          else po.status = 'pending_department_approval';
+          else                                    po.status = 'pending_department_approval';
           nextStep.activatedDate = new Date();
+ 
+          // Notify the next approver in the chain
+          try {
+            await sendEmail({
+              to:      nextStep.approver.email,
+              subject: `Purchase Order Approval Required - ${po.poNumber}`,
+              html: `
+                <p>Dear ${nextStep.approver.name},</p>
+                <p>PO ${po.poNumber} (${po.currency} ${po.totalAmount.toLocaleString()}) has been approved at the previous level and now requires your approval.</p>
+                <p>Please log in to review and approve.</p>
+              `
+            });
+          } catch (emailError) {
+            console.error('Failed to send next-approver notification:', emailError);
+          }
         }
       } else if (decision === 'approved' && currentStep.level === maxLevel) {
-        po.status = 'approved';
+        po.status       = 'approved';
         po.approvalDate = new Date();
         po.currentApprovalLevel = maxLevel;
       } else if (decision === 'rejected') {
-        po.status = 'rejected';
-        po.rejectionDetails = { rejectedBy: req.user.userId, rejectedAt: new Date(), reason: comments || 'Rejected during approval process', stage: `level_${currentStep.level}` };
+        po.status           = 'rejected';
+        po.rejectionDetails = {
+          rejectedBy: req.user.userId,
+          rejectedAt: new Date(),
+          reason:     comments || 'Rejected during approval process',
+          stage:      `level_${currentStep.level}`
+        };
       }
-
+ 
       po.activities = po.activities || [];
-      po.activities.push({ type: decision === 'approved' ? 'updated' : 'cancelled', description: comments || `Purchase order ${decision} by ${currentUser.fullName}`, user: currentUser.fullName, timestamp: new Date() });
-
+      po.activities.push({
+        type:        decision === 'approved' ? 'updated' : 'cancelled',
+        description: comments || `Purchase order ${decision} by ${currentUser.fullName}`,
+        user:        currentUser.fullName,
+        timestamp:   new Date()
+      });
+ 
       await po.save();
-
-      res.json({ success: true, message: `Purchase order ${decision} successfully`, data: { poNumber: po.poNumber, status: po.status, currentLevel: po.currentApprovalLevel, decision } });
+ 
+      res.json({
+        success: true,
+        message: `Purchase order ${decision} successfully`,
+        data: {
+          poNumber:     po.poNumber,
+          status:       po.status,
+          currentLevel: po.currentApprovalLevel,
+          decision
+        }
+      });
     } catch (error) {
       console.error('Approve PO error:', error);
       res.status(500).json({ success: false, message: 'Failed to process approval', error: error.message });
     }
   }
 );
+
+
+
 
 router.post('/purchase-orders/:poId/supervisor-reject',
   authMiddleware,
