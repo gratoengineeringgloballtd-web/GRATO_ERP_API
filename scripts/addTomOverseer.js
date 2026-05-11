@@ -14,34 +14,34 @@ async function connectDB() {
   }
 }
 
-async function addEvelynIntern() {
+async function addTomCEO() {
   try {
-    console.log('🔧 ADDING EVELYN NKWENTI - ENERGY MANAGEMENT INTERN');
+    console.log('🔧 ADDING TOM - CEO');
     console.log('='.repeat(80) + '\n');
 
     await connectDB();
 
-    // Find Kelvin Eyong (her supervisor)
+    // Find Kelvin Eyong (who will report to Tom)
     const kelvinEyong = await User.findOne({ email: 'kelvin.eyong@gratoglobal.com' });
 
     if (!kelvinEyong) {
       console.error('❌ ERROR: Kelvin Eyong not found in database!');
-      console.error('   Evelyn cannot be added without her supervisor.');
+      console.error('   Tom cannot be properly linked without Kelvin in the system.');
       process.exit(1);
     }
 
-    console.log('✅ Found supervisor: Kelvin Eyong');
-    console.log('   ID:', kelvinEyong._id);
+    console.log('✅ Found direct report: Kelvin Eyong');
+    console.log('   ID      :', kelvinEyong._id);
     console.log('   Position:', kelvinEyong.position);
     console.log('');
 
-    // Check if Evelyn already exists
-    const existingEvelyn = await User.findOne({ email: 'evelyn.nkwenti@gratoglobal.com' });
+    // Check if Tom already exists
+    const existingTom = await User.findOne({ email: 'gratoengineeringgloballtd@gmail.com' });
 
-    if (existingEvelyn) {
-      console.log('⚠️  Evelyn Nkwenti already exists in database');
-      console.log('   Email:', existingEvelyn.email);
-      console.log('   Position:', existingEvelyn.position);
+    if (existingTom) {
+      console.log('⚠️  User with this email already exists in database');
+      console.log('   Email   :', existingTom.email);
+      console.log('   Position:', existingTom.position);
       console.log('');
 
       const readline = require('readline').createInterface({
@@ -50,7 +50,7 @@ async function addEvelynIntern() {
       });
 
       const answer = await new Promise(resolve => {
-        readline.question('Do you want to update Evelyn\'s details? (yes/no): ', resolve);
+        readline.question('Do you want to update this user\'s details? (yes/no): ', resolve);
       });
       readline.close();
 
@@ -60,77 +60,86 @@ async function addEvelynIntern() {
       }
 
       // Update existing user
-      existingEvelyn.password = 'Nkwe_Ev#26Cam';
-      existingEvelyn.fullName = 'Ms. Evelyn Nkwenti';
-      existingEvelyn.role = 'technical';
-      existingEvelyn.department = 'Business Development & Supply Chain';
-      existingEvelyn.position = 'Energy Management Intern';
-      existingEvelyn.hierarchyLevel = 1;
-      existingEvelyn.supervisor = kelvinEyong._id;
-      existingEvelyn.departmentHead = kelvinEyong._id;
-      existingEvelyn.directReports = [];
-      existingEvelyn.approvalCapacities = [];
-      existingEvelyn.departmentRole = 'staff';
-      existingEvelyn.permissions = [
+      existingTom.fullName = 'Tom';
+      existingTom.role = 'ceo';
+      existingTom.department = 'Executive';
+      existingTom.position = 'Chief Executive Officer';
+      existingTom.hierarchyLevel = 5;
+      existingTom.supervisor = null;
+      existingTom.departmentHead = null;
+      existingTom.departmentRole = 'head';
+      existingTom.permissions = [
         'view_own_requests',
         'create_requisition',
-        'view_team_reports'
+        'view_team_reports',
+        'approve_requisition',
+        'manage_users',
+        'view_all_reports',
+        'manage_departments',
+        'approve_all',
+        'system_admin'
       ];
-      existingEvelyn.isActive = true;
-      existingEvelyn.hierarchyPath = [kelvinEyong._id.toString()];
+      existingTom.isActive = true;
+      existingTom.hierarchyPath = [];
 
-      await existingEvelyn.save();
-
-      // Add Evelyn to Kelvin's directReports if not already there
-      if (!kelvinEyong.directReports.some(id => id.toString() === existingEvelyn._id.toString())) {
-        kelvinEyong.directReports.push(existingEvelyn._id);
-        await kelvinEyong.save();
-        console.log('✅ Added Evelyn to Kelvin\'s direct reports');
+      // Add Kelvin to Tom's directReports if not already there
+      if (!existingTom.directReports.some(id => id.toString() === kelvinEyong._id.toString())) {
+        existingTom.directReports.push(kelvinEyong._id);
       }
 
-      console.log('✅ Evelyn updated successfully!\n');
-      await displayUserDetails(existingEvelyn, kelvinEyong);
+      await existingTom.save();
+
+      // Update Kelvin to report to Tom
+      await updateKelvinSupervisor(kelvinEyong, existingTom);
+
+      console.log('✅ Tom (CEO) updated successfully!\n');
+      await displayUserDetails(existingTom);
 
     } else {
-      // Create new user
-      const evelynData = {
-        email: 'evelyn.nkwenti@gratoglobal.com',
-        password: 'Nkwe_Ev#26Cam',
-        fullName: 'Ms. Evelyn Nkwenti',
-        role: 'technical',
-        department: 'Business Development & Supply Chain',
-        position: 'Energy Management Intern',
-        hierarchyLevel: 1,
-        supervisor: kelvinEyong._id,
-        departmentHead: kelvinEyong._id,
-        directReports: [],
+      // Create new CEO user
+      const tomData = {
+        email: 'gratoengineeringgloballtd@gmail.com',
+        password: 'GratoGlobal@CEO2025!',
+        fullName: 'Tom',
+        role: 'ceo',
+        department: 'Executive',
+        position: 'Chief Executive Officer',
+        hierarchyLevel: 5,
+        supervisor: null,
+        departmentHead: null,
+        directReports: [kelvinEyong._id],
         approvalCapacities: [],
-        departmentRole: 'staff',
+        departmentRole: 'head',
         permissions: [
           'view_own_requests',
           'create_requisition',
-          'view_team_reports'
+          'view_team_reports',
+          'approve_requisition',
+          'manage_users',
+          'view_all_reports',
+          'manage_departments',
+          'approve_all',
+          'system_admin'
         ],
         isActive: true,
-        hierarchyPath: [kelvinEyong._id.toString()]
+        hierarchyPath: []
       };
 
-      const evelyn = new User(evelynData);
-      await evelyn.save();
+      const tom = new User(tomData);
+      await tom.save();
 
-      // Add Evelyn to Kelvin's directReports
-      kelvinEyong.directReports.push(evelyn._id);
-      await kelvinEyong.save();
+      // Update Kelvin to report to Tom
+      await updateKelvinSupervisor(kelvinEyong, tom);
 
-      console.log('✅ Evelyn created successfully!\n');
-      await displayUserDetails(evelyn, kelvinEyong);
+      console.log('✅ Tom (CEO) created successfully!\n');
+      await displayUserDetails(tom);
     }
 
     // Verify login
-    await testLogin('evelyn.nkwenti@gratoglobal.com', 'Nkwe_Ev#26Cam');
+    await testLogin('gratoengineeringgloballtd@gmail.com', 'GratoGlobal@CEO2025!');
 
     console.log('\n✅ SETUP COMPLETE!');
-    console.log('Evelyn Nkwenti is now an Energy Management Intern reporting to Kelvin Eyong.\n');
+    console.log('Tom is now the CEO. Kelvin Eyong reports directly to him.\n');
 
     process.exit(0);
 
@@ -141,8 +150,24 @@ async function addEvelynIntern() {
   }
 }
 
-async function displayUserDetails(user, supervisor) {
-  console.log('📊 USER DETAILS');
+/**
+ * Update Kelvin's supervisor to point to Tom (CEO)
+ */
+async function updateKelvinSupervisor(kelvin, tom) {
+  const previousSupervisorId = kelvin.supervisor;
+
+  kelvin.supervisor = tom._id;
+  kelvin.hierarchyPath = [tom._id.toString()];
+  await kelvin.save();
+
+  console.log('🔗 Kelvin Eyong supervisor updated:');
+  console.log(`   Previous Supervisor ID : ${previousSupervisorId || 'None'}`);
+  console.log(`   New Supervisor         : ${tom.fullName} (${tom.email})`);
+  console.log('');
+}
+
+async function displayUserDetails(user) {
+  console.log('📊 CEO USER DETAILS');
   console.log('='.repeat(80));
   console.log(`Email              : ${user.email}`);
   console.log(`Full Name          : ${user.fullName}`);
@@ -150,7 +175,8 @@ async function displayUserDetails(user, supervisor) {
   console.log(`Department         : ${user.department}`);
   console.log(`Role               : ${user.role}`);
   console.log(`Hierarchy Level    : ${user.hierarchyLevel}`);
-  console.log(`Supervisor         : ${supervisor.fullName} (${supervisor.email})`);
+  console.log(`Supervisor         : None (Top of hierarchy)`);
+  console.log(`Direct Reports     : ${user.directReports.length} user(s)`);
   console.log(`Department Role    : ${user.departmentRole}`);
   console.log(`Is Active          : ${user.isActive}`);
   console.log(`Permissions        : ${user.permissions.join(', ')}`);
@@ -158,8 +184,8 @@ async function displayUserDetails(user, supervisor) {
 
   console.log('🔐 LOGIN CREDENTIALS');
   console.log('='.repeat(80));
-  console.log(`Email              : evelyn.nkwenti@gratoglobal.com`);
-  console.log(`Password           : Nkwe_Ev#26Cam`);
+  console.log(`Email              : gratoengineeringgloballtd@gmail.com`);
+  console.log(`Password           : GratoGlobal@CEO2025!`);
   console.log('='.repeat(80) + '\n');
 }
 
@@ -184,9 +210,9 @@ async function testLogin(email, password) {
 
     if (isValidPassword) {
       console.log('✅ LOGIN TEST PASSED!');
-      console.log('   Email:', email);
-      console.log('   Password comparison: SUCCESS');
-      console.log('   User is active: YES');
+      console.log('   Email               :', email);
+      console.log('   Password comparison : SUCCESS');
+      console.log('   User is active      : YES');
     } else {
       console.log('❌ LOGIN TEST FAILED - Password comparison returned false');
     }
@@ -199,10 +225,225 @@ async function testLogin(email, password) {
 }
 
 if (require.main === module) {
-  addEvelynIntern();
+  addTomCEO();
 }
 
-module.exports = { addEvelynIntern };
+module.exports = { addTomCEO };
+
+
+
+
+
+
+
+
+
+
+// require('dotenv').config();
+// const mongoose = require('mongoose');
+// const User = require('../models/User');
+
+// const MONGO_URI = process.env.MONGODB_URI || process.env.MONGO_URI;
+
+// async function connectDB() {
+//   try {
+//     await mongoose.connect(MONGO_URI);
+//     console.log('✅ Connected to MongoDB Atlas\n');
+//   } catch (error) {
+//     console.error('❌ Connection failed:', error.message);
+//     process.exit(1);
+//   }
+// }
+
+// async function addEvelynIntern() {
+//   try {
+//     console.log('🔧 ADDING EVELYN NKWENTI - ENERGY MANAGEMENT INTERN');
+//     console.log('='.repeat(80) + '\n');
+
+//     await connectDB();
+
+//     // Find Kelvin Eyong (her supervisor)
+//     const kelvinEyong = await User.findOne({ email: 'kelvin.eyong@gratoglobal.com' });
+
+//     if (!kelvinEyong) {
+//       console.error('❌ ERROR: Kelvin Eyong not found in database!');
+//       console.error('   Evelyn cannot be added without her supervisor.');
+//       process.exit(1);
+//     }
+
+//     console.log('✅ Found supervisor: Kelvin Eyong');
+//     console.log('   ID:', kelvinEyong._id);
+//     console.log('   Position:', kelvinEyong.position);
+//     console.log('');
+
+//     // Check if Evelyn already exists
+//     const existingEvelyn = await User.findOne({ email: 'evelyn.nkwenti@gratoglobal.com' });
+
+//     if (existingEvelyn) {
+//       console.log('⚠️  Evelyn Nkwenti already exists in database');
+//       console.log('   Email:', existingEvelyn.email);
+//       console.log('   Position:', existingEvelyn.position);
+//       console.log('');
+
+//       const readline = require('readline').createInterface({
+//         input: process.stdin,
+//         output: process.stdout
+//       });
+
+//       const answer = await new Promise(resolve => {
+//         readline.question('Do you want to update Evelyn\'s details? (yes/no): ', resolve);
+//       });
+//       readline.close();
+
+//       if (answer.toLowerCase() !== 'yes') {
+//         console.log('Cancelled.');
+//         process.exit(0);
+//       }
+
+//       // Update existing user
+//       existingEvelyn.password = 'Nkwe_Ev#26Cam';
+//       existingEvelyn.fullName = 'Ms. Evelyn Nkwenti';
+//       existingEvelyn.role = 'technical';
+//       existingEvelyn.department = 'Business Development & Supply Chain';
+//       existingEvelyn.position = 'Energy Management Intern';
+//       existingEvelyn.hierarchyLevel = 1;
+//       existingEvelyn.supervisor = kelvinEyong._id;
+//       existingEvelyn.departmentHead = kelvinEyong._id;
+//       existingEvelyn.directReports = [];
+//       existingEvelyn.approvalCapacities = [];
+//       existingEvelyn.departmentRole = 'staff';
+//       existingEvelyn.permissions = [
+//         'view_own_requests',
+//         'create_requisition',
+//         'view_team_reports'
+//       ];
+//       existingEvelyn.isActive = true;
+//       existingEvelyn.hierarchyPath = [kelvinEyong._id.toString()];
+
+//       await existingEvelyn.save();
+
+//       // Add Evelyn to Kelvin's directReports if not already there
+//       if (!kelvinEyong.directReports.some(id => id.toString() === existingEvelyn._id.toString())) {
+//         kelvinEyong.directReports.push(existingEvelyn._id);
+//         await kelvinEyong.save();
+//         console.log('✅ Added Evelyn to Kelvin\'s direct reports');
+//       }
+
+//       console.log('✅ Evelyn updated successfully!\n');
+//       await displayUserDetails(existingEvelyn, kelvinEyong);
+
+//     } else {
+//       // Create new user
+//       const evelynData = {
+//         email: 'evelyn.nkwenti@gratoglobal.com',
+//         password: 'Nkwe_Ev#26Cam',
+//         fullName: 'Ms. Evelyn Nkwenti',
+//         role: 'technical',
+//         department: 'Business Development & Supply Chain',
+//         position: 'Energy Management Intern',
+//         hierarchyLevel: 1,
+//         supervisor: kelvinEyong._id,
+//         departmentHead: kelvinEyong._id,
+//         directReports: [],
+//         approvalCapacities: [],
+//         departmentRole: 'staff',
+//         permissions: [
+//           'view_own_requests',
+//           'create_requisition',
+//           'view_team_reports'
+//         ],
+//         isActive: true,
+//         hierarchyPath: [kelvinEyong._id.toString()]
+//       };
+
+//       const evelyn = new User(evelynData);
+//       await evelyn.save();
+
+//       // Add Evelyn to Kelvin's directReports
+//       kelvinEyong.directReports.push(evelyn._id);
+//       await kelvinEyong.save();
+
+//       console.log('✅ Evelyn created successfully!\n');
+//       await displayUserDetails(evelyn, kelvinEyong);
+//     }
+
+//     // Verify login
+//     await testLogin('evelyn.nkwenti@gratoglobal.com', 'Nkwe_Ev#26Cam');
+
+//     console.log('\n✅ SETUP COMPLETE!');
+//     console.log('Evelyn Nkwenti is now an Energy Management Intern reporting to Kelvin Eyong.\n');
+
+//     process.exit(0);
+
+//   } catch (error) {
+//     console.error('\n❌ Setup failed:', error);
+//     console.error(error.stack);
+//     process.exit(1);
+//   }
+// }
+
+// async function displayUserDetails(user, supervisor) {
+//   console.log('📊 USER DETAILS');
+//   console.log('='.repeat(80));
+//   console.log(`Email              : ${user.email}`);
+//   console.log(`Full Name          : ${user.fullName}`);
+//   console.log(`Position           : ${user.position}`);
+//   console.log(`Department         : ${user.department}`);
+//   console.log(`Role               : ${user.role}`);
+//   console.log(`Hierarchy Level    : ${user.hierarchyLevel}`);
+//   console.log(`Supervisor         : ${supervisor.fullName} (${supervisor.email})`);
+//   console.log(`Department Role    : ${user.departmentRole}`);
+//   console.log(`Is Active          : ${user.isActive}`);
+//   console.log(`Permissions        : ${user.permissions.join(', ')}`);
+//   console.log('='.repeat(80) + '\n');
+
+//   console.log('🔐 LOGIN CREDENTIALS');
+//   console.log('='.repeat(80));
+//   console.log(`Email              : evelyn.nkwenti@gratoglobal.com`);
+//   console.log(`Password           : Nkwe_Ev#26Cam`);
+//   console.log('='.repeat(80) + '\n');
+// }
+
+// async function testLogin(email, password) {
+//   console.log('🧪 TESTING LOGIN');
+//   console.log('='.repeat(80));
+
+//   try {
+//     const user = await User.findOne({ email });
+
+//     if (!user) {
+//       console.log('❌ User not found');
+//       return;
+//     }
+
+//     if (!user.isActive) {
+//       console.log('❌ User is not active');
+//       return;
+//     }
+
+//     const isValidPassword = await user.comparePassword(password);
+
+//     if (isValidPassword) {
+//       console.log('✅ LOGIN TEST PASSED!');
+//       console.log('   Email:', email);
+//       console.log('   Password comparison: SUCCESS');
+//       console.log('   User is active: YES');
+//     } else {
+//       console.log('❌ LOGIN TEST FAILED - Password comparison returned false');
+//     }
+
+//   } catch (error) {
+//     console.error('❌ Login test error:', error.message);
+//   }
+
+//   console.log('='.repeat(80) + '\n');
+// }
+
+// if (require.main === module) {
+//   addEvelynIntern();
+// }
+
+// module.exports = { addEvelynIntern };
 
 
 

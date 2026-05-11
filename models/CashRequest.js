@@ -312,6 +312,7 @@ const CashRequestSchema = new mongoose.Schema({
       'pending_hr',                           // ✅ NEW
       'pending_finance',              
       'pending_head_of_business',             // ✅ NEW (moved Finance before this)
+      'pending_ceo',
       'approved',                     
       'denied',
       'partially_disbursed',          
@@ -320,10 +321,14 @@ const CashRequestSchema = new mongoose.Schema({
       'justification_pending_departmental_head',
       'justification_pending_hr',             // ✅ NEW
       'justification_pending_finance',
+      'justification_pending_head_of_business',   // ← was missing
+      'justification_pending_ceo', 
       'justification_rejected_supervisor',
       'justification_rejected_departmental_head',
       'justification_rejected_hr',            // ✅ NEW
       'justification_rejected_finance',
+      'justification_rejected_head_of_business',  
+      'justification_rejected_ceo', 
       'completed'
     ],
     default: 'pending_supervisor'

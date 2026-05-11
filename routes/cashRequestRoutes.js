@@ -14,7 +14,63 @@ const { handleMulterError, cleanupTempFiles, validateFiles } = require('../middl
 // STATIC PATH ROUTES (MUST BE FIRST - NO PARAMETERS)
 // ============================================
 
-// Dashboard stats
+
+router.get(
+  '/supervisor/stats',
+  authMiddleware,
+  requireRoles('supervisor', 'technical', 'hr', 'it', 'supply_chain', 'buyer', 'hse', 'project', 'admin', 'ceo'),
+  async (req, res) => {
+    try {
+      const User = require('../models/User');
+      const CashRequest = require('../models/CashRequest');
+
+      const user = await User.findById(req.user.userId);
+
+      // Only count requests where it is CURRENTLY this user's turn to act
+      const pendingFilter = {
+        $and: [
+          {
+            'approvalChain': {
+              $elemMatch: { 'approver.email': user.email, 'status': 'pending' }
+            }
+          },
+          {
+            status: {
+              $in: [
+                'pending_supervisor',
+                'pending_departmental_head',
+                'pending_hr',
+                'pending_finance',
+                'pending_head_of_business',
+                'pending_ceo'
+              ]
+            }
+          }
+        ]
+      };
+
+      // For "total", count all requests in user's approval chain
+      const totalFilter = {
+        'approvalChain': { $elemMatch: { 'approver.email': user.email } }
+      };
+
+      const [pending, total] = await Promise.all([
+        CashRequest.countDocuments(pendingFilter),
+        CashRequest.countDocuments(totalFilter)
+      ]);
+
+      res.json({ success: true, data: { pending, total } });
+    } catch (error) {
+      console.error('Supervisor stats error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch supervisor stats',
+        error: error.message
+      });
+    }
+  }
+);
+
 router.get(
   '/dashboard-stats',
   authMiddleware,
@@ -23,100 +79,100 @@ router.get(
     try {
       const CashRequest = require('../models/CashRequest');
       const User = require('../models/User');
-      
+
       const user = await User.findById(req.user.userId);
       console.log(`=== DASHBOARD STATS for ${user.role}: ${user.email} ===`);
-      
+
+      const ALL_PENDING = [
+        'pending_supervisor',
+        'pending_departmental_head',
+        'pending_hr',
+        'pending_finance',
+        'pending_head_of_business',
+        'pending_ceo'
+      ];
+
       let baseFilter = {};
       let pendingFilter = {};
-      
+
       if (user.role === 'employee') {
-        baseFilter = { employee: req.user.userId };
-        pendingFilter = {
-          employee: req.user.userId,
-          status: { $regex: /pending/ }
-        };
-      } else if (user.role === 'supervisor') {
+        baseFilter  = { employee: req.user.userId };
+        pendingFilter = { employee: req.user.userId, status: { $in: ALL_PENDING } };
+
+      } else if (
+        ['supervisor', 'technical', 'hr', 'it', 'supply_chain', 'buyer', 'hse', 'project'].includes(user.role)
+      ) {
+        // Only requests where THIS user has a pending step AND it is currently
+        // their turn (request status matches their approval level)
         baseFilter = {
-          'approvalChain': {
-            $elemMatch: {
-              'approver.email': user.email
-            }
-          }
+          'approvalChain': { $elemMatch: { 'approver.email': user.email } }
         };
         pendingFilter = {
+          $and: [
+            {
+              'approvalChain': {
+                $elemMatch: { 'approver.email': user.email, 'status': 'pending' }
+              }
+            },
+            { status: { $in: ALL_PENDING } }
+          ]
+        };
+
+      } else if (user.role === 'finance') {
+        baseFilter = {
+          $or: [
+            { 'approvalChain': { $elemMatch: { 'approver.role': 'Finance Officer' } } },
+            { status: { $in: ['pending_finance', 'approved', 'partially_disbursed', 'fully_disbursed', 'disbursed', 'completed'] } }
+          ]
+        };
+        // Pending for finance = only requests currently sitting at pending_finance
+        // where this finance officer is the pending approver
+        pendingFilter = {
+          status: 'pending_finance',
           'approvalChain': {
             $elemMatch: {
               'approver.email': user.email,
+              'approver.role': 'Finance Officer',
               'status': 'pending'
             }
           }
         };
-      } else if (user.role === 'finance') {
-        baseFilter = {
-          $or: [
-            { status: { $regex: /pending_finance/ } },
-            { status: 'approved' },
-            { status: 'disbursed' },
-            { status: 'completed' },
-            {
-              'approvalChain': {
-                $elemMatch: {
-                  'approver.role': 'Finance Officer'
-                }
-              }
-            }
-          ]
-        };
-        pendingFilter = {
-          $or: [
-            { status: { $regex: /pending_finance/ } },
-            {
-              'approvalChain': {
-                $elemMatch: {
-                  'approver.email': user.email,
-                  'approver.role': 'Finance Officer',
-                  'status': 'pending'
-                }
-              }
-            }
-          ]
-        };
+
+      } else if (user.role === 'ceo') {
+        // CEO pending = only requests explicitly waiting for CEO sign-off
+        baseFilter    = {};
+        pendingFilter = { status: 'pending_ceo' };
+
       } else if (user.role === 'admin') {
-        baseFilter = {};
-        pendingFilter = {
-          status: { $regex: /pending/ }
-        };
+        baseFilter    = {};
+        pendingFilter = { status: { $in: ALL_PENDING } };
+
+      } else {
+        // Fallback — employee view
+        baseFilter    = { employee: req.user.userId };
+        pendingFilter = { employee: req.user.userId, status: { $in: ALL_PENDING } };
       }
-      
+
       console.log('Base filter:', JSON.stringify(baseFilter, null, 2));
       console.log('Pending filter:', JSON.stringify(pendingFilter, null, 2));
-      
+
       const [total, pending, approved, disbursed, completed, denied] = await Promise.all([
         CashRequest.countDocuments(baseFilter),
         CashRequest.countDocuments(pendingFilter),
         CashRequest.countDocuments({ ...baseFilter, status: 'approved' }),
-        CashRequest.countDocuments({ ...baseFilter, status: 'disbursed' }),
+        CashRequest.countDocuments({
+          ...baseFilter,
+          status: { $in: ['disbursed', 'partially_disbursed', 'fully_disbursed'] }
+        }),
         CashRequest.countDocuments({ ...baseFilter, status: 'completed' }),
         CashRequest.countDocuments({ ...baseFilter, status: 'denied' })
       ]);
-      
-      const stats = {
-        total,
-        pending,
-        approved,
-        disbursed,
-        completed,
-        denied
-      };
-      
+
+      const stats = { total, pending, approved, disbursed, completed, denied };
       console.log('Stats calculated:', stats);
-      
-      res.json({
-        success: true,
-        data: stats
-      });
-      
+
+      res.json({ success: true, data: stats });
+
     } catch (error) {
       console.error('Dashboard stats error:', error);
       res.status(500).json({
@@ -127,6 +183,7 @@ router.get(
     }
   }
 );
+
 
 router.get(
   '/dashboard/stats',
@@ -1108,3 +1165,7 @@ router.use((error, req, res, next) => {
 });
 
 module.exports = router;
+
+
+
+

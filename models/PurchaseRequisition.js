@@ -211,6 +211,38 @@ const PurchaseRequisitionSchema = new mongoose.Schema({
     }
   }],
 
+  // status: {
+  //   type: String,
+  //   enum: [
+  //     'draft',
+  //     'pending_supervisor',
+  //     'pending_finance_verification',
+  //     'pending_supply_chain_review',
+  //     'pending_buyer_assignment',
+  //     'pending_head_approval',
+  //     'approved',
+  //     'partially_disbursed',  
+  //     'fully_disbursed',
+  //     'rejected',
+  //     'supply_chain_approved',
+  //     'supply_chain_rejected',
+  //     'in_procurement',
+  //     'procurement_complete',
+  //     'delivered',
+  //     'justification_pending_supervisor',
+  //     'justification_pending_finance',
+  //     'justification_pending_supply_chain',
+  //     'justification_pending_head',
+  //     'justification_rejected',
+  //     'justification_approved',
+  //     'completed',
+  //     'pending_clarification',
+  //     'pending_cancellation',
+  //     'cancelled'
+  //   ],
+  //   default: 'pending_supervisor'
+  // },
+
   status: {
     type: String,
     enum: [
@@ -220,8 +252,9 @@ const PurchaseRequisitionSchema = new mongoose.Schema({
       'pending_supply_chain_review',
       'pending_buyer_assignment',
       'pending_head_approval',
+      'pending_ceo_approval',           // ← NEW: CEO final sign-off
       'approved',
-      'partially_disbursed',  
+      'partially_disbursed',
       'fully_disbursed',
       'rejected',
       'supply_chain_approved',
@@ -233,7 +266,13 @@ const PurchaseRequisitionSchema = new mongoose.Schema({
       'justification_pending_finance',
       'justification_pending_supply_chain',
       'justification_pending_head',
+      'justification_pending_ceo',      // ← NEW
       'justification_rejected',
+      'justification_rejected_supervisor',   // ← NEW: granular rejection statuses
+      'justification_rejected_finance',      // ← NEW
+      'justification_rejected_supply_chain', // ← NEW
+      'justification_rejected_head',         // ← NEW
+      'justification_rejected_ceo',          // ← NEW
       'justification_approved',
       'completed',
       'pending_clarification',
@@ -391,6 +430,21 @@ const PurchaseRequisitionSchema = new mongoose.Schema({
     businessDecisions: {
       type: mongoose.Schema.Types.Mixed,
       default: {}
+    }
+  },
+
+  // ← NEW: CEO approval tracking (for requisitions above CEO threshold)
+  ceoApproval: {
+    decision: {
+      type: String,
+      enum: ['pending', 'approved', 'rejected'],
+      default: 'pending'
+    },
+    comments: String,
+    decisionDate: Date,
+    decidedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
     }
   },
 
@@ -569,6 +623,18 @@ const PurchaseRequisitionSchema = new mongoose.Schema({
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User'
     },
+    // status: {
+    //   type: String,
+    //   enum: [
+    //     'pending_supervisor',
+    //     'pending_finance',
+    //     'pending_supply_chain',
+    //     'pending_head',
+    //     'approved',
+    //     'rejected'
+    //   ],
+    //   default: 'pending_supervisor'
+    // },
     status: {
       type: String,
       enum: [
@@ -576,11 +642,14 @@ const PurchaseRequisitionSchema = new mongoose.Schema({
         'pending_finance',
         'pending_supply_chain',
         'pending_head',
+        'pending_ceo',         
         'approved',
         'rejected'
       ],
       default: 'pending_supervisor'
     },
+
+
     supervisorReview: {
       decision: {
         type: String,
@@ -773,6 +842,8 @@ PurchaseRequisitionSchema.index({ supplierId: 1 });
 PurchaseRequisitionSchema.index({ budgetCode: 1 });
 PurchaseRequisitionSchema.index({ 'budgetCodeInfo.code': 1 });
 PurchaseRequisitionSchema.index({ 'financeVerification.decision': 1 });
+PurchaseRequisitionSchema.index({ 'headApproval.decision': 1 });
+PurchaseRequisitionSchema.index({ 'ceoApproval.decision': 1 });
 
 // Virtuals
 PurchaseRequisitionSchema.virtual('isFinanceVerified').get(function() {

@@ -20,10 +20,115 @@ const PurchaseRequisition = require('../models/PurchaseRequisition');
 // STATIC ROUTES FIRST
 // ============================================
 
-// Dashboard stats
-router.get('/dashboard-stats', 
+// // Dashboard stats
+// router.get('/dashboard-stats', 
+//   authMiddleware,
+//   purchaseRequisitionController.getDashboardStats
+// );
+
+router.get(
+  '/dashboard-stats',
   authMiddleware,
-  purchaseRequisitionController.getDashboardStats
+  async (req, res) => {
+    try {
+      const PurchaseRequisition = require('../models/PurchaseRequisition');
+      const User = require('../models/User');
+
+      const user = await User.findById(req.user.userId);
+
+      const ALL_PENDING = [
+        'pending_supervisor',
+        'pending_finance_verification',
+        'pending_supply_chain_review',
+        'pending_buyer_assignment',
+        'pending_head_approval',
+        'pending_ceo_approval'
+      ];
+
+      let baseFilter   = {};
+      let pendingFilter = {};
+
+      if (user.role === 'employee') {
+        // Employee sees only their own requisitions
+        baseFilter    = { employee: req.user.userId };
+        pendingFilter = { employee: req.user.userId, status: { $in: ALL_PENDING } };
+
+      } else if (['supervisor', 'technical', 'hr', 'it', 'hse', 'project'].includes(user.role)) {
+        // Supervisor-type roles: only requests where it is currently their turn
+        baseFilter = {
+          'approvalChain': { $elemMatch: { 'approver.email': user.email } }
+        };
+        pendingFilter = {
+          $and: [
+            {
+              'approvalChain': {
+                $elemMatch: { 'approver.email': user.email, 'status': 'pending' }
+              }
+            },
+            { status: { $in: ALL_PENDING } }
+          ]
+        };
+
+      } else if (user.role === 'finance') {
+        // Finance: requests sitting at finance verification stage
+        baseFilter    = { status: { $in: ['pending_finance_verification', 'approved', 'completed', 'in_procurement', 'procurement_complete', 'delivered'] } };
+        pendingFilter = {
+          status: 'pending_finance_verification',
+          'approvalChain': {
+            $elemMatch: { 'approver.email': user.email, 'status': 'pending' }
+          }
+        };
+
+      } else if (user.role === 'supply_chain') {
+        // Supply chain: requests at their review / buyer-assignment stage
+        baseFilter    = { status: { $in: ['pending_supply_chain_review', 'pending_buyer_assignment', 'supply_chain_approved', 'in_procurement', 'procurement_complete'] } };
+        pendingFilter = { status: { $in: ['pending_supply_chain_review', 'pending_buyer_assignment'] } };
+
+      } else if (user.role === 'buyer') {
+        // Buyer: requisitions assigned to them
+        baseFilter    = { 'supplyChainReview.assignedBuyer': req.user.userId };
+        pendingFilter = {
+          'supplyChainReview.assignedBuyer': req.user.userId,
+          status: { $in: ['pending_buyer_assignment', 'in_procurement'] }
+        };
+
+      } else if (user.role === 'ceo') {
+        // CEO: only requests explicitly waiting for CEO sign-off
+        baseFilter    = {};
+        pendingFilter = { status: 'pending_ceo_approval' };
+
+      } else if (user.role === 'admin') {
+        baseFilter    = {};
+        pendingFilter = { status: { $in: ALL_PENDING } };
+
+      } else {
+        // Fallback — own requests
+        baseFilter    = { employee: req.user.userId };
+        pendingFilter = { employee: req.user.userId, status: { $in: ALL_PENDING } };
+      }
+
+      const [total, pending, approved, rejected, completed] = await Promise.all([
+        PurchaseRequisition.countDocuments(baseFilter),
+        PurchaseRequisition.countDocuments(pendingFilter),
+        PurchaseRequisition.countDocuments({ ...baseFilter, status: { $in: ['approved', 'in_procurement', 'procurement_complete', 'delivered'] } }),
+        PurchaseRequisition.countDocuments({ ...baseFilter, status: 'rejected' }),
+        PurchaseRequisition.countDocuments({ ...baseFilter, status: 'completed' })
+      ]);
+
+      res.json({
+        success: true,
+        data: { total, pending, approved, rejected, completed }
+      });
+
+    } catch (error) {
+      console.error('PR dashboard stats error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch purchase requisition stats',
+        error: error.message
+      });
+    }
+  }
 );
 
 // Employee routes
@@ -41,26 +146,26 @@ router.get('/employee',
 // Finance routes
 router.get('/finance', 
   authMiddleware, 
-  requireRoles('finance', 'admin', 'ceo'),
+  requireRoles('finance', 'admin', 'ceo', 'it'),
   purchaseRequisitionController.getFinanceRequisitions
 );
 
 router.get('/finance/dashboard-data', 
   authMiddleware, 
-  requireRoles('finance', 'admin', 'ceo'),
+  requireRoles('finance', 'admin', 'ceo', 'it'),
   purchaseRequisitionController.getFinanceDashboardData
 );
 
 // ✅ NEW: Pending disbursements (BEFORE generic routes)
 router.get('/finance/pending-disbursements',
   authMiddleware,
-  requireRoles('finance', 'admin', 'ceo'),
+  requireRoles('finance', 'admin', 'ceo', 'it'),
   purchaseRequisitionController.getPendingDisbursements
 );
 
 router.get('/finance/budget-codes', 
   authMiddleware,
-  requireRoles('finance', 'admin', 'ceo'),
+  requireRoles('finance', 'admin', 'ceo', 'it'),
   purchaseRequisitionController.getBudgetCodesForVerification
 );
 
@@ -79,20 +184,20 @@ router.get('/pr-dashboard-stats',
 // Supervisor routes
 router.get('/supervisor', 
   authMiddleware, 
-  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'ceo'), 
+  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'it', 'ceo'), 
   purchaseRequisitionController.getSupervisorRequisitions
 );
 
 // Supply Chain Coordinator routes
 router.get('/supply-chain', 
   authMiddleware, 
-  requireRoles('supply_chain', 'admin', 'ceo'),
+  requireRoles('supply_chain', 'admin', 'ceo', 'it'),
   purchaseRequisitionController.getSupplyChainRequisitions
 );
 
 router.get('/supply-chain/pending-decisions',
   authMiddleware,
-  requireRoles('supply_chain', 'admin', 'ceo'),
+  requireRoles('supply_chain', 'admin', 'ceo', 'it'),
   async (req, res) => {
     try {
       // Get requisitions pending supply chain business decisions
@@ -122,26 +227,26 @@ router.get('/supply-chain/pending-decisions',
 // Buyer routes
 router.get('/buyers/available',
   authMiddleware,
-  requireRoles('supply_chain', 'admin', 'ceo'),
+  requireRoles('supply_chain', 'admin', 'ceo', 'it'),
   purchaseRequisitionController.getAvailableBuyers
 );
 
 router.get('/buyer', 
   authMiddleware, 
-  requireRoles('buyer', 'supply_chain', 'admin', 'ceo'),
+  requireRoles('buyer', 'supply_chain', 'admin', 'ceo', 'it'),
   purchaseRequisitionController.getBuyerRequisitions
 );
 
 // Head approval routes
 router.get('/head-approval', 
   authMiddleware, 
-  requireRoles('supply_chain', 'admin', 'ceo'),
+  requireRoles('supply_chain', 'admin', 'ceo', 'it'),
   purchaseRequisitionController.getHeadApprovalRequisitions
 );
 
 router.get('/head-approval/stats',
   authMiddleware,
-  requireRoles('supply_chain', 'admin', 'ceo'),
+  requireRoles('supply_chain', 'admin', 'ceo', 'it'),
   async (req, res) => {
     try {
       const pending = await PurchaseRequisition.countDocuments({
@@ -178,7 +283,7 @@ router.get('/head-approval/stats',
 // Admin routes
 router.get('/admin', 
   authMiddleware, 
-  requireRoles('admin', 'ceo'), 
+  requireRoles('admin', 'ceo', 'it'), 
   purchaseRequisitionController.getAllRequisitions
 );
 
@@ -197,52 +302,52 @@ router.get(
 // STEP 1: Finance Verification (Budget Check)
 router.put('/:requisitionId/finance-verification', 
   authMiddleware, 
-  requireRoles('finance', 'admin', 'ceo'),
+  requireRoles('finance', 'admin', 'ceo', 'it'),
   purchaseRequisitionController.processFinanceVerification
 );
 
 router.post('/:requisitionId/finance-verification', 
   authMiddleware, 
-  requireRoles('finance', 'admin', 'ceo'),
+  requireRoles('finance', 'admin', 'ceo', 'it'),
   purchaseRequisitionController.processFinanceVerification
 );
 
 // STEP 2: Supply Chain Coordinator Business Decisions
 router.put('/:requisitionId/supply-chain-decisions', 
   authMiddleware, 
-  requireRoles('supply_chain', 'admin', 'ceo'),
+  requireRoles('supply_chain', 'admin', 'ceo', 'it'),
   purchaseRequisitionController.processSupplyChainBusinessDecisions
 );
 
 router.post('/:requisitionId/supply-chain-decisions', 
   authMiddleware, 
-  requireRoles('supply_chain', 'admin', 'ceo'),
+  requireRoles('supply_chain', 'admin', 'ceo', 'it'),
   purchaseRequisitionController.processSupplyChainBusinessDecisions
 );
 
 // Supply Chain Reject
 router.post('/:requisitionId/supply-chain-reject',
   authMiddleware,
-  requireRoles('supply_chain', 'admin', 'ceo'),
+  requireRoles('supply_chain', 'admin', 'ceo', 'it'),
   supplyChainRejectionController.rejectSupplyChainRequisition
 );
 
 router.get('/head-approval/:requisitionId', 
   authMiddleware, 
-  requireRoles('supply_chain', 'admin', 'ceo'),
+  requireRoles('supply_chain', 'admin', 'ceo', 'it'),
   purchaseRequisitionController.getHeadApprovalRequisition
 );
 
 // Supervisor decision
 router.put('/:requisitionId/supervisor', 
   authMiddleware, 
-  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'ceo'), 
+  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'ceo', 'it'), 
   purchaseRequisitionController.processSupervisorDecision
 );
 
 router.post('/:requisitionId/supervisor', 
   authMiddleware, 
-  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'ceo'), 
+  requireRoles('employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'ceo', 'it'), 
   purchaseRequisitionController.processSupervisorDecision
 );
 
