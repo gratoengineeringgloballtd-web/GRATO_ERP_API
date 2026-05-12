@@ -252,7 +252,8 @@ const PurchaseRequisitionSchema = new mongoose.Schema({
       'pending_supply_chain_review',
       'pending_buyer_assignment',
       'pending_head_approval',
-      'pending_ceo_approval',           // ← NEW: CEO final sign-off
+      // 'pending_ceo_approval',           // ← NEW: CEO final sign-off
+      'pending_ceo',
       'approved',
       'partially_disbursed',
       'fully_disbursed',

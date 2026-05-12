@@ -22,7 +22,7 @@ const CEO_THRESHOLDS = {
   // ── CASH / PETTY CASH ────────────────────────────────────────────────────
   cash_request: {
     // minAmountForCEO: 100_000,       // Below 100k → stops at Kelvin
-    minAmountForCEO: 10, 
+    minAmountForCEO: 100_000, 
     currency: 'XAF',
     description: 'Cash / petty cash requests',
     escalationField: 'amount',       // field on the request object to check

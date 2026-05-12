@@ -728,29 +728,64 @@ const getAllRequisitions = async (req, res) => {
 };
 
 // Get supervisor requisitions (pending approval)
+// const getSupervisorRequisitions = async (req, res) => {
+//   try {
+//     const user = await User.findById(req.user.userId);
+//     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+//     const requisitions = await PurchaseRequisition.find({
+//       $or: [
+//         {
+//           'approvalChain': { $elemMatch: { 'approver.email': user.email, 'status': 'pending' } },
+//           status: { $in: ['pending_supervisor'] }
+//         },
+//         {
+//           'approvalChain': { $elemMatch: { 'approver.email': user.email } },
+//           status: { $in: ['justification_pending_supervisor'] }
+//         },
+//         {
+//           status: 'pending_cancellation',
+//           'cancellationRequest.approvalChain': { $elemMatch: { 'approver.email': user.email, 'status': 'pending' } }
+//         }
+//       ]
+//     })
+//     .populate('employee', 'fullName email department')
+//     .sort({ createdAt: -1 });
+
+//     res.json({ success: true, data: requisitions, count: requisitions.length });
+//   } catch (error) {
+//     console.error('Get supervisor requisitions error:', error);
+//     res.status(500).json({ success: false, message: 'Failed to fetch requisitions', error: error.message });
+//   }
+// };
+
+
 const getSupervisorRequisitions = async (req, res) => {
   try {
     const user = await User.findById(req.user.userId);
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
-    const requisitions = await PurchaseRequisition.find({
-      $or: [
-        {
-          'approvalChain': { $elemMatch: { 'approver.email': user.email, 'status': 'pending' } },
-          status: { $in: ['pending_supervisor'] }
-        },
-        {
-          'approvalChain': { $elemMatch: { 'approver.email': user.email } },
-          status: { $in: ['justification_pending_supervisor'] }
-        },
-        {
-          status: 'pending_cancellation',
-          'cancellationRequest.approvalChain': { $elemMatch: { 'approver.email': user.email, 'status': 'pending' } }
+    // CEO sees requisitions at the pending_ceo step
+    const isCEO = user.role === 'ceo' || user.email === 'tom@gratoengineering.com';
+
+    const query = isCEO
+      ? {
+          $or: [
+            { status: 'pending_ceo' },
+            { status: 'pending_cancellation', 'cancellationRequest.approvalChain': { $elemMatch: { 'approver.email': user.email, status: 'pending' } } }
+          ]
         }
-      ]
-    })
-    .populate('employee', 'fullName email department')
-    .sort({ createdAt: -1 });
+      : {
+          $or: [
+            { 'approvalChain': { $elemMatch: { 'approver.email': user.email, status: 'pending' } }, status: { $in: ['pending_supervisor'] } },
+            { 'approvalChain': { $elemMatch: { 'approver.email': user.email } }, status: { $in: ['justification_pending_supervisor'] } },
+            { status: 'pending_cancellation', 'cancellationRequest.approvalChain': { $elemMatch: { 'approver.email': user.email, status: 'pending' } } }
+          ]
+        };
+
+    const requisitions = await PurchaseRequisition.find(query)
+      .populate('employee', 'fullName email department')
+      .sort({ createdAt: -1 });
 
     res.json({ success: true, data: requisitions, count: requisitions.length });
   } catch (error) {

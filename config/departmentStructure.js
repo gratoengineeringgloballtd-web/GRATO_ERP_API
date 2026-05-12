@@ -309,7 +309,7 @@ const DEPARTMENT_STRUCTURE = {
     head: {
       email: 'kelvin.eyong@gratoglobal.com',
       name: 'Mr. E.T Kelvin',
-      position: 'President / Head of Business',
+      position: 'Head of Business',
       reportsTo: null, 
       hierarchyLevel: 5
     },

@@ -24,8 +24,10 @@ const getCurrentQuarterInfo = () => {
 exports.login = async (req, res) => {
     try {
         console.log('=== LOGIN ATTEMPT ===');
+
         const { email, password } = req.body;
 
+        // Validate input
         if (!email || !password) {
             return res.status(400).json({
                 success: false,
@@ -33,8 +35,17 @@ exports.login = async (req, res) => {
             });
         }
 
-        const user = await User.findOne({ email }).populate('supervisor departmentHead');
-        
+        // Normalize email
+        const normalizedEmail = email.toLowerCase().trim();
+        console.log('Searching for:', normalizedEmail);
+
+        // Find user
+        const user = await User.findOne({
+            email: normalizedEmail
+        }).populate('supervisor departmentHead');
+
+        console.log('Found:', user?.email);
+
         if (!user) {
             return res.status(401).json({
                 success: false,
@@ -42,6 +53,7 @@ exports.login = async (req, res) => {
             });
         }
 
+        // Check active status
         if (!user.isActive) {
             return res.status(403).json({
                 success: false,
@@ -49,8 +61,10 @@ exports.login = async (req, res) => {
             });
         }
 
+        // Validate password
         const isValidPassword = await user.comparePassword(password);
-        
+        console.log('Password valid:', isValidPassword);
+
         if (!isValidPassword) {
             return res.status(401).json({
                 success: false,
@@ -60,9 +74,9 @@ exports.login = async (req, res) => {
 
         // Generate JWT
         const token = jwt.sign(
-            { 
+            {
                 userId: user._id,
-                role: user.role 
+                role: user.role
             },
             process.env.JWT_SECRET,
             { expiresIn: '24h' }
@@ -75,9 +89,16 @@ exports.login = async (req, res) => {
         console.log('✅ Login successful:', user.email);
 
         let kpiStatus = null;
+
         if (user.role !== 'supplier') {
             const { quarter, year } = getCurrentQuarterInfo();
-            const kpi = await QuarterlyKPI.findOne({ employee: user._id, quarter, year }).select('approvalStatus submittedAt');
+
+            const kpi = await QuarterlyKPI.findOne({
+                employee: user._id,
+                quarter,
+                year
+            }).select('approvalStatus submittedAt');
+
             kpiStatus = {
                 quarter,
                 year,
@@ -88,7 +109,7 @@ exports.login = async (req, res) => {
             };
         }
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             token,
             user: {
@@ -101,21 +122,26 @@ exports.login = async (req, res) => {
                 hierarchyLevel: user.hierarchyLevel,
                 approvalCapacities: user.approvalCapacities,
                 kpiStatus,
-                signature: user.signature?.url ? {
-                    url: user.signature.url,
-                    uploadedAt: user.signature.uploadedAt
-                } : null,
-                supervisor: user.supervisor ? {
-                    id: user.supervisor._id,
-                    name: user.supervisor.fullName,
-                    email: user.supervisor.email
-                } : null
+                signature: user.signature?.url
+                    ? {
+                          url: user.signature.url,
+                          uploadedAt: user.signature.uploadedAt
+                      }
+                    : null,
+                supervisor: user.supervisor
+                    ? {
+                          id: user.supervisor._id,
+                          name: user.supervisor.fullName,
+                          email: user.supervisor.email
+                      }
+                    : null
             }
         });
 
     } catch (error) {
         console.error('Login error:', error);
-        res.status(500).json({
+
+        return res.status(500).json({
             success: false,
             message: 'Login failed',
             error: error.message
