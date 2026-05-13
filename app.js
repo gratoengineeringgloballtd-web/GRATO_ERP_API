@@ -468,7 +468,6 @@ app.use('/api/tenders', tenderRoutes);
 
 app.use('/api/ceo', ceoRoutes);
 
-
 app.use('/api/it-inventory', itInventoryRoutes);
 
 
