@@ -84,9 +84,9 @@ const supplierInvoiceSchema = new mongoose.Schema({
     uppercase: true,
     validate: {
       validator: function(v) {
-        return /^PO-\w{2}\d{8,12}-\d+$/.test(v);
+        return /^PO-\d{4}-\d{6}$/.test(v);
       },
-      message: 'PO number format should be: PO-XX########-X (e.g., PO-NG010000000-1)'
+      message: 'PO number format should be: PO-YYYY-###### (e.g., PO-2026-000075)'
     }
   },
   
@@ -179,15 +179,16 @@ const supplierInvoiceSchema = new mongoose.Schema({
   approvalStatus: {
     type: String,
     enum: [
-      'pending_supply_chain_assignment',  // NEW - First status after submission
+      'pending_supply_chain_assignment',
       'pending_department_head_approval',
-      'pending_head_of_business_approval', 
-      'pending_finance_approval',          // NEW - Finance is now Level 3
-      'approved', 
+      'pending_head_of_business_approval',
+      'pending_finance_approval',
+      'pending_ceo_approval',           
+      'approved',
       'rejected',
       'paid'
     ],
-    default: 'pending_supply_chain_assignment'  // CHANGED
+    default: 'pending_supply_chain_assignment'
   },
 
   // NEW: Supply Chain Review
@@ -210,16 +211,23 @@ const supplierInvoiceSchema = new mongoose.Schema({
   assignedDepartment: {
     type: String,
     enum: [
-      'HSE', 
-      'Refurbishment', 
-      'Project', 
-      'Operations', 
-      'Diesel', 
-      'Supply Chain', 
-      'HR/Admin',
       'Technical',
+      'Technical Operations',
+      'Technical HSE',
       'Business Development & Supply Chain',
-      'Finance'
+      'HR/Admin',
+      'IT',
+      'Finance',
+      'HSE',
+      'Operations',
+      'Supply Chain',
+      'Refurbishment',
+      'Project',
+      'Diesel',
+      'General',
+      'Civil works',
+      'Rollout',
+      'Security',
     ],
     trim: true
   },
@@ -418,23 +426,16 @@ supplierInvoiceSchema.methods.assignBySupplyChain = function(department, assigne
   // Create 3-level approval chain: Dept Head → Head of Business → Finance
   const chain = getSupplierApprovalChain(department, this.serviceCategory);
   
-  // VALIDATION: Ensure we have all 3 levels
-  if (!chain || chain.length !== 3) {
-    console.error('❌ CRITICAL ERROR: Approval chain must have exactly 3 levels');
-    console.error('Chain received:', JSON.stringify(chain, null, 2));
-    throw new Error(`Failed to create complete approval chain for ${department}. Expected 3 levels, got ${chain?.length || 0}`);
+  if (!chain || chain.length < 2) {
+    throw new Error(`Failed to create approval chain for ${department}. Got ${chain?.length || 0} levels`);
   }
-  
-  // VALIDATION: Ensure Level 1 exists
+
   const level1 = chain.find(step => step.level === 1);
   if (!level1) {
-    console.error('❌ CRITICAL ERROR: Level 1 (Department Head) missing from approval chain');
-    console.error('Chain:', JSON.stringify(chain, null, 2));
-    throw new Error(`Department Head not found for ${department}. Cannot create approval chain.`);
+    throw new Error(`No Level 1 approver found for ${department}`);
   }
-  
-  console.log(`✓ Validation passed: 3-level chain with Department Head at Level 1`);
-  
+  console.log(`✓ Approval chain created with ${chain.length} levels`);
+
   this.approvalChain = chain.map(step => ({
     level: step.level,
     approver: {
@@ -504,20 +505,22 @@ supplierInvoiceSchema.methods.processApprovalStep = function(approverEmail, deci
     const nextStep = this.approvalChain.find(step => step.level === nextLevel);
     
     if (nextStep) {
-      // Move to next approval level
       this.currentApprovalLevel = nextLevel;
-      nextStep.activatedDate = new Date();
+      nextStep.activatedDate    = new Date();
       nextStep.notificationSent = false;
-      
-      // Update status based on level
-      if (nextLevel === 2) {
-        this.approvalStatus = 'pending_head_of_business_approval';
-      } else if (nextLevel === 3) {
+
+      const nextRole = nextStep.approver.role;
+      if (nextRole === 'CEO - Final Authority' || nextRole === 'Acting CEO (Delegate)') {
+        this.approvalStatus = 'pending_ceo_approval';
+      } else if (nextRole === 'Finance Officer') {
         this.approvalStatus = 'pending_finance_approval';
+      } else if (nextRole === 'Head of Business') {
+        this.approvalStatus = 'pending_head_of_business_approval';
+      } else {
+        this.approvalStatus = 'pending_department_head_approval';
       }
     } else {
-      // All approvals complete
-      this.approvalStatus = 'approved';
+      this.approvalStatus       = 'approved';
       this.currentApprovalLevel = 0;
     }
   }
@@ -570,7 +573,8 @@ supplierInvoiceSchema.statics.getPendingForApprover = function(approverEmail) {
       $in: [
         'pending_department_head_approval', 
         'pending_head_of_business_approval',
-        'pending_finance_approval'
+        'pending_finance_approval',
+        'pending_ceo_approval'
       ] 
     }
   })
@@ -630,9 +634,10 @@ supplierInvoiceSchema.methods.notifyCurrentApprover = async function() {
 
 // Post-save middleware for notifications
 supplierInvoiceSchema.post('save', async function() {
-  if (this.approvalStatus === 'pending_department_head_approval' || 
+    if (this.approvalStatus === 'pending_department_head_approval' || 
       this.approvalStatus === 'pending_head_of_business_approval' ||
-      this.approvalStatus === 'pending_finance_approval') {
+      this.approvalStatus === 'pending_finance_approval' ||
+      this.approvalStatus === 'pending_ceo_approval') {
     
     if (this.currentApprovalLevel > 0 && this.approvalChain.length > 0) {
       const currentStep = this.getCurrentApprover();

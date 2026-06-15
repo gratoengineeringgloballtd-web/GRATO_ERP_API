@@ -5757,6 +5757,403 @@ const sendEvaluationEmail = {
   }
 };
 
+
+
+// ADD this before module.exports at the bottom of emailService.js
+const sendSupplierInvoiceEmail = {
+
+  /**
+   * Notify Supply Chain Coordinator of new invoice submission
+   */
+  newInvoiceToSupplyChain: async (scEmail, scName, supplierName, invoiceNumber, poNumber, amount, currency, serviceCategory, invoiceId) => {
+    try {
+      const clientUrl = process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:3000';
+      const reviewLink = `${clientUrl}/supply-chain/supplier-invoices`;
+
+      const subject = `📄 New Supplier Invoice Submitted - ${supplierName} | ${invoiceNumber}`;
+      const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background-color: #e7f3ff; padding: 20px; border-radius: 8px; border-left: 4px solid #1890ff;">
+            <h2 style="color: #0050b3; margin-top: 0;">📄 New Supplier Invoice Received</h2>
+            <p style="color: #555;">Dear ${scName},</p>
+            <p style="color: #555;">A new supplier invoice has been submitted and is awaiting your review and department assignment.</p>
+
+            <div style="background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+              <h3 style="color: #333; margin-top: 0; border-bottom: 2px solid #1890ff; padding-bottom: 10px;">Invoice Details</h3>
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Supplier:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${supplierName}</td></tr>
+                <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Invoice Number:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${invoiceNumber}</td></tr>
+                <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>PO Number:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${poNumber}</td></tr>
+                <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Amount:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee; color: #1890ff; font-weight: bold;">${currency} ${Number(amount).toLocaleString()}</td></tr>
+                <tr><td style="padding: 8px 0;"><strong>Service Category:</strong></td><td style="padding: 8px 0;"><span style="background-color: #722ed1; color: white; padding: 3px 8px; border-radius: 4px; font-size: 12px;">${serviceCategory}</span></td></tr>
+              </table>
+            </div>
+
+            <div style="background-color: #fff7e6; padding: 15px; border-radius: 6px; margin: 20px 0; border-left: 4px solid #faad14;">
+              <h4 style="color: #ad6800; margin-top: 0;">Your Action Required:</h4>
+              <ol style="color: #ad6800; margin: 0; padding-left: 20px;">
+                <li>Review the invoice and attached documents</li>
+                <li>Download, sign, and re-upload the invoice</li>
+                <li>Assign to the appropriate department</li>
+              </ol>
+            </div>
+
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${reviewLink}" style="display: inline-block; background-color: #1890ff; color: white; padding: 14px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 15px;">
+                📋 Review & Assign Invoice
+              </a>
+            </div>
+
+            <p style="color: #888; font-size: 12px; text-align: center;">Automated message from the Supplier Invoice Management System.</p>
+          </div>
+        </div>
+      `;
+
+      return await sendEmail({ to: scEmail, subject, html });
+    } catch (error) {
+      console.error('❌ Error in newInvoiceToSupplyChain:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  /**
+   * Confirm submission to supplier
+   */
+  submissionConfirmationToSupplier: async (supplierEmail, contactName, companyName, invoiceNumber, poNumber, currency, amount) => {
+    try {
+      const subject = `✅ Invoice Submitted Successfully - ${invoiceNumber}`;
+      const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background-color: #f6ffed; padding: 20px; border-radius: 8px; border-left: 4px solid #52c41a;">
+            <h2 style="color: #389e0d; margin-top: 0;">✅ Invoice Submitted Successfully</h2>
+            <p style="color: #555;">Dear ${contactName},</p>
+            <p style="color: #555;">Your invoice has been received and is now pending Supply Chain review.</p>
+
+            <div style="background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+              <h3 style="color: #333; margin-top: 0; border-bottom: 2px solid #52c41a; padding-bottom: 10px;">Submission Details</h3>
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Company:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${companyName}</td></tr>
+                <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Invoice Number:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${invoiceNumber}</td></tr>
+                <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>PO Number:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${poNumber}</td></tr>
+                <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Amount:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee; color: #52c41a; font-weight: bold;">${currency} ${Number(amount).toLocaleString()}</td></tr>
+                <tr><td style="padding: 8px 0;"><strong>Submission Date:</strong></td><td style="padding: 8px 0;">${new Date().toLocaleDateString('en-GB')}</td></tr>
+              </table>
+            </div>
+
+            <div style="background-color: #e6f7ff; padding: 15px; border-radius: 6px; margin: 20px 0; border-left: 4px solid #1890ff;">
+              <h4 style="color: #0050b3; margin-top: 0;">Approval Journey:</h4>
+              <p style="margin: 4px 0; color: #555;">📍 <strong>Step 1:</strong> Supply Chain Review & Assignment</p>
+              <p style="margin: 4px 0; color: #555;">⏳ <strong>Step 2:</strong> Department Head Approval</p>
+              <p style="margin: 4px 0; color: #555;">⏳ <strong>Step 3:</strong> Head of Business Approval</p>
+              <p style="margin: 4px 0; color: #555;">⏳ <strong>Step 4:</strong> Finance Officer Approval</p>
+              <p style="margin: 4px 0; color: #555;">⏳ <strong>Step 5:</strong> CEO Final Approval</p>
+            </div>
+
+            <p style="color: #555;">You will receive email notifications at each stage. Thank you for your business!</p>
+            <p style="color: #888; font-size: 12px; text-align: center;">Automated message from the Supplier Invoice Management System.</p>
+          </div>
+        </div>
+      `;
+
+      return await sendEmail({ to: supplierEmail, subject, html });
+    } catch (error) {
+      console.error('❌ Error in submissionConfirmationToSupplier:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  /**
+   * Notify supplier that invoice was assigned by Supply Chain
+   */
+  invoiceAssignedToSupplier: async (supplierEmail, contactName, invoiceNumber, poNumber, assignedDepartment, currency, amount) => {
+    try {
+      const subject = `📋 Invoice Assigned to Department - ${invoiceNumber}`;
+      const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background-color: #d1ecf1; padding: 20px; border-radius: 8px; border-left: 4px solid #17a2b8;">
+            <h2 style="color: #0c5460; margin-top: 0;">📋 Invoice Assigned & In Review</h2>
+            <p style="color: #555;">Dear ${contactName},</p>
+            <p style="color: #555;">Your invoice has been reviewed and signed by our Supply Chain Coordinator and assigned to the <strong>${assignedDepartment}</strong> department for further approval.</p>
+
+            <div style="background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Invoice:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${invoiceNumber}</td></tr>
+                <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>PO Number:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${poNumber}</td></tr>
+                <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Amount:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${currency} ${Number(amount).toLocaleString()}</td></tr>
+                <tr><td style="padding: 8px 0;"><strong>Assigned Department:</strong></td><td style="padding: 8px 0;"><span style="background-color: #17a2b8; color: white; padding: 3px 8px; border-radius: 4px; font-size: 12px;">${assignedDepartment}</span></td></tr>
+              </table>
+            </div>
+
+            <div style="background-color: #f6ffed; padding: 15px; border-radius: 6px; margin: 20px 0;">
+              <p style="margin: 4px 0; color: #389e0d;">✅ <strong>Supply Chain:</strong> Reviewed & Signed</p>
+              <p style="margin: 4px 0; color: #555;">📍 <strong>Department Head (${assignedDepartment}):</strong> In Progress</p>
+              <p style="margin: 4px 0; color: #555;">⏳ <strong>Head of Business:</strong> Pending</p>
+              <p style="margin: 4px 0; color: #555;">⏳ <strong>Finance Officer:</strong> Pending</p>
+              <p style="margin: 4px 0; color: #555;">⏳ <strong>CEO:</strong> Pending</p>
+            </div>
+
+            <p style="color: #888; font-size: 12px; text-align: center;">Automated message from the Supplier Invoice Management System.</p>
+          </div>
+        </div>
+      `;
+
+      return await sendEmail({ to: supplierEmail, subject, html });
+    } catch (error) {
+      console.error('❌ Error in invoiceAssignedToSupplier:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  /**
+   * Notify next approver in chain
+   */
+  notifyNextApprover: async (approverEmail, approverName, approverRole, level, totalLevels, prevApproverName, supplierName, invoiceNumber, poNumber, currency, amount, assignedDepartment, invoiceId) => {
+    try {
+      const clientUrl = process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:3000';
+      const reviewLink = `${clientUrl}/supervisor/invoice-approvals?tab=supplier-pending`;
+
+      const levelColors = {
+        1: '#1890ff',
+        2: '#722ed1',
+        3: '#52c41a',
+        4: '#fa8c16'
+      };
+      const color = levelColors[level] || '#1890ff';
+
+      const subject = `🔔 Supplier Invoice Approval Required (Level ${level}/${totalLevels}) - ${invoiceNumber}`;
+      const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background-color: #fff7e6; padding: 20px; border-radius: 8px; border-left: 4px solid ${color};">
+            <h2 style="color: #333; margin-top: 0;">🔔 Supplier Invoice Requires Your Approval</h2>
+            <p style="color: #555;">Dear ${approverName},</p>
+            <p style="color: #555;">A supplier invoice has been approved by <strong>${prevApproverName}</strong> and now requires your review and signature.</p>
+
+            <div style="background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+              <h3 style="color: #333; margin-top: 0; border-bottom: 2px solid ${color}; padding-bottom: 10px;">Invoice Details</h3>
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Supplier:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${supplierName}</td></tr>
+                <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Invoice Number:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${invoiceNumber}</td></tr>
+                <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>PO Number:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${poNumber}</td></tr>
+                <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Amount:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee; color: ${color}; font-weight: bold;">${currency} ${Number(amount).toLocaleString()}</td></tr>
+                <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Department:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${assignedDepartment}</td></tr>
+                <tr><td style="padding: 8px 0;"><strong>Your Role:</strong></td><td style="padding: 8px 0;"><span style="background-color: ${color}; color: white; padding: 3px 8px; border-radius: 4px; font-size: 12px;">${approverRole} — Level ${level} of ${totalLevels}</span></td></tr>
+              </table>
+            </div>
+
+            <div style="background-color: #fff3cd; padding: 15px; border-radius: 6px; margin: 20px 0; border-left: 4px solid #faad14;">
+              <h4 style="color: #ad6800; margin-top: 0;">⚠️ Document Signing Required:</h4>
+              <ol style="color: #ad6800; margin: 0; padding-left: 20px;">
+                <li>Download the invoice (already signed by previous approver)</li>
+                <li>Add your signature (print & scan or digital)</li>
+                <li>Upload the signed document</li>
+                <li>Submit your approval decision</li>
+              </ol>
+            </div>
+
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${reviewLink}" style="display: inline-block; background-color: ${color}; color: white; padding: 14px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 15px;">
+                ✍️ Review & Sign Invoice
+              </a>
+            </div>
+
+            <p style="color: #888; font-size: 12px; text-align: center;">Automated message from the Supplier Invoice Management System.</p>
+          </div>
+        </div>
+      `;
+
+      return await sendEmail({ to: approverEmail, subject, html });
+    } catch (error) {
+      console.error('❌ Error in notifyNextApprover:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  /**
+   * Notify supplier of progress update after each approval
+   */
+  approvalProgressToSupplier: async (supplierEmail, contactName, invoiceNumber, poNumber, currency, amount, approvedByName, approvedByRole, currentLevel, totalLevels, nextStepName) => {
+    try {
+      const subject = `📈 Invoice Approval Progress - Level ${currentLevel}/${totalLevels} Approved - ${invoiceNumber}`;
+
+      const steps = Array.from({ length: totalLevels }, (_, i) => {
+        const stepNum = i + 1;
+        const isApproved = stepNum <= currentLevel;
+        const isCurrent = stepNum === currentLevel + 1;
+        return `<p style="margin: 4px 0; color: ${isApproved ? '#389e0d' : '#555'};">
+          ${isApproved ? '✅' : isCurrent ? '📍' : '⏳'} 
+          <strong>Level ${stepNum}:</strong> ${isApproved ? 'Approved' : isCurrent ? `${nextStepName} — In Progress` : 'Pending'}
+        </p>`;
+      }).join('');
+
+      const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background-color: #f6ffed; padding: 20px; border-radius: 8px; border-left: 4px solid #52c41a;">
+            <h2 style="color: #389e0d; margin-top: 0;">📈 Invoice Approval Progress Update</h2>
+            <p style="color: #555;">Dear ${contactName},</p>
+            <p style="color: #555;">Your invoice has been approved at Level ${currentLevel} by <strong>${approvedByName}</strong> (${approvedByRole}).</p>
+
+            <div style="background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Invoice:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${invoiceNumber}</td></tr>
+                <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>PO Number:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${poNumber}</td></tr>
+                <tr><td style="padding: 8px 0;"><strong>Amount:</strong></td><td style="padding: 8px 0; color: #52c41a; font-weight: bold;">${currency} ${Number(amount).toLocaleString()}</td></tr>
+              </table>
+            </div>
+
+            <div style="background-color: #e6f7ff; padding: 15px; border-radius: 6px; margin: 20px 0;">
+              <h4 style="color: #0050b3; margin-top: 0;">Approval Progress:</h4>
+              ${steps}
+            </div>
+
+            <p style="color: #888; font-size: 12px; text-align: center;">Automated message from the Supplier Invoice Management System.</p>
+          </div>
+        </div>
+      `;
+
+      return await sendEmail({ to: supplierEmail, subject, html });
+    } catch (error) {
+      console.error('❌ Error in approvalProgressToSupplier:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  /**
+   * Notify supplier and parties when invoice is fully approved
+   */
+  invoiceFullyApproved: async (supplierEmail, contactName, invoiceNumber, poNumber, currency, amount, paymentMethod) => {
+    try {
+      const subject = `🎉 Invoice Fully Approved - Payment Processing - ${invoiceNumber}`;
+      const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background-color: #d4edda; padding: 20px; border-radius: 8px; border-left: 4px solid #28a745;">
+            <h2 style="color: #155724; margin-top: 0;">🎉 Invoice Fully Approved!</h2>
+            <p style="color: #555;">Dear ${contactName},</p>
+            <p style="color: #555;">Your invoice has been fully approved by all required approvers and is now being processed for payment.</p>
+
+            <div style="background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Invoice:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${invoiceNumber}</td></tr>
+                <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>PO Number:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${poNumber}</td></tr>
+                <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Amount:</strong></td><td style="padding: 8px 0; color: #28a745; font-weight: bold; font-size: 16px;">${currency} ${Number(amount).toLocaleString()}</td></tr>
+                <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Payment Method:</strong></td><td style="padding: 8px 0;">${paymentMethod || 'Bank Transfer'}</td></tr>
+                <tr><td style="padding: 8px 0;"><strong>Status:</strong></td><td style="padding: 8px 0;"><span style="background-color: #28a745; color: white; padding: 4px 8px; border-radius: 4px;">FULLY APPROVED</span></td></tr>
+              </table>
+            </div>
+
+            <div style="background-color: #f6ffed; padding: 15px; border-radius: 6px; margin: 20px 0;">
+              <p style="margin: 4px 0; color: #389e0d;">✅ Supply Chain — Signed & Assigned</p>
+              <p style="margin: 4px 0; color: #389e0d;">✅ Department Head — Approved & Signed</p>
+              <p style="margin: 4px 0; color: #389e0d;">✅ Head of Business — Approved & Signed</p>
+              <p style="margin: 4px 0; color: #389e0d;">✅ Finance Officer — Approved & Signed</p>
+              <p style="margin: 4px 0; color: #389e0d;">✅ CEO — Final Approval Given</p>
+            </div>
+
+            <div style="background-color: #e6f7ff; padding: 15px; border-radius: 6px; margin: 20px 0;">
+              <p style="color: #0050b3; margin: 0; font-weight: bold;">💰 Payment is being processed. You will receive a separate payment confirmation once the transfer is completed.</p>
+            </div>
+
+            <p style="color: #888; font-size: 12px; text-align: center;">Automated message from the Supplier Invoice Management System.</p>
+          </div>
+        </div>
+      `;
+
+      return await sendEmail({ to: supplierEmail, subject, html });
+    } catch (error) {
+      console.error('❌ Error in invoiceFullyApproved:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  /**
+   * Notify supplier when invoice is rejected at any stage
+   */
+  invoiceRejectedToSupplier: async (supplierEmail, contactName, invoiceNumber, poNumber, currency, amount, rejectedByName, rejectedByRole, rejectionReason, scContactEmail) => {
+    try {
+      const subject = `❌ Invoice Not Approved - ${invoiceNumber}`;
+      const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background-color: #f8d7da; padding: 20px; border-radius: 8px; border-left: 4px solid #dc3545;">
+            <h2 style="color: #721c24; margin-top: 0;">❌ Invoice Not Approved</h2>
+            <p style="color: #555;">Dear ${contactName},</p>
+            <p style="color: #555;">We regret to inform you that your invoice has not been approved.</p>
+
+            <div style="background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Invoice:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${invoiceNumber}</td></tr>
+                <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>PO Number:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${poNumber}</td></tr>
+                <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Amount:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${currency} ${Number(amount).toLocaleString()}</td></tr>
+                <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Rejected By:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${rejectedByName} (${rejectedByRole})</td></tr>
+                <tr><td style="padding: 8px 0;"><strong>Status:</strong></td><td style="padding: 8px 0;"><span style="background-color: #dc3545; color: white; padding: 4px 8px; border-radius: 4px;">REJECTED</span></td></tr>
+              </table>
+            </div>
+
+            <div style="background-color: #fff5f5; padding: 15px; border-radius: 6px; margin: 20px 0; border-left: 3px solid #ff4d4f;">
+              <h4 style="color: #cf1322; margin-top: 0;">Rejection Reason:</h4>
+              <p style="color: #cf1322; font-style: italic; margin: 0;">"${rejectionReason}"</p>
+            </div>
+
+            <div style="background-color: #e6f7ff; padding: 15px; border-radius: 6px; margin: 20px 0;">
+              <h4 style="color: #0050b3; margin-top: 0;">What You Can Do:</h4>
+              <ul style="color: #555; margin: 0; padding-left: 20px;">
+                <li>Review the rejection reason above</li>
+                <li>Contact our Supply Chain team for clarification: <a href="mailto:${scContactEmail}">${scContactEmail}</a></li>
+                <li>Submit a corrected invoice once the issues are resolved</li>
+              </ul>
+            </div>
+
+            <p style="color: #888; font-size: 12px; text-align: center;">Automated message from the Supplier Invoice Management System.</p>
+          </div>
+        </div>
+      `;
+
+      return await sendEmail({ to: supplierEmail, subject, html });
+    } catch (error) {
+      console.error('❌ Error in invoiceRejectedToSupplier:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  /**
+   * Notify supplier when payment is processed
+   */
+  paymentProcessedToSupplier: async (supplierEmail, contactName, invoiceNumber, poNumber, currency, amountPaid, paymentMethod, transactionReference, bankReference, paidByName) => {
+    try {
+      const subject = `💰 Payment Processed - ${invoiceNumber}`;
+      const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background-color: #d4edda; padding: 20px; border-radius: 8px; border-left: 4px solid #28a745;">
+            <h2 style="color: #155724; margin-top: 0;">💰 Payment Has Been Processed</h2>
+            <p style="color: #555;">Dear ${contactName},</p>
+            <p style="color: #555;">Your invoice payment has been successfully processed. Please find the payment details below.</p>
+
+            <div style="background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Invoice:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${invoiceNumber}</td></tr>
+                <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>PO Number:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${poNumber}</td></tr>
+                <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Amount Paid:</strong></td><td style="padding: 8px 0; color: #28a745; font-weight: bold; font-size: 18px;">${currency} ${Number(amountPaid).toLocaleString()}</td></tr>
+                <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Payment Method:</strong></td><td style="padding: 8px 0;">${paymentMethod}</td></tr>
+                <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Payment Date:</strong></td><td style="padding: 8px 0;">${new Date().toLocaleDateString('en-GB')}</td></tr>
+                ${transactionReference ? `<tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Transaction Ref:</strong></td><td style="padding: 8px 0;">${transactionReference}</td></tr>` : ''}
+                ${bankReference ? `<tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Bank Reference:</strong></td><td style="padding: 8px 0;">${bankReference}</td></tr>` : ''}
+                <tr><td style="padding: 8px 0;"><strong>Processed By:</strong></td><td style="padding: 8px 0;">${paidByName}</td></tr>
+              </table>
+            </div>
+
+            <p style="color: #555;">Thank you for your business with Grato Engineering. We look forward to continued collaboration.</p>
+            <p style="color: #888; font-size: 12px; text-align: center;">Automated message from the Supplier Invoice Management System.</p>
+          </div>
+        </div>
+      `;
+
+      return await sendEmail({ to: supplierEmail, subject, html });
+    } catch (error) {
+      console.error('❌ Error in paymentProcessedToSupplier:', error);
+      return { success: false, error: error.message };
+    }
+  }
+};
+
+
 module.exports = {
   sendEmail,
   sendCashRequestEmail,
@@ -5772,6 +6169,7 @@ module.exports = {
   sendActionItemEmail,
   sendKPIEmail,
   sendEvaluationEmail,
+  sendSupplierInvoiceEmail,
   getTransporter
 };
 

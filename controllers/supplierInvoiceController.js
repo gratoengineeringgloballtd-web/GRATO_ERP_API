@@ -1,14 +1,17 @@
 const SupplierInvoice = require('../models/SupplierInvoice');
 const User = require('../models/User');
-const { sendEmail } = require('../services/emailService');
+const { sendEmail, sendSupplierInvoiceEmail } = require('../services/emailService');
 const { getSupplyChainCoordinator } = require('../config/supplierApprovalChain');
 const { 
   saveFile, 
   deleteFile, 
-  STORAGE_CATEGORIES 
+  STORAGE_CATEGORIES
 } = require('../utils/cloudinaryStorage');
+// const { cloudinary } = require('../utils/cloudinaryStorage');
 const fs = require('fs').promises;
 const accountingService = require('../services/accountingService');
+const { cloudinary } = require('../utils/cloudinaryStorage');  
+
 
 const safePostSupplierInvoiceEntry = async (invoiceId, userId, context = '') => {
   try {
@@ -40,7 +43,6 @@ exports.submitSupplierInvoice = async (req, res) => {
       lineItems
     } = req.body;
 
-    // Validation
     if (!invoiceNumber || !poNumber) {
       return res.status(400).json({
         success: false,
@@ -48,16 +50,14 @@ exports.submitSupplierInvoice = async (req, res) => {
       });
     }
 
-    // Validate PO number format
-    const poRegex = /^PO-\w{2}\d{8,12}-\d+$/i;
+    const poRegex = /^PO-\d{4}-\d{6}$/;
     if (!poRegex.test(poNumber)) {
       return res.status(400).json({
         success: false,
-        message: 'PO number format should be: PO-XX########-X (e.g., PO-NG010000000-1)'
+        message: 'PO number format should be: PO-YYYY-###### (e.g., PO-2026-000075)'
       });
     }
 
-    // Check for duplicate invoice
     const existingInvoice = await SupplierInvoice.findOne({
       invoiceNumber: invoiceNumber.trim(),
       supplier: req.supplier.userId
@@ -70,7 +70,6 @@ exports.submitSupplierInvoice = async (req, res) => {
       });
     }
 
-    // Get supplier details
     const supplier = await User.findById(req.supplier.userId);
     if (!supplier || supplier.role !== 'supplier') {
       return res.status(404).json({
@@ -81,7 +80,6 @@ exports.submitSupplierInvoice = async (req, res) => {
 
     console.log('Supplier found:', supplier.supplierDetails.companyName);
 
-    // ✅ CHANGED: Process file uploads to LOCAL STORAGE
     const uploadedFiles = {};
     const uploadPromises = [];
 
@@ -98,19 +96,19 @@ exports.submitSupplierInvoice = async (req, res) => {
           customFilename
         );
 
-        // Delete temp file
-        await fs.unlink(file.path).catch(err => 
-          console.warn('Failed to delete temp file:', err.message)
-        );
+        if (file.path) {
+          await fs.unlink(file.path).catch(err => 
+            console.warn('Failed to delete temp file:', err.message)
+          );
+        }
 
         return result;
       } catch (error) {
-        await fs.unlink(file.path).catch(() => {});
+        if (file.path) await fs.unlink(file.path).catch(() => {});
         throw new Error(`Failed to save ${fieldName}: ${error.message}`);
       }
     };
 
-    // Process invoice file
     if (req.files && req.files.invoiceFile && req.files.invoiceFile.length > 0) {
       const invoiceFile = req.files.invoiceFile[0];
       uploadPromises.push(
@@ -120,7 +118,6 @@ exports.submitSupplierInvoice = async (req, res) => {
       );
     }
 
-    // Process PO file
     if (req.files && req.files.poFile && req.files.poFile.length > 0) {
       const poFile = req.files.poFile[0];
       uploadPromises.push(
@@ -130,13 +127,11 @@ exports.submitSupplierInvoice = async (req, res) => {
       );
     }
 
-    // Wait for all uploads to complete
     if (uploadPromises.length > 0) {
       await Promise.all(uploadPromises);
       console.log('All files saved to local storage successfully');
     }
 
-    // Create supplier invoice with new initial status
     const invoiceData = {
       supplier: req.supplier.userId,
       supplierDetails: {
@@ -163,106 +158,30 @@ exports.submitSupplierInvoice = async (req, res) => {
     const supplierInvoice = await SupplierInvoice.create(invoiceData);
     console.log('Supplier invoice created with ID:', supplierInvoice._id);
 
-    // Send notification to Supply Chain Coordinator
+    // Notify Supply Chain Coordinator
     const supplyChainCoordinator = getSupplyChainCoordinator();
-    
-    await sendEmail({
-      to: supplyChainCoordinator.email,
-      subject: `New Supplier Invoice - Assignment Required - ${supplier.supplierDetails.companyName}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background-color: #e7f3ff; padding: 20px; border-radius: 8px; border-left: 4px solid #1890ff;">
-            <h3>New Supplier Invoice Received</h3>
-            <p>Dear ${supplyChainCoordinator.name},</p>
-            <p>A new supplier invoice has been submitted and requires your review and department assignment.</p>
-            
-            <div style="background-color: white; padding: 15px; border-radius: 5px; margin: 15px 0;">
-              <p><strong>Supplier Invoice Details:</strong></p>
-              <ul>
-                <li><strong>Supplier:</strong> ${supplier.supplierDetails.companyName}</li>
-                <li><strong>Contact:</strong> ${supplier.supplierDetails.contactName}</li>
-                <li><strong>Supplier Type:</strong> ${supplier.supplierDetails.supplierType}</li>
-                <li><strong>Invoice Number:</strong> ${supplierInvoice.invoiceNumber}</li>
-                <li><strong>PO Number:</strong> ${supplierInvoice.poNumber}</li>
-                <li><strong>Amount:</strong> ${currency} ${invoiceAmount ? invoiceAmount.toLocaleString() : 'Pending'}</li>
-                <li><strong>Service Category:</strong> ${supplierInvoice.serviceCategory}</li>
-                <li><strong>Status:</strong> Awaiting Supply Chain Assignment</li>
-              </ul>
-            </div>
-            
-            <div style="background-color: #f6ffed; padding: 15px; border-radius: 5px; margin: 15px 0;">
-              <p><strong>Description:</strong></p>
-              <p style="font-style: italic;">${supplierInvoice.description}</p>
-            </div>
-            
-            <div style="background-color: #fff3cd; padding: 15px; border-radius: 5px; margin: 15px 0;">
-              <p><strong>Your Action Required:</strong></p>
-              <ol>
-                <li>Review the invoice details</li>
-                <li>Assign to appropriate department (this auto-approves at your level)</li>
-                <li>OR reject if not valid</li>
-              </ol>
-              <p style="color: #856404; margin-top: 10px;">
-                <strong>Note:</strong> Once assigned, the invoice will proceed through: Department Head → Head of Business → Finance
-              </p>
-            </div>
-            
-            <p>
-              <a href="${process.env.CLIENT_URL || 'http://localhost:3000'}/supply-chain/supplier-invoices" 
-                 style="background-color: #1890ff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;">
-                Review & Assign Invoice
-              </a>
-            </p>
-          </div>
-        </div>
-      `
-    }).catch(error => {
-      console.error('Failed to send Supply Chain notification:', error);
-    });
+    await sendSupplierInvoiceEmail.newInvoiceToSupplyChain(
+      supplyChainCoordinator.email,
+      supplyChainCoordinator.name,
+      supplier.supplierDetails.companyName,
+      supplierInvoice.invoiceNumber,
+      supplierInvoice.poNumber,
+      supplierInvoice.invoiceAmount,
+      currency,
+      supplierInvoice.serviceCategory,
+      supplierInvoice._id
+    ).catch(err => console.error('Failed to notify Supply Chain:', err));
 
-    // Confirm to supplier
-    await sendEmail({
-      to: supplier.email,
-      subject: 'Invoice Submitted Successfully - Pending Supply Chain Review',
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background-color: #f6ffed; padding: 20px; border-radius: 8px; border-left: 4px solid #52c41a;">
-            <h3>Invoice Submission Confirmation</h3>
-            <p>Dear ${supplier.supplierDetails.contactName},</p>
-            
-            <p>Your invoice has been submitted successfully and is now being reviewed by our Supply Chain Coordinator.</p>
-            
-            <div style="background-color: white; padding: 15px; border-radius: 5px; margin: 15px 0;">
-              <p><strong>Submission Details:</strong></p>
-              <ul>
-                <li><strong>Invoice Number:</strong> ${supplierInvoice.invoiceNumber}</li>
-                <li><strong>PO Number:</strong> ${supplierInvoice.poNumber}</li>
-                <li><strong>Submission Date:</strong> ${new Date().toLocaleDateString('en-GB')}</li>
-                <li><strong>Status:</strong> Pending Supply Chain Review</li>
-                <li><strong>Files Attached:</strong> ${Object.keys(uploadedFiles).length > 0 ? Object.keys(uploadedFiles).join(', ') : 'None'}</li>
-              </ul>
-            </div>
-            
-            <div style="background-color: #fff3cd; padding: 15px; border-radius: 5px; margin: 15px 0;">
-              <p><strong>What Happens Next:</strong></p>
-              <ol>
-                <li>Supply Chain Coordinator will review your submission</li>
-                <li>They will assign it to the appropriate department</li>
-                <li>Department Head will review and approve</li>
-                <li>Head of Business will review and approve</li>
-                <li>Finance will give final approval and process payment</li>
-                <li>You'll receive notifications at each step</li>
-              </ol>
-            </div>
-            
-            <p>You can track the status of your invoices in the supplier portal.</p>
-            <p>Thank you for your business!</p>
-          </div>
-        </div>
-      `
-    }).catch(error => {
-      console.error('Failed to send supplier confirmation:', error);
-    });
+    // Confirm submission to supplier
+    await sendSupplierInvoiceEmail.submissionConfirmationToSupplier(
+      supplier.email,
+      supplier.supplierDetails.contactName,
+      supplier.supplierDetails.companyName,
+      supplierInvoice.invoiceNumber,
+      supplierInvoice.poNumber,
+      currency,
+      supplierInvoice.invoiceAmount
+    ).catch(err => console.error('Failed to send supplier confirmation:', err));
 
     console.log('=== SUPPLIER INVOICE SUBMITTED SUCCESSFULLY (LOCAL STORAGE) ===');
     res.status(201).json({
@@ -279,6 +198,7 @@ exports.submitSupplierInvoice = async (req, res) => {
     });
   }
 };
+
 
 /**
  * NEW: Get invoices pending Supply Chain assignment
@@ -342,12 +262,10 @@ exports.assignSupplierInvoiceBySupplyChain = async (req, res) => {
       });
     }
     
-    // ✅ NORMALIZE: Convert "HR & Admin" to "HR/Admin"
     if (department === 'HR & Admin') {
       department = 'HR/Admin';
     }
     
-    // Check if signed document is uploaded
     if (!req.files || !req.files.signedDocument || req.files.signedDocument.length === 0) {
       return res.status(400).json({
         success: false,
@@ -374,7 +292,6 @@ exports.assignSupplierInvoiceBySupplyChain = async (req, res) => {
     
     console.log(`Supply Chain assigning invoice ${invoice.invoiceNumber} to ${department}`);
     
-    // ✅ CHANGED: Upload signed document to LOCAL STORAGE
     const signedDocFile = req.files.signedDocument[0];
     let signedDocData = null;
     
@@ -388,129 +305,45 @@ exports.assignSupplierInvoiceBySupplyChain = async (req, res) => {
         customFilename
       );
 
-      await fs.unlink(signedDocFile.path).catch(err => 
-        console.warn('Failed to delete temp file:', err.message)
-      );
+      if (signedDocFile.path) {
+        await fs.unlink(signedDocFile.path).catch(err => 
+          console.warn('Failed to delete temp file:', err.message)
+        );
+      }
 
       signedDocData = result;
-      
       console.log('✓ Signed document saved to local storage');
     } catch (error) {
-      await fs.unlink(signedDocFile.path).catch(() => {});
+      if (signedDocFile.path) await fs.unlink(signedDocFile.path).catch(() => {});
       throw new Error(`Failed to save signed document: ${error.message}`);
     }
     
-    // Use model method to assign (auto-approves at SC level)
     invoice.assignBySupplyChain(department, req.user.userId, comments);
-    
-    // Add signed document to Supply Chain review
     invoice.supplyChainReview.signedDocument = signedDocData;
     
     await invoice.save();
 
-    if (decision === 'approved' && invoice.approvalStatus === 'approved') {
-      await safePostSupplierInvoiceEntry(invoice._id, req.user.userId, 'final approval');
-    }
-    
     console.log(`Invoice assigned. First approver: ${invoice.getCurrentApprover()?.approver.name}`);
     
-    // Notify Department Head (first in approval chain)
+    // Notify first approver (Department Head - Level 1)
     const firstApprover = invoice.getCurrentApprover();
     if (firstApprover) {
-      await sendEmail({
-        to: firstApprover.approver.email,
-        subject: `Supplier Invoice Approval Required - ${invoice.invoiceNumber}`,
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <div style="background-color: #fff3cd; padding: 20px; border-radius: 8px; border-left: 4px solid #ffc107;">
-              <h3>Supplier Invoice Approval Required</h3>
-              <p>Dear ${firstApprover.approver.name},</p>
-              <p>A supplier invoice has been assigned to your department for approval.</p>
-              
-              <div style="background-color: white; padding: 15px; border-radius: 5px; margin: 15px 0;">
-                <p><strong>Invoice Details:</strong></p>
-                <ul>
-                  <li><strong>Supplier:</strong> ${invoice.supplierDetails.companyName}</li>
-                  <li><strong>Invoice Number:</strong> ${invoice.invoiceNumber}</li>
-                  <li><strong>PO Number:</strong> ${invoice.poNumber}</li>
-                  <li><strong>Amount:</strong> ${invoice.currency} ${invoice.invoiceAmount.toLocaleString()}</li>
-                  <li><strong>Department:</strong> ${invoice.assignedDepartment}</li>
-                  <li><strong>Your Level:</strong> Level 1 of 3</li>
-                </ul>
-              </div>
-              
-              <div style="background-color: #ffe7ba; padding: 15px; border-radius: 5px; margin: 15px 0;">
-                <p><strong>⚠️ IMPORTANT - Document Signing Required:</strong></p>
-                <ol>
-                  <li><strong>Download</strong> the invoice document (already signed by Supply Chain)</li>
-                  <li><strong>Sign manually</strong> (print or digital signature)</li>
-                  <li><strong>Re-upload</strong> the signed document when submitting your approval</li>
-                </ol>
-                <p style="color: #856404; margin-top: 10px; margin-bottom: 0;">
-                  <strong>Note:</strong> You cannot approve without uploading the signed document.
-                </p>
-              </div>
-              
-              <div style="background-color: #d1ecf1; padding: 15px; border-radius: 5px; margin: 15px 0;">
-                <p><strong>Approval Chain:</strong></p>
-                <p>✅ Supply Chain Coordinator (Signed & Assigned)</p>
-                <p>📍 <strong>You are here</strong> → Department Head (Level 1)</p>
-                <p>⏳ Head of Business (Level 2)</p>
-                <p>⏳ Finance Officer (Level 3)</p>
-              </div>
-              
-              <p>
-                <a href="${process.env.CLIENT_URL || 'http://localhost:3000'}/supervisor/invoice-approvals?tab=supplier-pending" 
-                   style="background-color: #28a745; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;">
-                  Review & Sign Invoice
-                </a>
-              </p>
-            </div>
-          </div>
-        `
-      }).catch(error => {
-        console.error('Failed to notify department head:', error);
-      });
+      await sendSupplierInvoiceEmail.notifyNextApprover(
+        firstApprover.approver.email,
+        firstApprover.approver.name,
+        firstApprover.approver.role,
+        firstApprover.level,
+        invoice.approvalChain.length,
+        'Supply Chain Coordinator',
+        invoice.supplierDetails.companyName,
+        invoice.invoiceNumber,
+        invoice.poNumber,
+        invoice.currency,
+        invoice.invoiceAmount,
+        invoice.assignedDepartment,
+        invoice._id
+      ).catch(err => console.error('Failed to notify first approver:', err));
     }
-    
-    // Notify supplier of assignment
-    await sendEmail({
-      to: invoice.supplier.email,
-      subject: `Invoice Assignment Update - ${invoice.invoiceNumber}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background-color: #d1ecf1; padding: 20px; border-radius: 8px; border-left: 4px solid #0bc5ea;">
-            <h3>Invoice Assignment Update</h3>
-            <p>Dear ${invoice.supplierDetails.contactName},</p>
-            <p>Your invoice has been reviewed, signed, and assigned to the <strong>${department}</strong> department for approval.</p>
-            
-            <div style="background-color: white; padding: 15px; border-radius: 5px; margin: 15px 0;">
-              <p><strong>Invoice Details:</strong></p>
-              <ul>
-                <li><strong>Invoice Number:</strong> ${invoice.invoiceNumber}</li>
-                <li><strong>PO Number:</strong> ${invoice.poNumber}</li>
-                <li><strong>Amount:</strong> ${invoice.currency} ${invoice.invoiceAmount.toLocaleString()}</li>
-                <li><strong>Assigned Department:</strong> ${invoice.assignedDepartment}</li>
-                <li><strong>Current Status:</strong> In Approval Process</li>
-              </ul>
-            </div>
-            
-            <div style="background-color: #fff3cd; padding: 15px; border-radius: 5px; margin: 15px 0;">
-              <p><strong>Approval Progress:</strong></p>
-              <p>✅ Supply Chain Review - Completed & Signed</p>
-              <p>📍 Department Head - In Progress (Level 1)</p>
-              <p>⏳ Head of Business - Pending (Level 2)</p>
-              <p>⏳ Finance - Pending (Level 3)</p>
-            </div>
-            
-            <p><em>Each approver will download, sign, and re-upload your invoice as it progresses through the approval chain.</em></p>
-            <p>You'll receive notifications as your invoice progresses through each approval level.</p>
-          </div>
-        </div>
-      `
-    }).catch(error => {
-      console.error('Failed to notify supplier:', error);
-    });
     
     console.log('=== SUPPLY CHAIN ASSIGNMENT COMPLETED (LOCAL STORAGE) ===');
     
@@ -568,53 +401,22 @@ exports.rejectSupplierInvoiceBySupplyChain = async (req, res) => {
     
     console.log(`Supply Chain rejecting invoice ${invoice.invoiceNumber}`);
     
-    // Use model method to reject
     invoice.rejectBySupplyChain(req.user.userId, rejectionReason);
     await invoice.save();
 
-    await safePostSupplierInvoiceEntry(invoice._id, req.user.userId, 'payment processing');
-    
     // Notify supplier of rejection
-    await sendEmail({
-      to: invoice.supplier.email,
-      subject: `Invoice Rejected - ${invoice.invoiceNumber}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background-color: #f8d7da; padding: 20px; border-radius: 8px; border-left: 4px solid #dc3545;">
-            <h3>Invoice Rejected</h3>
-            <p>Dear ${invoice.supplierDetails.contactName},</p>
-            <p>Your invoice has been rejected by our Supply Chain Coordinator.</p>
-            
-            <div style="background-color: white; padding: 15px; border-radius: 5px; margin: 15px 0;">
-              <p><strong>Invoice Details:</strong></p>
-              <ul>
-                <li><strong>Invoice Number:</strong> ${invoice.invoiceNumber}</li>
-                <li><strong>PO Number:</strong> ${invoice.poNumber}</li>
-                <li><strong>Amount:</strong> ${invoice.currency} ${invoice.invoiceAmount.toLocaleString()}</li>
-                <li><strong>Status:</strong> REJECTED</li>
-              </ul>
-            </div>
-            
-            <div style="background-color: #fff5f5; padding: 15px; border-radius: 5px; margin: 15px 0; border-left: 3px solid #ff4d4f;">
-              <p><strong>Rejection Reason:</strong></p>
-              <p style="color: #ff4d4f; font-size: 14px;">"${rejectionReason}"</p>
-            </div>
-            
-            <div style="background-color: #d1ecf1; padding: 15px; border-radius: 5px; margin: 15px 0;">
-              <p><strong>What You Can Do:</strong></p>
-              <ul>
-                <li>Review the rejection reason above</li>
-                <li>Contact the Supply Chain Coordinator for clarification</li>
-                <li>Submit a corrected invoice if needed</li>
-                <li>Email: lukong.lambert@gratoglobal.com</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      `
-    }).catch(error => {
-      console.error('Failed to notify supplier of rejection:', error);
-    });
+    await sendSupplierInvoiceEmail.invoiceRejectedToSupplier(
+      invoice.supplier.email || invoice.supplierDetails.email,
+      invoice.supplierDetails.contactName,
+      invoice.invoiceNumber,
+      invoice.poNumber,
+      invoice.currency,
+      invoice.invoiceAmount,
+      'Supply Chain Coordinator',
+      'Supply Chain Coordinator',
+      rejectionReason,
+      getSupplyChainCoordinator().email
+    ).catch(err => console.error('Failed to notify supplier of SC rejection:', err));
     
     console.log('=== SUPPLY CHAIN REJECTION COMPLETED ===');
     
@@ -867,19 +669,10 @@ exports.processSupplierApprovalStep = async (req, res) => {
       });
     }
 
-    // Check if signed document is uploaded (required for approval, not for rejection)
     if (decision === 'approved' && (!req.files || !req.files.signedDocument || req.files.signedDocument.length === 0)) {
       return res.status(400).json({
         success: false,
         message: 'Signed document is required for approval. Please download, sign, and upload the invoice.'
-      });
-    }
-
-    // Finance level must have budget code for approval
-    if (decision === 'approved' && budgetCode === undefined) {
-      return res.status(400).json({
-        success: false,
-        message: 'Budget code is required for payment processing'
       });
     }
     
@@ -892,22 +685,33 @@ exports.processSupplierApprovalStep = async (req, res) => {
         message: 'Supplier invoice not found'
       });
     }
+
+    // Budget code only required at Finance level
+    const isFinanceLevel = invoice.approvalChain?.find(
+      step => step.level === invoice.currentApprovalLevel && 
+              step.approver.role === 'Finance Officer'
+    );
     
-    // Check for ALL pending approval statuses
+    if (decision === 'approved' && isFinanceLevel && !budgetCode) {
+      return res.status(400).json({
+        success: false,
+        message: 'Budget code is required for Finance approval'
+      });
+    }
+
     const validApprovalStatuses = [
       'pending_department_approval',
       'pending_department_head_approval', 
       'pending_head_of_business_approval', 
-      'pending_finance_approval'
+      'pending_finance_approval',
+      'pending_ceo_approval'
     ];
     
     if (!validApprovalStatuses.includes(invoice.approvalStatus)) {
-      console.log('Invalid status for approval:', invoice.approvalStatus);
       return res.status(400).json({
         success: false,
         message: `Invoice is not in a pending approval state. Current status: ${invoice.approvalStatus}`,
-        currentStatus: invoice.approvalStatus,
-        validStatuses: validApprovalStatuses
+        currentStatus: invoice.approvalStatus
       });
     }
     
@@ -919,7 +723,6 @@ exports.processSupplierApprovalStep = async (req, res) => {
       });
     }
     
-    // Check if this user can approve at the current level
     if (!invoice.canUserApprove(user.email)) {
       const currentApprover = invoice.getCurrentApprover();
       return res.status(403).json({
@@ -938,7 +741,6 @@ exports.processSupplierApprovalStep = async (req, res) => {
     
     let signedDocData = null;
     
-    // ✅ CHANGED: Upload signed document to LOCAL STORAGE if approving
     if (decision === 'approved') {
       const signedDocFile = req.files.signedDocument[0];
       
@@ -952,29 +754,29 @@ exports.processSupplierApprovalStep = async (req, res) => {
           customFilename
         );
 
-        await fs.unlink(signedDocFile.path).catch(err => 
-          console.warn('Failed to delete temp file:', err.message)
-        );
+        if (signedDocFile.path) {
+          await fs.unlink(signedDocFile.path).catch(err => 
+            console.warn('Failed to delete temp file:', err.message)
+          );
+        }
 
         signedDocData = result;
-        
-        console.log(`✓ Level ${invoice.currentApprovalLevel} signed document saved to local storage`);
+        console.log(`✓ Level ${invoice.currentApprovalLevel} signed document saved`);
       } catch (error) {
-        await fs.unlink(signedDocFile.path).catch(() => {});
+        if (signedDocFile.path) await fs.unlink(signedDocFile.path).catch(() => {});
         throw new Error(`Failed to save signed document: ${error.message}`);
       }
     }
-    
-    // Process the approval step
+
+    // Capture current level before processing (needed for emails after status changes)
+    const processedLevel = invoice.currentApprovalLevel;
     const processedStep = invoice.processApprovalStep(user.email, decision, comments, req.user.userId);
     
-    // Add signed document to the approval step
     if (signedDocData) {
       processedStep.signedDocument = signedDocData;
     }
 
-    // Assign budget code and payment method if at finance level
-    if (decision === 'approved' && invoice.currentApprovalLevel === 3 && budgetCode) {
+    if (decision === 'approved' && isFinanceLevel && budgetCode) {
       invoice.allocatedBudgetCode = budgetCode;
       invoice.allocationAmount = allocationAmount ? parseFloat(allocationAmount) : invoice.invoiceAmount;
       if (paymentMethod) {
@@ -986,11 +788,62 @@ exports.processSupplierApprovalStep = async (req, res) => {
     }
     
     await invoice.save();
-    
-    console.log('Supplier invoice approval step processed:', processedStep);
-    
-    // Send appropriate notifications (code continues with existing email logic...)
-    // [Email notification code remains the same as in your original]
+
+    if (decision === 'approved' && invoice.approvalStatus === 'approved') {
+      await safePostSupplierInvoiceEntry(invoice._id, req.user.userId, 'final approval');
+    }
+
+    // Send appropriate email notifications
+    const supplierEmail = invoice.supplier?.email || invoice.supplierDetails?.email;
+
+    if (invoice.approvalStatus === 'rejected') {
+      // Notify supplier of rejection
+      await sendSupplierInvoiceEmail.invoiceRejectedToSupplier(
+        supplierEmail,
+        invoice.supplierDetails.contactName,
+        invoice.invoiceNumber,
+        invoice.poNumber,
+        invoice.currency,
+        invoice.invoiceAmount,
+        user.fullName,
+        processedStep.approver.role,
+        comments || 'Invoice did not meet approval requirements',
+        getSupplyChainCoordinator().email
+      ).catch(err => console.error('Failed to notify supplier of rejection:', err));
+
+    } else if (invoice.approvalStatus === 'approved') {
+      // Fully approved — notify supplier
+      await sendSupplierInvoiceEmail.invoiceFullyApproved(
+        supplierEmail,
+        invoice.supplierDetails.contactName,
+        invoice.invoiceNumber,
+        invoice.poNumber,
+        invoice.currency,
+        invoice.invoiceAmount,
+        invoice.paymentMethod
+      ).catch(err => console.error('Failed to notify supplier of full approval:', err));
+
+    } else {
+      // Move to next level — notify next approver only
+      const nextApprover = invoice.getCurrentApprover();
+      if (nextApprover) {
+        await sendSupplierInvoiceEmail.notifyNextApprover(
+          nextApprover.approver.email,
+          nextApprover.approver.name,
+          nextApprover.approver.role,
+          nextApprover.level,
+          invoice.approvalChain.length,
+          user.fullName,
+          invoice.supplierDetails.companyName,
+          invoice.invoiceNumber,
+          invoice.poNumber,
+          invoice.currency,
+          invoice.invoiceAmount,
+          invoice.assignedDepartment,
+          invoice._id
+        ).catch(err => console.error(`Failed to notify level ${nextApprover.level} approver:`, err));
+      }
+    }
     
     console.log('=== SUPPLIER INVOICE APPROVAL STEP PROCESSED SUCCESSFULLY (LOCAL) ===');
     
@@ -1002,7 +855,7 @@ exports.processSupplierApprovalStep = async (req, res) => {
         currentApprover: invoice.getCurrentApprover(),
         approvalProgress: invoice.approvalProgress
       },
-      processedStep: processedStep
+      processedStep
     });
     
   } catch (error) {
@@ -2114,5 +1967,122 @@ exports.getSupplierInvoiceAnalytics = async (req, res) => {
 };
 
 
+exports.getSignedFileUrl = async (req, res) => {
+  try {
+    const { publicId, resourceType = 'raw' } = req.query;
+    
+    if (!publicId) {
+      return res.status(400).json({ success: false, message: 'publicId is required' });
+    }
+
+    const requestor = req.user || req.supplier;
+    if (!requestor) {
+      return res.status(401).json({ success: false, message: 'Authentication required' });
+    }
+
+    cloudinary.config({
+      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+      api_key:    process.env.CLOUDINARY_API_KEY,
+      api_secret: process.env.CLOUDINARY_API_SECRET,
+      secure:     true
+    });
+
+    // Use generate_download_url for raw files — this creates a properly signed URL
+    const signedUrl = cloudinary.utils.private_download_url(publicId, 'pdf', {
+      resource_type: resourceType,
+      type: 'upload',
+      expires_at: Math.floor(Date.now() / 1000) + 3600,
+      attachment: false  // false = view in browser, true = force download
+    });
+
+    res.json({ success: true, url: signedUrl });
+  } catch (error) {
+    console.error('Error generating signed URL:', error);
+    res.status(500).json({ success: false, message: 'Failed to generate download URL' });
+  }
+};
 
 
+
+
+exports.proxyFile = async (req, res) => {
+  try {
+    const { publicId, resourceType = 'raw' } = req.query;
+
+    const requestor = req.user || req.supplier;
+    if (!requestor) {
+      return res.status(401).json({ success: false, message: 'Authentication required' });
+    }
+
+    cloudinary.config({
+      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+      api_key:    process.env.CLOUDINARY_API_KEY,
+      api_secret: process.env.CLOUDINARY_API_SECRET,
+      secure:     true
+    });
+
+    // Generate a short-lived signed download URL using Cloudinary's SDK
+    const timestamp = Math.floor(Date.now() / 1000) + 3600;
+    
+    const signedUrl = cloudinary.utils.private_download_url(
+      publicId,
+      'pdf',
+      {
+        resource_type: resourceType,
+        type: 'upload',
+        expires_at: timestamp,
+      }
+    );
+
+    console.log('Generated private download URL:', signedUrl);
+
+    // Fetch using the signed URL (no basic auth needed - signature is in the URL)
+    const axios = require('axios');
+    const fileResponse = await axios.get(signedUrl, {
+      responseType: 'stream',
+      timeout: 30000
+    });
+
+    const filename = publicId.split('/').pop() || 'file.pdf';
+    res.setHeader('Content-Type', fileResponse.headers['content-type'] || 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+    
+    if (fileResponse.headers['content-length']) {
+      res.setHeader('Content-Length', fileResponse.headers['content-length']);
+    }
+
+    fileResponse.data.pipe(res);
+
+  } catch (error) {
+    console.error('Error proxying file:', error.message);
+    res.status(500).json({ success: false, message: 'Failed to retrieve file' });
+  }
+};
+
+
+
+
+
+exports.makeFilePublic = async (req, res) => {
+  try {
+    const { publicId, resourceType = 'raw' } = req.body;
+
+    cloudinary.config({
+      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+      api_key:    process.env.CLOUDINARY_API_KEY,
+      api_secret: process.env.CLOUDINARY_API_SECRET,
+      secure:     true
+    });
+
+    // Change access mode on existing file
+    const result = await cloudinary.api.update(publicId, {
+      resource_type: resourceType,
+      access_mode: 'public'
+    });
+
+    res.json({ success: true, url: result.secure_url });
+  } catch (error) {
+    console.error('Error updating file access:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

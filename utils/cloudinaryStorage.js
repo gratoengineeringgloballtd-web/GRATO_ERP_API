@@ -73,7 +73,7 @@ const uploadToCloudinary = (source, options) => {
   ensureCloudinaryConfig(); // ← lazy — runs right before every upload
 
   return new Promise((resolve, reject) => {
-    const uploadOptions = { ...options, use_filename: false, unique_filename: false, overwrite: false };
+    const uploadOptions = { ...options, use_filename: false, unique_filename: false, overwrite: false, access_mode: 'public' };
 
     if (Buffer.isBuffer(source)) {
       const stream = cloudinary.uploader.upload_stream(uploadOptions, (err, result) => {

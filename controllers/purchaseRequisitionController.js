@@ -2559,6 +2559,231 @@ const acknowledgeDisbursement = async (req, res) => {
   }
 };
 
+
+/**
+ * Process justification decision — works for ALL roles in the justification chain:
+ * supervisor → finance → supply_chain → head → CEO
+ *
+ * Status flow:
+ *   justification_pending_supervisor
+ *     → (approved) justification_pending_finance
+ *     → (approved) justification_pending_supply_chain
+ *     → (approved) justification_pending_head
+ *     → (approved) justification_pending_ceo  [if CEO step exists]
+ *     → (approved) justification_approved / completed
+ *   Any step rejected → justification_rejected_<role>
+ */
+const processJustificationDecision = async (req, res) => {
+  try {
+    const { requisitionId } = req.params;
+    const { decision, comments } = req.body;
+
+    const user = await User.findById(req.user.userId);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    const requisition = await PurchaseRequisition.findById(requisitionId)
+      .populate('employee', 'fullName email department')
+      .populate('supplyChainReview.assignedBuyer', 'fullName email');
+
+    if (!requisition) return res.status(404).json({ success: false, message: 'Requisition not found' });
+
+    // Must be in a justification-pending status
+    const JUSTIFICATION_PENDING = [
+      'justification_pending_supervisor',
+      'justification_pending_finance',
+      'justification_pending_supply_chain',
+      'justification_pending_head',
+      'justification_pending_ceo',
+    ];
+
+    if (!JUSTIFICATION_PENDING.includes(requisition.status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot process justification decision. Current status: ${requisition.status}`
+      });
+    }
+
+    // Role-to-status mapping (who can act at which status)
+    const statusRoleMap = {
+      justification_pending_supervisor:   ['employee', 'supervisor', 'technical', 'hr', 'supply_chain', 'finance', 'admin'],
+      justification_pending_finance:      ['finance', 'admin'],
+      justification_pending_supply_chain: ['supply_chain', 'admin'],
+      justification_pending_head:         ['supply_chain', 'admin'],   // Head of Business uses supply_chain dashboard
+      justification_pending_ceo:          ['ceo', 'admin'],
+    };
+
+    const allowedRoles = statusRoleMap[requisition.status] || [];
+
+    // For supervisor step, also check the approval chain
+    const isSupervisorStep = requisition.status === 'justification_pending_supervisor';
+    if (isSupervisorStep) {
+      const hasChainMatch = requisition.approvalChain?.some(
+        step => step.approver.email.toLowerCase() === user.email.toLowerCase() && step.status === 'approved'
+      );
+      const isFinanceUser  = user.role === 'finance';
+      const isAdminUser    = user.role === 'admin';
+      if (!hasChainMatch && !isFinanceUser && !isAdminUser) {
+        return res.status(403).json({ success: false, message: 'You are not in the approval chain for this requisition' });
+      }
+    } else {
+      // CEO step: also allow by email
+      const isCEO = user.role === 'ceo' || user.email === 'tom@gratoengineering.com';
+      if (!allowedRoles.includes(user.role) && !isCEO) {
+        return res.status(403).json({ success: false, message: 'Access denied for this justification stage' });
+      }
+    }
+
+    // Status transition map
+    const NEXT_STATUS = {
+      justification_pending_supervisor:   'justification_pending_finance',
+      justification_pending_finance:      'justification_pending_supply_chain',
+      justification_pending_supply_chain: 'justification_pending_head',
+      justification_pending_head:         'justification_pending_ceo',
+      justification_pending_ceo:          'justification_approved',
+    };
+
+    // Rejection status map
+    const REJECTED_STATUS = {
+      justification_pending_supervisor:   'justification_rejected_supervisor',
+      justification_pending_finance:      'justification_rejected_finance',
+      justification_pending_supply_chain: 'justification_rejected_supply_chain',
+      justification_pending_head:         'justification_rejected_head',
+      justification_pending_ceo:          'justification_rejected_ceo',
+    };
+
+    // Role name for review record
+    const ROLE_NAMES = {
+      justification_pending_supervisor:   'supervisor',
+      justification_pending_finance:      'finance',
+      justification_pending_supply_chain: 'supply_chain',
+      justification_pending_head:         'head',
+      justification_pending_ceo:          'ceo',
+    };
+
+    const currentStage = ROLE_NAMES[requisition.status];
+    const reviewKey    = `${currentStage}Review`;
+
+    // Record the review decision on the justification sub-document
+    requisition.justification = requisition.justification || {};
+    requisition.justification[reviewKey] = {
+      decision,
+      comments,
+      reviewedBy:   req.user.userId,
+      reviewedDate: new Date()
+    };
+
+    if (decision === 'approved') {
+      const nextStatus = NEXT_STATUS[requisition.status];
+
+      // Check if the CEO step actually exists in the approval chain.
+      // If moving to justification_pending_ceo but there's no CEO approver in the chain, skip to approved.
+      if (nextStatus === 'justification_pending_ceo') {
+        const hasCEOInChain = requisition.approvalChain?.some(
+          s => s.approver.role === 'CEO - Final Authority' ||
+               s.approver.email?.toLowerCase() === 'tom@gratoengineering.com'
+        );
+        if (!hasCEOInChain) {
+          requisition.status = 'justification_approved';
+          requisition.justification.status = 'approved';
+          requisition.status = 'completed';
+        } else {
+          requisition.status = nextStatus;
+          requisition.justification.status = nextStatus.replace('justification_pending_', 'pending_');
+        }
+      } else if (nextStatus === 'justification_approved') {
+        requisition.status = 'completed';
+        requisition.justification.status = 'approved';
+      } else {
+        requisition.status = nextStatus;
+        requisition.justification.status = nextStatus.replace('justification_pending_', 'pending_');
+      }
+    } else {
+      // Rejected
+      requisition.status = REJECTED_STATUS[requisition.status];
+      requisition.justification.status = 'rejected';
+    }
+
+    await requisition.save();
+
+    // Notification helpers
+    const notifications = [];
+    const { sendEmail } = require('../services/emailService');
+    const employeeEmail  = requisition.employee?.email;
+    const employeeName   = requisition.employee?.fullName;
+
+    if (decision === 'approved') {
+      // Notify the next approver
+      const nextApproverEmails = {
+        justification_pending_finance:      'ranibellmambo@gratoengineering.com',
+        justification_pending_supply_chain: 'lukong.lambert@gratoglobal.com',
+        justification_pending_head:         'kelvin.eyong@gratoglobal.com',
+        justification_pending_ceo:          'tom@gratoengineering.com',
+      };
+      const nextEmail = nextApproverEmails[requisition.status];
+      if (nextEmail) {
+        notifications.push(sendEmail({
+          to: nextEmail,
+          subject: `Justification Awaiting Your Review — ${requisition.requisitionNumber}`,
+          html: `<h3>Purchase Requisition Justification</h3>
+                 <p>The justification for requisition <strong>${requisition.requisitionNumber}</strong> 
+                 submitted by <strong>${employeeName}</strong> is ready for your review.</p>
+                 <p>Please log in to review and approve or reject.</p>`
+        }).catch(e => ({ error: e })));
+      }
+
+      // Notify employee on final approval
+      if (requisition.status === 'completed') {
+        notifications.push(sendEmail({
+          to: employeeEmail,
+          subject: `Justification Fully Approved — ${requisition.requisitionNumber}`,
+          html: `<h3>Your justification has been fully approved</h3>
+                 <p>The justification for requisition <strong>${requisition.requisitionNumber}</strong> 
+                 has been approved by all levels. The request is now complete.</p>`
+        }).catch(e => ({ error: e })));
+      } else {
+        notifications.push(sendEmail({
+          to: employeeEmail,
+          subject: `Justification Approved at Level — ${requisition.requisitionNumber}`,
+          html: `<h3>Justification Moving Forward</h3>
+                 <p>Your justification for <strong>${requisition.requisitionNumber}</strong> 
+                 was approved by ${user.fullName} and is progressing to the next level.</p>`
+        }).catch(e => ({ error: e })));
+      }
+    } else {
+      // Rejected — notify employee
+      notifications.push(sendEmail({
+        to: employeeEmail,
+        subject: `Justification Rejected — ${requisition.requisitionNumber}`,
+        html: `<h3>Justification Returned for Revision</h3>
+               <p>Your justification for <strong>${requisition.requisitionNumber}</strong> 
+               was rejected by <strong>${user.fullName}</strong>.</p>
+               <p><strong>Reason:</strong> ${comments || 'No reason provided'}</p>
+               <p>Please revise and resubmit your justification.</p>`
+      }).catch(e => ({ error: e })));
+    }
+
+    await Promise.allSettled(notifications);
+
+    res.json({
+      success: true,
+      message: `Justification ${decision === 'approved' ? 'approved' : 'rejected'} successfully`,
+      data: {
+        requisitionId: requisition._id,
+        requisitionNumber: requisition.requisitionNumber,
+        previousStatus: JUSTIFICATION_PENDING.find(s => s === requisition.justification?.[`${currentStage}Review`]?.decision) || currentStage,
+        newStatus: requisition.status,
+        decision,
+        reviewedBy: user.fullName,
+        reviewedAt: new Date()
+      }
+    });
+
+  } catch (error) {
+    console.error('Process justification decision error:', error);
+    res.status(500).json({ success: false, message: 'Failed to process justification decision', error: error.message });
+  }
+};
+
 // Export all functions
 module.exports = {
   createRequisition,
@@ -2609,6 +2834,7 @@ module.exports = {
   submitPurchaseRequisitionJustification,
   getPurchaseRequisitionJustification,
   downloadJustificationReceipt,
+  processJustificationDecision,
   acknowledgeDisbursement
 };
 

@@ -714,6 +714,22 @@ router.post(
   purchaseRequisitionController.submitPurchaseRequisitionJustification
 );
 
+// Existing route (already there):
+router.post(
+  '/:requisitionId/justify',
+  authMiddleware,
+  upload.array('receipts', 10),
+  purchaseRequisitionController.submitPurchaseRequisitionJustification
+);
+
+// ✅ ADD THIS — justification decision route for all approvers
+router.post(
+  '/:requisitionId/justification-decision',
+  authMiddleware,
+  requireRoles('employee', 'supervisor', 'technical', 'finance', 'supply_chain', 'hr', 'it', 'admin', 'ceo'),
+  purchaseRequisitionController.processJustificationDecision
+);
+
 router.get(
   '/:requisitionId/justification',
   authMiddleware,

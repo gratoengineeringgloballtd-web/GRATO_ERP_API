@@ -16,6 +16,8 @@ class PDFService {
     this.pageMargins  = { top: 50, bottom: 80, left: 40, right: 40 };
   }
 
+
+
   // ---------------------------------------------------------------------------
   // renderSignatureImage
   // Renders a signature onto the PDF.  Handles Cloudinary URLs and local paths.
@@ -150,6 +152,707 @@ class PDFService {
     return yPos + 70;
   }
 
+  async generateEngineeringIncidentPDF(report) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const PDFDocument = require('pdfkit');
+      const fs          = require('fs');
+      const path        = require('path');
+ 
+      // ── Read approver info directly from the stored report ──────────────
+      // This avoids any dependency on the config module inside pdfService.
+      const chain = Array.isArray(report.approvalChain) ? report.approvalChain : [];
+ 
+      const step0 = chain[0] || {};   // Pascal  (Reviewed By)
+      const step1 = chain[1] || {};   // Didier  (Approved By)
+      const step2 = chain[2] || {};   // Bechem  (HSE)
+ 
+      // Fallback names in case approvalChain is sparse
+      const PASCAL_NAME  = step0.approver?.name        || 'Mr. Pascal Assam';
+      const PASCAL_DESIG = step0.approver?.designation || 'Operations Manager';
+      const DIDIER_NAME  = step1.approver?.name        || 'Mr. Didier Oyong';
+      const DIDIER_DESIG = step1.approver?.designation || 'Technical Director';
+      const BECHEM_NAME  = step2.approver?.name        || 'Mr. Ovo Bechem';
+      const BECHEM_DESIG = step2.approver?.designation || 'HSE Coordinator';
+ 
+      // ── PDF setup ────────────────────────────────────────────────────────
+      const doc = new PDFDocument({
+        size: 'A4',
+        margins: { top: 50, bottom: 80, left: 40, right: 40 },
+        bufferPages: true,
+        info: {
+          Title:   `Engineering Incident Report - ${report.reportNumber}`,
+          Author:  'GRATO ENGINEERING GLOBAL LIMITED',
+          Subject: 'Engineering Incident Report',
+          Creator: 'ERP System'
+        }
+      });
+ 
+      const chunks = [];
+      doc.on('data', c => chunks.push(c));
+      doc.on('end', () => resolve({
+        success:  true,
+        buffer:   Buffer.concat(chunks),
+        filename: `EIR_${report.reportNumber}_${Date.now()}.pdf`
+      }));
+ 
+      const pageW    = doc.page.width;
+      const marginL  = 40;
+      const marginR  = 40;
+      const contentW = pageW - marginL - marginR;
+      const PAGE_BOTTOM = doc.page.height - 120;
+ 
+      let y = 50;
+ 
+      // ── Layout helpers ───────────────────────────────────────────────────
+      const checkPage = (needed = 30) => {
+        if (y + needed > PAGE_BOTTOM) { doc.addPage(); y = 50; }
+      };
+ 
+      const sectionHeader = (title) => {
+        checkPage(40);
+        doc.rect(marginL, y, contentW, 22).fill('#E63946');
+        doc.fillColor('white').font('Helvetica-Bold').fontSize(10)
+          .text(title.toUpperCase(), marginL + 8, y + 6, { width: contentW - 16 });
+        doc.fillColor('#000000');
+        y += 28;
+      };
+ 
+      const labelValue = (label, value, labelWidth = 160) => {
+        const vw = contentW - labelWidth - 4;
+        checkPage(20);
+        doc.font('Helvetica-Bold').fontSize(8).fillColor('#555555')
+          .text(label + ':', marginL, y, { width: labelWidth });
+        const str = String(value || '—');
+        doc.font('Helvetica').fontSize(8.5).fillColor('#000000')
+          .text(str, marginL + labelWidth + 4, y, { width: vw, lineBreak: true });
+        const textH = doc.heightOfString(str, { width: vw });
+        y += Math.max(textH + 4, 16);
+      };
+ 
+      const longText = (text, maxHeight = 120) => {
+        checkPage(40);
+        const str = text || '—';
+        const h   = Math.min(
+          doc.heightOfString(str, { width: contentW - 12 }) + 14,
+          maxHeight
+        );
+        doc.rect(marginL, y, contentW, h).fill('#fafafa').stroke('#e8e8e8');
+        doc.font('Helvetica').fontSize(8.5).fillColor('#333333')
+          .text(str, marginL + 6, y + 6, {
+            width:    contentW - 12,
+            height:   h - 10,
+            ellipsis: true,
+            lineBreak: true
+          });
+        y += h + 6;
+      };
+ 
+      const subLabel = (label) => {
+        checkPage(20);
+        doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#555555')
+          .text(label, marginL, y);
+        y += 14;
+      };
+ 
+      const fmt = (d) => {
+        if (!d) return '—';
+        const dt = new Date(d);
+        return isNaN(dt.getTime()) ? '—' : dt.toLocaleString('en-GB');
+      };
+ 
+      const fmtDate = (d) => {
+        if (!d) return '___/___/______';
+        const dt = new Date(d);
+        return isNaN(dt.getTime()) ? '___/___/______' : dt.toLocaleDateString('en-GB');
+      };
+ 
+      // ── HEADER ───────────────────────────────────────────────────────────
+      const logoPath = path.join(__dirname, '../public/images/company-logo.jpg');
+      try {
+        if (fs.existsSync(logoPath)) {
+          doc.image(logoPath, marginL, y, { width: 70, height: 66 });
+        }
+      } catch (_) { /* logo optional */ }
+ 
+      doc.font('Helvetica-Bold').fontSize(15).fillColor('#E63946')
+        .text('GRATO ENGINEERING GLOBAL LIMITED', marginL + 80, y + 4);
+      doc.font('Helvetica').fontSize(9).fillColor('#555555')
+        .text('Bonaberi, Douala — Cameroon   |   682952153   |   info@gratoglobal.com',
+              marginL + 80, y + 22);
+      doc.font('Helvetica-Bold').fontSize(13).fillColor('#000000')
+        .text('ENGINEERING INCIDENT REPORT', marginL + 80, y + 38);
+      doc.font('Helvetica').fontSize(8).fillColor('#888888')
+        .text('Internal Safety & Operations Document — CONFIDENTIAL',
+              marginL + 80, y + 54);
+ 
+      y += 80;
+      doc.strokeColor('#E63946').lineWidth(2)
+        .moveTo(marginL, y).lineTo(marginL + contentW, y).stroke();
+      y += 10;
+ 
+      // ── Report ID bar ─────────────────────────────────────────────────────
+      doc.rect(marginL, y, contentW, 26).fill('#f0f8ff').stroke('#91d5ff');
+      doc.font('Helvetica-Bold').fontSize(10).fillColor('#E63946')
+        .text(`Report No: ${report.reportNumber || report.displayId || '—'}`, marginL + 8, y + 7);
+      doc.font('Helvetica').fontSize(9).fillColor('#555555')
+        .text(
+          `Status: ${(report.overallStatus || '—').replace(/_/g, ' ').toUpperCase()}   |   Severity: ${report.severity || '—'}`,
+          0, y + 7, { align: 'right', width: pageW - marginR - 8 }
+        );
+      y += 34;
+ 
+      // ══════════════════════════════════════════════════════════════════
+      // SECTION 1 — INCIDENT DESCRIPTION
+      // ══════════════════════════════════════════════════════════════════
+      sectionHeader('1. Incident Description');
+      labelValue('Incident ID',            report.incidentId);
+      labelValue('Title',                  report.title);
+      labelValue('Reported Date / Time',   fmt(report.reportedDateTime));
+      labelValue('Incident Start',         fmt(report.incidentStartDateTime));
+      labelValue('Resolution Date / Time', fmt(report.resolutionDateTime));
+      labelValue('Duration',               report.duration);
+      labelValue('Severity',               report.severity);
+      labelValue('Incident Type(s)',        (report.incidentTypes || []).join(', '));
+      labelValue('Affected Site / Location', report.affectedSiteLocation);
+      labelValue('SLA Status',             report.slaStatus);
+      labelValue('Change ID',              report.changeId);
+      labelValue('Existing Problem ID',    report.existingProblemId);
+      labelValue('Incident Status',        report.incidentStatus);
+ 
+      subLabel('Affected Services:');
+      longText(report.affectedServices, 80);
+ 
+      subLabel('Details / Narrative:');
+      longText(report.detailsNarrative, 200);
+ 
+      if (report.resolutionSummary) {
+        subLabel('Resolution Summary:');
+        longText(report.resolutionSummary, 120);
+      }
+ 
+      // ══════════════════════════════════════════════════════════════════
+      // SECTION 2 — BUSINESS IMPACT
+      // ══════════════════════════════════════════════════════════════════
+      sectionHeader('2. Business Impact');
+      labelValue('Impact Level',             report.impactLevel);
+      labelValue('Number of Users Affected', report.numberOfUsersAffected);
+      labelValue('Financial Impact',         report.financialImpact);
+      labelValue('Regulatory Impact',        report.regulatoryImpact);
+      labelValue('Reputational Risk',        report.reputationalRisk);
+ 
+      subLabel('Services Affected:');
+      longText(report.impactAffectedServices, 80);
+ 
+      if (report.impactDescription) {
+        subLabel('Impact Description:');
+        longText(report.impactDescription, 120);
+      }
+ 
+      // ══════════════════════════════════════════════════════════════════
+      // SECTION 3 — SEQUENCE OF ACTIVITIES
+      // ══════════════════════════════════════════════════════════════════
+      sectionHeader('3. Sequence of Activities to Restore Service');
+      checkPage(60);
+ 
+      const colDate   = 90;
+      const colTime   = 70;
+      const colResp   = 130;
+      const colAction = contentW - colDate - colTime - colResp - 6;
+ 
+      // Table header row
+      doc.rect(marginL, y, contentW, 18).fill('#e6f7ff').stroke('#91d5ff');
+      doc.font('Helvetica-Bold').fontSize(8).fillColor('#000000')
+        .text('Date',        marginL + 4,                             y + 5)
+        .text('Time',        marginL + colDate + 4,                   y + 5)
+        .text('Action',      marginL + colDate + colTime + 4,         y + 5)
+        .text('Responsible', marginL + colDate + colTime + colAction + 4, y + 5);
+      y += 18;
+ 
+      const entries = report.activityLogEntries || [];
+      if (entries.length > 0) {
+        entries.forEach((e, i) => {
+          const rowH = Math.max(18, doc.heightOfString(e.action || '', { width: colAction - 4 }) + 10);
+          checkPage(rowH);
+          if (i % 2 === 0) doc.rect(marginL, y, contentW, rowH).fill('#f9f9f9').stroke('#e8e8e8');
+          else             doc.rect(marginL, y, contentW, rowH).stroke('#e8e8e8');
+ 
+          doc.font('Helvetica').fontSize(7.5).fillColor('#333333')
+            .text(e.date        || '', marginL + 4,                              y + 4, { width: colDate   - 6 })
+            .text(e.time        || '', marginL + colDate + 4,                    y + 4, { width: colTime   - 6 })
+            .text(e.action      || '', marginL + colDate + colTime + 4,          y + 4, { width: colAction - 6, lineBreak: true })
+            .text(e.responsible || '', marginL + colDate + colTime + colAction + 4, y + 4, { width: colResp - 6, lineBreak: true });
+          y += rowH;
+        });
+      } else {
+        longText(report.activityLog, 200);
+      }
+      y += 6;
+ 
+      // ══════════════════════════════════════════════════════════════════
+      // SECTION 4 — PRELIMINARY FINDINGS
+      // ══════════════════════════════════════════════════════════════════
+      sectionHeader('4. Preliminary Findings');
+ 
+      subLabel('Initial Observation:');
+      longText(report.initialObservation, 100);
+ 
+      if (report.systemsChecked) {
+        subLabel('Systems / Equipment Checked:');
+        longText(report.systemsChecked, 80);
+      }
+ 
+      labelValue('Tests Performed',    (report.testsPerformed   || []).join(', '));
+      labelValue('Initial Conclusion', (report.initialConclusion || []).join(', '));
+ 
+      subLabel('Detailed Findings:');
+      longText(report.detailedFindings, 180);
+ 
+      // ══════════════════════════════════════════════════════════════════
+      // SECTION 5 — ROOT CAUSE
+      // ══════════════════════════════════════════════════════════════════
+      sectionHeader('5. Identified Root Cause');
+      labelValue('RCA Method',            report.rcaMethod);
+      labelValue('Root Cause Categories', (report.rootCauseCategories || []).join(', '));
+      labelValue('Confirmed By',          report.rootCauseConfirmedBy);
+ 
+      if (report.contributingFactors) {
+        subLabel('Contributing Factors:');
+        longText(report.contributingFactors, 80);
+      }
+ 
+      subLabel('Root Cause Description:');
+      longText(report.rootCauseDescription, 180);
+ 
+      // ══════════════════════════════════════════════════════════════════
+      // SECTION 6 — KEY CHALLENGES
+      // ══════════════════════════════════════════════════════════════════
+      sectionHeader('6. Key Challenges');
+      labelValue('Logistics Challenges',       report.logisticsChallenges);
+      labelValue('Security / Access Issues',   report.securityAccessIssues);
+      labelValue('Spare Parts Availability',   report.sparePartsAvailability);
+      labelValue('Communication Issues',       report.communicationIssues);
+      labelValue('Vendor / Third-Party Delays',report.vendorDelays);
+ 
+      if (report.challengeDetails) {
+        subLabel('Challenge Details:');
+        longText(report.challengeDetails, 120);
+      }
+ 
+      // ══════════════════════════════════════════════════════════════════
+      // SECTION 7 — RECOMMENDATIONS / ACTIONS
+      // ══════════════════════════════════════════════════════════════════
+      sectionHeader('7. Recommendations / Actions');
+ 
+      const actions = report.actionItems || [];
+      if (actions.length > 0) {
+        checkPage(50);
+        const cA = contentW - 90 - 90 - 60 - 6;
+ 
+        doc.rect(marginL, y, contentW, 18).fill('#f6ffed').stroke('#b7eb8f');
+        doc.font('Helvetica-Bold').fontSize(8).fillColor('#000000')
+          .text('Action',  marginL + 4,          y + 5, { width: cA })
+          .text('Owner',   marginL + cA + 4,     y + 5, { width: 90 })
+          .text('Target',  marginL + cA + 94,    y + 5, { width: 90 })
+          .text('Status',  marginL + cA + 188,   y + 5, { width: 60 });
+        y += 18;
+ 
+        actions.forEach((a, i) => {
+          const rowH = Math.max(18, doc.heightOfString(a.action || '', { width: cA - 4 }) + 10);
+          checkPage(rowH);
+          if (i % 2 === 0) doc.rect(marginL, y, contentW, rowH).fill('#f9fff7').stroke('#d9f7be');
+          else             doc.rect(marginL, y, contentW, rowH).stroke('#d9f7be');
+ 
+          doc.font('Helvetica').fontSize(7.5).fillColor('#333333')
+            .text(a.action     || '', marginL + 4,        y + 4, { width: cA - 4,  lineBreak: true })
+            .text(a.owner      || '', marginL + cA + 4,   y + 4, { width: 86,      lineBreak: true })
+            .text(a.targetDate || '', marginL + cA + 94,  y + 4, { width: 86,      lineBreak: true });
+ 
+          const sc = a.status === 'Done' ? '#52c41a' : a.status === 'In Progress' ? '#faad14' : '#E63946';
+          doc.fillColor(sc)
+            .text(a.status || 'Open', marginL + cA + 188, y + 4, { width: 56 });
+          doc.fillColor('#333333');
+          y += rowH;
+        });
+        y += 6;
+      } else {
+        subLabel('Recommendation / Action Items:');
+        longText(report.recommendationText, 160);
+      }
+ 
+      if (report.additionalRecommendations) {
+        subLabel('Additional Recommendations:');
+        longText(report.additionalRecommendations, 100);
+      }
+ 
+      // ══════════════════════════════════════════════════════════════════
+      // SECTION 8 — PHOTO EVIDENCE & ATTACHMENTS
+      // ══════════════════════════════════════════════════════════════════
+      sectionHeader('8. Photo Evidence & Attachments');
+ 
+    
+
+      const attachments = report.attachments || [];
+      if (attachments.length > 0) {
+        for (let i = 0; i < attachments.length; i++) {
+          const att     = attachments[i];
+          const mime    = (att.mimetype || '').toLowerCase();
+          const extRaw  = (att.name || '').split('.').pop().toLowerCase();
+          const isImage = mime.includes('image') ||
+                          ['jpg','jpeg','png','gif','webp'].includes(extRaw);
+
+          const typeTag = mime.includes('pdf')   ? '[PDF]'
+                        : isImage                ? '[IMG]'
+                        : mime.includes('word')  ||
+                          ['doc','docx'].includes(extRaw) ? '[DOC]'
+                        : mime.includes('excel') ||
+                          ['xls','xlsx'].includes(extRaw) ? '[XLS]'
+                        : '[FILE]';
+
+          const sizeKB = ((att.size || 0) / 1024).toFixed(1);
+
+          // ── File header row ──────────────────────────────────────────────────
+          checkPage(24);
+          doc.rect(marginL + 8, y, 36, 14).fill('#e6f4ff').stroke('#91d5ff');
+          doc.font('Helvetica-Bold').fontSize(7).fillColor('#1890ff')
+            .text(typeTag, marginL + 10, y + 3, { width: 32, align: 'center' });
+
+          doc.font('Helvetica').fontSize(8.5).fillColor('#333333')
+            .text(
+              `${i + 1}.  ${att.name || 'Unnamed file'}  (${sizeKB} KB)`,
+              marginL + 50, y,
+              { width: contentW - 58 }
+            );
+          y += 18;
+
+          // ── Evidence description ──────────────────────────────────────────────
+          const desc = (report.evidenceDescriptions || []).find(d => d.index === i);
+          if (desc?.description) {
+            checkPage(16);
+            doc.font('Helvetica').fontSize(7.5).fillColor('#888888')
+              .text(
+                `   Description: ${desc.description}`,
+                marginL + 50, y,
+                { width: contentW - 58 }
+              );
+            y += 14;
+          }
+
+          if (isImage && att.url) {
+            try {
+              let imgSource = null;
+
+              if (att.url.startsWith('http')) {
+                // Cloudinary URL — download to buffer first
+                imgSource = await downloadCloudinaryToBuffer(att.url);
+              } else {
+                // Legacy local path
+                const imgPath = path.join(__dirname, '..', att.url);
+                if (fs.existsSync(imgPath)) {
+                  imgSource = imgPath;
+                }
+              }
+
+              if (imgSource) {
+                const maxW = contentW - 20;
+                const maxH = 200;
+                checkPage(maxH + 20);
+
+                doc.rect(marginL + 10, y, maxW, maxH)
+                  .fillAndStroke('#f9f9f9', '#e0e0e0');
+
+                doc.image(imgSource, marginL + 10, y, {
+                  fit:    [maxW, maxH],
+                  align:  'center',
+                  valign: 'center'
+                });
+
+                y += maxH + 8;
+              } else {
+                checkPage(40);
+                doc.rect(marginL + 10, y, contentW - 20, 30)
+                  .fillAndStroke('#fff2f0', '#ffa39e');
+                doc.font('Helvetica').fontSize(8).fillColor('#cf1322')
+                  .text(
+                    `[Image not available: ${att.name}]`,
+                    marginL + 14, y + 9,
+                    { width: contentW - 28 }
+                  );
+                y += 38;
+              }
+            } catch (imgErr) {
+              console.error(`Failed to embed image ${att.name}:`, imgErr.message);
+              checkPage(30);
+              doc.rect(marginL + 10, y, contentW - 20, 22)
+                .fillAndStroke('#fffbe6', '#ffe58f');
+              doc.font('Helvetica').fontSize(8).fillColor('#874d00')
+                .text(
+                  `[Could not render image: ${att.name}]`,
+                  marginL + 14, y + 6,
+                  { width: contentW - 28 }
+                );
+              y += 30;
+            }
+          }
+
+          y += 6; // row gap between attachments
+        }
+      } else {
+        doc.font('Helvetica').fontSize(8.5).fillColor('#888888')
+          .text('No attachments submitted.', marginL + 8, y);
+        y += 18;
+      }
+
+      const addlTypes = report.additionalAttachmentTypes || [];
+      if (addlTypes.length > 0) {
+        labelValue('Additional Document Types', addlTypes.join(', '));
+      }
+      if (report.otherAttachmentsSpec) {
+        labelValue('Other Attachments', report.otherAttachmentsSpec);
+      }
+        
+ 
+      // ══════════════════════════════════════════════════════════════════
+      // SECTION 9 — APPROVALS & SIGN-OFF
+      // ══════════════════════════════════════════════════════════════════
+      sectionHeader('9. Approvals & Sign-Off');
+      doc.font('Helvetica').fontSize(7.5).fillColor('#888888')
+        .text(
+          'Physical signatures are required on the printed version. Digital sign-off captured below.',
+          marginL, y
+        );
+      y += 16;
+ 
+      // ── Three columns: Prepared By | Reviewed By | Approved By ──────────
+      const colSigW = Math.floor((contentW - 20) / 3);
+      const sigBoxH = 130;
+      checkPage(sigBoxH + 20);
+
+
+      const preparedBySigUrl =
+        report.submittedBy?.signature?.url         ||   // populated User doc (Mongoose)
+        report.submittedBy?.signature?.localPath   ||   // local path variant
+        report.preparedBySignatureUrl              ||   // if you store it on the report
+        null;
+
+      const sigConfig = [
+        {
+          label:      'Prepared By',
+          name:       report.preparedByName        || '—',
+          desig:      report.preparedByDesignation || '—',
+          date:       report.preparedByDate,
+          isApproved: true,
+          sigUrl:     preparedBySigUrl
+        },
+        {
+          label:      'Reviewed By',
+          name:       report.reviewedByName        || PASCAL_NAME,
+          desig:      report.reviewedByDesignation || PASCAL_DESIG,
+          date:       report.reviewedByDate,
+          isApproved: step0.status === 'approved',
+          sigUrl:     step0.signatureUrl || null
+        },
+        {
+          label:      'Approved By',
+          name:       report.approvedByName        || DIDIER_NAME,
+          desig:      report.approvedByDesignation || DIDIER_DESIG,
+          date:       report.approvedByDate,
+          isApproved: step1.status === 'approved',
+          sigUrl:     step1.signatureUrl || null
+        }
+      ];
+ 
+      const sigBoxX = sigConfig.map((_, i) => marginL + i * (colSigW + 10));
+ 
+      for (let i = 0; i < sigConfig.length; i++) {
+        const cfg = sigConfig[i];
+        const bx  = sigBoxX[i];
+        const borderColor = cfg.isApproved ? '#52c41a' : '#d9d9d9';
+        const bgColor     = cfg.isApproved ? '#f6ffed' : '#fafafa';
+ 
+        doc.rect(bx, y, colSigW, sigBoxH).fillAndStroke(bgColor, borderColor);
+ 
+        // Label
+        doc.font('Helvetica-Bold').fontSize(8).fillColor('#E63946')
+          .text(cfg.label, bx + 6, y + 6, { width: colSigW - 12, align: 'center' });
+ 
+        // Signature image
+        if (cfg.sigUrl) {
+          try {
+            await this.renderSignatureImage(
+              doc, cfg.sigUrl,
+              bx + 8, y + 22,
+              { width: colSigW - 16, height: 40, fit: [colSigW - 16, 40] }
+            );
+          } catch (_) { /* skip broken sig */ }
+        }
+ 
+        // Signature line
+        doc.strokeColor('#999999').lineWidth(0.5)
+          .moveTo(bx + 8, y + 68).lineTo(bx + colSigW - 8, y + 68).stroke();
+ 
+        // Name
+        doc.font('Helvetica-Bold').fontSize(7.5).fillColor('#333333')
+          .text(cfg.name, bx + 6, y + 72, { width: colSigW - 12, align: 'center' });
+        // Designation
+        doc.font('Helvetica').fontSize(7).fillColor('#888888')
+          .text(cfg.desig, bx + 6, y + 84, { width: colSigW - 12, align: 'center' });
+        // Date
+        doc.font('Helvetica').fontSize(7.5).fillColor('#555555')
+          .text(`Date: ${fmtDate(cfg.date)}`, bx + 6, y + 98, { width: colSigW - 12, align: 'center' });
+        // Tick
+        if (cfg.isApproved) {
+          doc.fillColor('#52c41a').font('Helvetica-Bold').fontSize(7)
+            .text('✓ Signed', bx + 6, y + 114, { width: colSigW - 12, align: 'center' });
+        }
+        doc.fillColor('#000000');
+      }
+      y += sigBoxH + 14;
+ 
+      // ── HSE Sign-Off (full-width box) ─────────────────────────────────────
+      const hseStep     = step2;
+      const hseApproved = hseStep.status === 'approved';
+      checkPage(90);
+ 
+      doc.rect(marginL, y, contentW, 82)
+        .fillAndStroke(hseApproved ? '#e6fffb' : '#fafafa', hseApproved ? '#36cfc9' : '#d9d9d9');
+ 
+      doc.font('Helvetica-Bold').fontSize(9).fillColor('#13c2c2')
+        .text('HSE Coordinator Sign-Off', marginL + 10, y + 8);
+ 
+      // HSE signature image
+      if (hseStep.signatureUrl) {
+        try {
+          await this.renderSignatureImage(
+            doc, hseStep.signatureUrl,
+            marginL + 10, y + 22,
+            { width: 130, height: 38, fit: [130, 38] }
+          );
+        } catch (_) { /* skip */ }
+      }
+ 
+      doc.strokeColor('#aaa').lineWidth(0.5)
+        .moveTo(marginL + 10, y + 62).lineTo(marginL + 220, y + 62).stroke();
+ 
+      doc.font('Helvetica-Bold').fontSize(8).fillColor('#333333')
+        .text(BECHEM_NAME,  marginL + 10, y + 65);
+      doc.font('Helvetica').fontSize(7.5).fillColor('#888888')
+        .text(BECHEM_DESIG, marginL + 10, y + 76);
+ 
+      doc.font('Helvetica').fontSize(8).fillColor('#555555')
+        .text(`Date: ${fmtDate(hseStep.actionDate)}`, marginL + 250, y + 65);
+ 
+      if (hseApproved) {
+        doc.fillColor('#13c2c2').font('Helvetica-Bold').fontSize(10)
+          .text('✓ HSE APPROVED', marginL + contentW - 140, y + 30, { width: 130, align: 'right' });
+      }
+ 
+      if (hseStep.comments) {
+        doc.font('Helvetica').fontSize(7.5).fillColor('#333333')
+          .text(`Comments: ${hseStep.comments}`, marginL + 250, y + 76, { width: contentW - 260 });
+      }
+ 
+      doc.fillColor('#000000');
+      y += 96;
+ 
+      // ── Approver comments banner ──────────────────────────────────────────
+      if (report.approverComments) {
+        checkPage(40);
+        doc.rect(marginL, y, contentW, 32).fillAndStroke('#fff7e6', '#ffd591');
+        doc.font('Helvetica-Bold').fontSize(8).fillColor('#d46b08')
+          .text('Approver Comments:', marginL + 8, y + 7);
+        doc.font('Helvetica').fontSize(8).fillColor('#333333')
+          .text(report.approverComments, marginL + 8, y + 19,
+                { width: contentW - 16, height: 14, ellipsis: true });
+        y += 38;
+      }
+ 
+      // ── Report Status bar ─────────────────────────────────────────────────
+      checkPage(28);
+      const statusColors = {
+        'Approved — final':             '#52c41a',
+        'Under Review':                 '#faad14',
+        'Rejected — revision required': '#f5222d',
+        'Draft — awaiting review':      '#E63946'
+      };
+      const sc = statusColors[report.reportStatus] || '#E63946';
+      doc.rect(marginL, y, contentW, 24).fill(sc);
+      doc.font('Helvetica-Bold').fontSize(9).fillColor('white')
+        .text(
+          `Report Status: ${report.reportStatus || report.overallStatus || '—'}`,
+          marginL + 8, y + 7, { width: contentW - 16, align: 'center' }
+        );
+      y += 30;
+ 
+      // ── Footer on every page ──────────────────────────────────────────────
+      const range = doc.bufferedPageRange();
+
+      // Walk backwards through buffered pages and remove truly blank ones.
+      // A page is "blank" if its content stream is essentially empty (< 50 bytes).
+      let lastContentPage = 0;
+      for (let p = 0; p < range.count; p++) {
+        doc.switchToPage(p);
+        // PDFKit stores each page's content in _pageBuffers
+        const pageContent = doc._pageBuffers?.[p] || doc._pageBuffer?.[p];
+        const byteLength  = pageContent
+          ? (Buffer.isBuffer(pageContent)
+              ? pageContent.length
+              : (pageContent.content?.length || pageContent.toString?.().length || 999))
+          : 999; // assume non-empty if we can't read it
+
+        if (byteLength > 50) lastContentPage = p;
+      }
+
+      // Re-draw footer only on real content pages, remove the rest
+      for (let p = 0; p <= lastContentPage; p++) {
+        doc.switchToPage(p);
+        const fy = doc.page.height - 68;
+        doc.strokeColor('#cccccc').lineWidth(0.5)
+          .moveTo(40, fy).lineTo(pageW - 40, fy).stroke();
+        doc.fontSize(7).font('Helvetica').fillColor('#888888')
+          .text(
+            'GRATO ENGINEERING GLOBAL LIMITED — Confidential | RC/DLA/2014/B/2690',
+            40, fy + 8, { width: 430 }
+          )
+          .text(`Page ${p + 1} / ${lastContentPage + 1}`, 40, fy + 8,
+                { align: 'right', width: pageW - 80 });
+        doc.text(
+          'info@gratoglobal.com | www.gratoengineering.com | Bonaberi, Douala, Cameroon',
+          40, fy + 20, { width: pageW - 80 }
+        );
+        doc.text(
+          `Generated: ${new Date().toLocaleString('en-GB')}   Report: ${report.reportNumber || '—'}`,
+          40, fy + 32, { width: pageW - 80 }
+        );
+      }
+
+      // Surgically remove blank trailing pages from PDFKit's internal buffers
+      if (lastContentPage + 1 < range.count) {
+        console.log(`Trimming ${range.count - (lastContentPage + 1)} empty page(s) from PDF`);
+        try {
+          const pages = doc._root?.data?.Pages?.data;
+          if (pages && Array.isArray(pages.Kids)) {
+            const keepCount    = lastContentPage + 1;
+            pages.Kids         = pages.Kids.slice(0, keepCount);
+            pages.Count        = keepCount;
+            if (doc._pageBuffer)  doc._pageBuffer  = doc._pageBuffer.slice(0, keepCount);
+            if (doc._pageBuffers) doc._pageBuffers = doc._pageBuffers.slice(0, keepCount);
+          }
+        } catch (trimErr) {
+          console.warn('Could not trim empty pages (non-fatal):', trimErr.message);
+        }
+      }
+
+      doc.end();
+
+    } catch (err) {
+      console.error('generateEngineeringIncidentPDF error:', err);
+      reject({ success: false, error: err.message });
+    }
+  });
+}
+
+
   // ===========================================================================
   // TENDER APPROVAL FORM PDF
   // ===========================================================================
@@ -227,7 +930,7 @@ class PDFService {
           .text('GRATO ENGINEERING GLOBAL LTD', marginL + 80, y);
         doc.fontSize(8).font(this.defaultFont)
           .text('Bonaberi, Douala — Cameroon', marginL + 80, y + 15)
-          .text('682952153 | info@gratoengineering.com', marginL + 80, y + 27);
+          .text('682952153 | info@gratoglobal.com', marginL + 80, y + 27);
         y += 80;
 
         // 2. TITLE
@@ -813,112 +1516,276 @@ class PDFService {
     doc.fillColor('#000000').fontSize(9).text(this.formatDateExact(poData.expectedDeliveryDate), 400, detailsY + 12);
   }
 
-  drawItemsTable(doc, yPos, poData, currentPage) {
-    console.log('=== DRAWING ITEMS TABLE ===');
 
-    const tableWidth = 515;
-    const colX = { desc: 40, qty: 280, unitPrice: 325, disc: 400, amount: 455 };
-    let currentY = yPos;
-    const pageBottomLimit = 720;
+// drawItemsTable(doc, yPos, poData, currentPage) {
+//   console.log('=== DRAWING ITEMS TABLE ===');
 
-    const drawTableHeader = y => {
-      doc.fillColor('#F5F5F5').rect(40, y, tableWidth, 20).fill();
-      doc.strokeColor('#CCCCCC').lineWidth(0.5).rect(40, y, tableWidth, 20).stroke();
-      doc.fillColor('#000000').fontSize(9).font(this.boldFont);
-      doc.text('Description', colX.desc + 5, y + 6);
-      doc.text('Qty',         colX.qty,       y + 6);
-      doc.text('Unit Price',  colX.unitPrice, y + 6);
-      doc.text('Disc.',       colX.disc,      y + 6);
-      doc.text('Amount',      colX.amount,    y + 6);
-      [colX.qty, colX.unitPrice, colX.disc, colX.amount].forEach(x =>
-        doc.moveTo(x, y).lineTo(x, y + 20).stroke());
-      return y + 20;
-    };
+//   const tableWidth = 515;
+//   const colX = { desc: 40, qty: 280, unitPrice: 325, disc: 400, amount: 455 };
+//   let currentY = yPos;
+//   const pageBottomLimit = 720;
 
-    currentY = drawTableHeader(currentY);
+//   const drawTableHeader = y => {
+//     doc.fillColor('#F5F5F5').rect(40, y, tableWidth, 20).fill();
+//     doc.strokeColor('#CCCCCC').lineWidth(0.5).rect(40, y, tableWidth, 20).stroke();
+//     doc.fillColor('#000000').fontSize(9).font(this.boldFont);
+//     doc.text('Description', colX.desc + 5, y + 6);
+//     doc.text('Qty',         colX.qty,       y + 6);
+//     doc.text('Unit Price',  colX.unitPrice, y + 6);
+//     doc.text('Disc.',       colX.disc,      y + 6);
+//     doc.text('Amount',      colX.amount,    y + 6);
+//     [colX.qty, colX.unitPrice, colX.disc, colX.amount].forEach(x =>
+//       doc.moveTo(x, y).lineTo(x, y + 20).stroke());
+//     return y + 20;
+//   };
 
-    let taxRate = 0;
-    if (poData.taxApplicable) {
-      const rawRate = typeof poData.taxRate === 'number' ? poData.taxRate : 19.25;
-      taxRate = rawRate > 1 ? rawRate / 100 : rawRate;
-      console.log(`Tax applicable: raw=${rawRate}% → decimal=${taxRate}`);
-    }
+//   currentY = drawTableHeader(currentY);
 
-    let grandTotal = 0;
-    const items = Array.isArray(poData.items) ? poData.items : [];
-    console.log(`Processing ${items.length} items`);
+//   let taxRate = 0;
+//   if (poData.taxApplicable) {
+//     const rawRate = typeof poData.taxRate === 'number' ? poData.taxRate : 19.25;
+//     taxRate = rawRate > 1 ? rawRate / 100 : rawRate;
+//     console.log(`Tax applicable: raw=${rawRate}% → decimal=${taxRate}`);
+//   }
 
-    items.forEach((item, index) => {
-      const quantity       = this.safeNumber(item.quantity,  0);
-      const unitPrice      = this.safeNumber(item.unitPrice, 0);
-      const discount       = this.safeNumber(item.discount,  0);
-      const itemSubtotal   = quantity * unitPrice;
-      const discountAmount = itemSubtotal * (discount / 100);
-      const afterDiscount  = itemSubtotal - discountAmount;
-      const itemTotal      = taxRate > 0 ? afterDiscount / (1 - taxRate) : afterDiscount;
-      console.log(`Item ${index}: net=${afterDiscount} gross=${itemTotal}`);
-      grandTotal += itemTotal;
+//   let netTotal   = 0;  // sum of after-discount amounts (before tax)
+//   let grandTotal = 0;  // sum of gross amounts (after tax)
+//   const items = Array.isArray(poData.items) ? poData.items : [];
+//   console.log(`Processing ${items.length} items`);
 
-      const description = this.safeString(item.description, 'No description');
-      const descWidth   = 230;
-      doc.fontSize(8).font(this.defaultFont);
-      const descHeight  = doc.heightOfString(description, { width: descWidth, lineGap: 1 });
-      const rowHeight   = Math.max(25, descHeight + 12);
+//   items.forEach((item, index) => {
+//     const quantity       = this.safeNumber(item.quantity,  0);
+//     const unitPrice      = this.safeNumber(item.unitPrice, 0);
+//     const discount       = this.safeNumber(item.discount,  0);
+//     const itemSubtotal   = quantity * unitPrice;
+//     const discountAmount = itemSubtotal * (discount / 100);
+//     const afterDiscount  = itemSubtotal - discountAmount;
+//     const itemTotal      = taxRate > 0 ? afterDiscount * (1 + taxRate) : afterDiscount;
 
-      if (currentY + rowHeight > pageBottomLimit) {
-        doc.addPage(); currentPage++; currentY = 50;
-        currentY = drawTableHeader(currentY);
-      }
+//     console.log(`Item ${index}: net=${afterDiscount} gross=${itemTotal}`);
+//     netTotal   += afterDiscount;
+//     grandTotal += itemTotal;
 
-      doc.strokeColor('#CCCCCC').rect(40, currentY, tableWidth, rowHeight).stroke();
-      doc.fillColor('#000000').fontSize(8).font(this.defaultFont);
-      doc.text(description, colX.desc + 5, currentY + 6, { width: descWidth, align: 'left', lineGap: 1 });
+//     const description = this.safeString(item.description, 'No description');
+//     const descWidth   = 230;
+//     doc.fontSize(8).font(this.defaultFont);
+//     const descHeight  = doc.heightOfString(description, { width: descWidth, lineGap: 1 });
+//     const rowHeight   = Math.max(25, descHeight + 12);
 
-      const textY = currentY + (rowHeight / 2) - 4;
-      doc.text(quantity.toFixed(2),                                   colX.qty,       textY);
-      doc.text(this.formatCurrency(unitPrice),                        colX.unitPrice, textY);
-      doc.text(discount > 0 ? `${discount.toFixed(2)}%` : '0.00%',   colX.disc,      textY);
-      doc.text(`${this.formatCurrency(itemTotal)} FCFA`,              colX.amount,    textY);
+//     if (currentY + rowHeight > pageBottomLimit) {
+//       doc.addPage(); currentPage++; currentY = 50;
+//       currentY = drawTableHeader(currentY);
+//     }
 
-      [colX.qty, colX.unitPrice, colX.disc, colX.amount].forEach(x =>
-        doc.moveTo(x, currentY).lineTo(x, currentY + rowHeight).stroke());
-      currentY += rowHeight;
-    });
+//     doc.strokeColor('#CCCCCC').rect(40, currentY, tableWidth, rowHeight).stroke();
+//     doc.fillColor('#000000').fontSize(8).font(this.defaultFont);
+//     doc.text(description, colX.desc + 5, currentY + 6, { width: descWidth, align: 'left', lineGap: 1 });
 
-    if (items.length === 0) {
-      doc.fillColor('#F9F9F9').rect(40, currentY, tableWidth, 22).fill();
-      doc.strokeColor('#CCCCCC').rect(40, currentY, tableWidth, 22).stroke();
-      doc.fillColor('#666666').text('No items found', colX.desc + 5, currentY + 6);
-      currentY += 22;
-    }
+//     const textY = currentY + (rowHeight / 2) - 4;
+//     doc.text(quantity.toFixed(2),                                   colX.qty,       textY);
+//     doc.text(this.formatCurrency(unitPrice),                        colX.unitPrice, textY);
+//     doc.text(discount > 0 ? `${discount.toFixed(2)}%` : '0.00%',   colX.disc,      textY);
+//     doc.text(`${this.formatCurrency(itemTotal)} FCFA`,              colX.amount,    textY);
 
-    if (currentY + 100 > pageBottomLimit) { doc.addPage(); currentPage++; currentY = 50; }
+//     [colX.qty, colX.unitPrice, colX.disc, colX.amount].forEach(x =>
+//       doc.moveTo(x, currentY).lineTo(x, currentY + rowHeight).stroke());
+//     currentY += rowHeight;
+//   });
 
-    this.drawOrderSummary(doc, currentY, grandTotal, taxRate);
-    currentY += 90;
-    return { yPos: currentY, currentPage };
+//   if (items.length === 0) {
+//     doc.fillColor('#F9F9F9').rect(40, currentY, tableWidth, 22).fill();
+//     doc.strokeColor('#CCCCCC').rect(40, currentY, tableWidth, 22).stroke();
+//     doc.fillColor('#666666').text('No items found', colX.desc + 5, currentY + 6);
+//     currentY += 22;
+//   }
+
+//   if (currentY + 100 > pageBottomLimit) { doc.addPage(); currentPage++; currentY = 50; }
+
+//   this.drawOrderSummary(doc, currentY, netTotal, grandTotal, taxRate);
+//   currentY += 90;
+//   return { yPos: currentY, currentPage };
+// }
+
+// drawOrderSummary(doc, yPos, netTotal, grandTotal, taxRate) {
+//   const summaryX = 380, summaryWidth = 175, labelX = summaryX + 10;
+//   yPos += 10;
+
+//   const vatAmount = grandTotal - netTotal;
+
+//   // FIX: 19.25% = VAT, anything else (e.g. 5.5%) = Withholding Tax
+//   const taxLabel = Math.abs(taxRate - 0.1925) < 0.0001 ? 'VAT' : 'Withholding Tax';
+
+//   doc.strokeColor('#CCCCCC').lineWidth(0.5).rect(summaryX, yPos, summaryWidth, 68).stroke();
+//   doc.fontSize(9).font(this.defaultFont).fillColor('#000000');
+
+//   doc.text('Net Amount', labelX, yPos + 10);
+//   doc.text(`${this.formatCurrency(netTotal)} FCFA`, labelX, yPos + 10, { width: summaryWidth - 20, align: 'right' });
+//   doc.text(`${taxLabel} ${(taxRate * 100).toFixed(2)}%`, labelX, yPos + 28);
+//   doc.text(`${this.formatCurrency(vatAmount)} FCFA`, labelX, yPos + 28, { width: summaryWidth - 20, align: 'right' });
+
+//   doc.fillColor('#E8E8E8').rect(summaryX, yPos + 46, summaryWidth, 22).fill();
+//   doc.strokeColor('#CCCCCC').rect(summaryX, yPos + 46, summaryWidth, 22).stroke();
+//   doc.fillColor('#000000').font(this.boldFont).text('Total', labelX, yPos + 53);
+//   doc.text(`${this.formatCurrency(grandTotal)} FCFA`, labelX, yPos + 53, { width: summaryWidth - 20, align: 'right' });
+// }
+
+
+
+drawItemsTable(doc, yPos, poData, currentPage) {
+  console.log('=== DRAWING ITEMS TABLE ===');
+
+  const tableWidth = 515;
+  const colX = { desc: 40, qty: 280, unitPrice: 325, disc: 400, amount: 455 };
+  let currentY = yPos;
+  const pageBottomLimit = 720;
+
+  const drawTableHeader = y => {
+    doc.fillColor('#F5F5F5').rect(40, y, tableWidth, 20).fill();
+    doc.strokeColor('#CCCCCC').lineWidth(0.5).rect(40, y, tableWidth, 20).stroke();
+    doc.fillColor('#000000').fontSize(9).font(this.boldFont);
+    doc.text('Description', colX.desc + 5, y + 6);
+    doc.text('Qty',         colX.qty,       y + 6);
+    doc.text('Unit Price',  colX.unitPrice, y + 6);
+    doc.text('Disc.',       colX.disc,      y + 6);
+    doc.text('Amount',      colX.amount,    y + 6);
+    [colX.qty, colX.unitPrice, colX.disc, colX.amount].forEach(x =>
+      doc.moveTo(x, y).lineTo(x, y + 20).stroke());
+    return y + 20;
+  };
+
+  currentY = drawTableHeader(currentY);
+
+  let taxRate = 0;
+  let isWithholding = false;
+
+  if (poData.taxApplicable) {
+    const rawRate = typeof poData.taxRate === 'number' ? poData.taxRate : 19.25;
+    taxRate       = rawRate > 1 ? rawRate / 100 : rawRate;
+    // 5.5% = withholding tax (deducted from net); 19.25% = VAT (added on top)
+    isWithholding = Math.abs(taxRate - 0.055) < 0.0001;
+    console.log(`Tax applicable: raw=${rawRate}% → decimal=${taxRate} type=${isWithholding ? 'WITHHOLDING' : 'VAT'}`);
   }
 
-  drawOrderSummary(doc, yPos, grandTotal, taxRate) {
-    const summaryX = 380, summaryWidth = 175, labelX = summaryX + 10;
-    yPos += 10;
+  let netTotal        = 0;  // sum of after-discount amounts (before tax)
+  let taxTotal        = 0;  // total tax amount (positive = added; negative = deducted)
+  let amountPayable   = 0;  // what is actually paid to the supplier
+  const items = Array.isArray(poData.items) ? poData.items : [];
+  console.log(`Processing ${items.length} items`);
 
-    const vatAmount     = grandTotal * taxRate;
-    const untaxedAmount = grandTotal - vatAmount;
+  items.forEach((item, index) => {
+    const quantity       = this.safeNumber(item.quantity,  0);
+    const unitPrice      = this.safeNumber(item.unitPrice, 0);
+    const discount       = this.safeNumber(item.discount,  0);
+    const itemSubtotal   = quantity * unitPrice;
+    const discountAmount = itemSubtotal * (discount / 100);
+    const afterDiscount  = itemSubtotal - discountAmount;
 
-    doc.strokeColor('#CCCCCC').lineWidth(0.5).rect(summaryX, yPos, summaryWidth, 68).stroke();
-    doc.fontSize(9).font(this.defaultFont).fillColor('#000000');
+    let itemTaxAmount;
+    let itemPayable;
 
-    doc.text('Net Amount', labelX, yPos + 10);
-    doc.text(`${this.formatCurrency(untaxedAmount)} FCFA`, labelX, yPos + 10, { width: summaryWidth - 20, align: 'right' });
-    doc.text(`VAT ${(taxRate * 100).toFixed(2)}%`, labelX, yPos + 28);
-    doc.text(`${this.formatCurrency(vatAmount)} FCFA`, labelX, yPos + 28, { width: summaryWidth - 20, align: 'right' });
+    if (!poData.taxApplicable || taxRate === 0) {
+      // No tax — amount in column = net
+      itemTaxAmount = 0;
+      itemPayable   = afterDiscount;
+    } else if (isWithholding) {
+      // Withholding tax: company deducts from net and remits to authority
+      // Supplier receives less than the net amount
+      itemTaxAmount = afterDiscount * taxRate;          // amount withheld
+      itemPayable   = afterDiscount - itemTaxAmount;    // paid to supplier
+    } else {
+      // VAT: added on top, full gross is paid to supplier
+      itemTaxAmount = afterDiscount * taxRate;
+      itemPayable   = afterDiscount + itemTaxAmount;
+    }
 
-    doc.fillColor('#E8E8E8').rect(summaryX, yPos + 46, summaryWidth, 22).fill();
-    doc.strokeColor('#CCCCCC').rect(summaryX, yPos + 46, summaryWidth, 22).stroke();
-    doc.fillColor('#000000').font(this.boldFont).text('Total', labelX, yPos + 53);
-    doc.text(`${this.formatCurrency(grandTotal)} FCFA`, labelX, yPos + 53, { width: summaryWidth - 20, align: 'right' });
+    console.log(`Item ${index}: net=${afterDiscount} tax=${itemTaxAmount} payable=${itemPayable}`);
+    netTotal      += afterDiscount;
+    taxTotal      += itemTaxAmount;
+    amountPayable += itemPayable;
+
+    const description = this.safeString(item.description, 'No description');
+    const descWidth   = 230;
+    doc.fontSize(8).font(this.defaultFont);
+    const descHeight  = doc.heightOfString(description, { width: descWidth, lineGap: 1 });
+    const rowHeight   = Math.max(25, descHeight + 12);
+
+    if (currentY + rowHeight > pageBottomLimit) {
+      doc.addPage(); currentPage++; currentY = 50;
+      currentY = drawTableHeader(currentY);
+    }
+
+    doc.strokeColor('#CCCCCC').rect(40, currentY, tableWidth, rowHeight).stroke();
+    doc.fillColor('#000000').fontSize(8).font(this.defaultFont);
+    doc.text(description, colX.desc + 5, currentY + 6, { width: descWidth, align: 'left', lineGap: 1 });
+
+    const textY = currentY + (rowHeight / 2) - 4;
+    doc.text(quantity.toFixed(2),                                   colX.qty,       textY);
+    doc.text(this.formatCurrency(unitPrice),                        colX.unitPrice, textY);
+    doc.text(discount > 0 ? `${discount.toFixed(2)}%` : '0.00%',   colX.disc,      textY);
+    // Amount column shows what is paid to the supplier for this line
+    doc.text(`${this.formatCurrency(itemPayable)} FCFA`,            colX.amount,    textY);
+
+    [colX.qty, colX.unitPrice, colX.disc, colX.amount].forEach(x =>
+      doc.moveTo(x, currentY).lineTo(x, currentY + rowHeight).stroke());
+    currentY += rowHeight;
+  });
+
+  if (items.length === 0) {
+    doc.fillColor('#F9F9F9').rect(40, currentY, tableWidth, 22).fill();
+    doc.strokeColor('#CCCCCC').rect(40, currentY, tableWidth, 22).stroke();
+    doc.fillColor('#666666').text('No items found', colX.desc + 5, currentY + 6);
+    currentY += 22;
   }
+
+  if (currentY + 100 > pageBottomLimit) { doc.addPage(); currentPage++; currentY = 50; }
+
+  this.drawOrderSummary(doc, currentY, netTotal, taxTotal, amountPayable, taxRate, isWithholding, poData.taxApplicable);
+  currentY += 90;
+  return { yPos: currentY, currentPage };
+}
+
+drawOrderSummary(doc, yPos, netTotal, taxTotal, amountPayable, taxRate, isWithholding, taxApplicable) {
+  yPos += 10;
+
+  // ── Label logic ────────────────────────────────────────────────────────────
+  // No tax selected      → "Tax 0.00%"
+  // VAT (19.25%)         → "VAT 19.25%"
+  // Withholding (5.5%)   → "Withholding Tax 5.50%"
+  let taxLabel;
+  if (!taxApplicable || taxRate === 0) {
+    taxLabel = 'Tax 0.00%';
+  } else if (isWithholding) {
+    taxLabel = `Withholding Tax ${(taxRate * 100).toFixed(2)}%`;
+  } else {
+    taxLabel = `VAT ${(taxRate * 100).toFixed(2)}%`;
+  }
+
+  // ── Box width: widen by 8px for "Withholding Tax" to avoid crowding ────────
+  const summaryWidth = isWithholding ? 183 : 175;
+  const summaryX     = isWithholding ? 372 : 380;  // shift left to keep right edge at 555
+  const labelX       = summaryX + 10;
+
+  doc.strokeColor('#CCCCCC').lineWidth(0.5).rect(summaryX, yPos, summaryWidth, 68).stroke();
+  doc.fontSize(9).font(this.defaultFont).fillColor('#000000');
+
+  // Row 1: Net Amount
+  doc.text('Net Amount', labelX, yPos + 10);
+  doc.text(`${this.formatCurrency(netTotal)} FCFA`, labelX, yPos + 10, { width: summaryWidth - 20, align: 'right' });
+
+  // Row 2: Tax line — show withheld amount in parentheses for withholding
+  doc.text(taxLabel, labelX, yPos + 28);
+  const taxDisplay = isWithholding
+    ? `(${this.formatCurrency(taxTotal)}) FCFA`   // negative-style to signal deduction
+    : `${this.formatCurrency(taxTotal)} FCFA`;
+  doc.text(taxDisplay, labelX, yPos + 28, { width: summaryWidth - 20, align: 'right' });
+
+  // Row 3: Total payable to supplier (highlighted)
+  doc.fillColor('#E8E8E8').rect(summaryX, yPos + 46, summaryWidth, 22).fill();
+  doc.strokeColor('#CCCCCC').rect(summaryX, yPos + 46, summaryWidth, 22).stroke();
+  doc.fillColor('#000000').font(this.boldFont).text('Total Payable', labelX, yPos + 53);
+  doc.text(`${this.formatCurrency(amountPayable)} FCFA`, labelX, yPos + 53, { width: summaryWidth - 20, align: 'right' });
+}
+
 
   // ✅ FIX: async — awaits renderSignatureImage for each signature block
   async drawSignatureSection(doc, yPos, poData) {
@@ -994,7 +1861,7 @@ class PDFService {
       40, footerY + 8,  { width: 470, height: 10, lineBreak: false, ellipsis: true, continued: false });
     doc.text(`Page ${pageNum} / ${totalPages}`,
       520, footerY + 8, { width: 35, height: 10, align: 'right', continued: false });
-    doc.text('679586444 info@gratoengineering.com www.gratoengineering.com',
+    doc.text('679586444 info@gratoglobal.com www.gratoengineering.com',
       40, footerY + 20, { width: 515, height: 10, lineBreak: false, ellipsis: true, continued: false });
     doc.text('Location: Bonaberi-Douala, beside Santa',
       40, footerY + 32, { width: 515, height: 10, lineBreak: false, ellipsis: true, continued: false });
@@ -2048,7 +2915,7 @@ class PDFService {
     doc.text(`Generated: ${new Date().toLocaleString('en-GB')}`, 40, currentY, { width: 515, height: 9, lineBreak: false, ellipsis: true, continued: false });
     currentY += footerLineHeight;
 
-    doc.text('679586444 | info@gratoengineering.com | www.gratoengineering.com', 40, currentY, { width: 515, height: 9, lineBreak: false, ellipsis: true, continued: false });
+    doc.text('679586444 | info@gratoglobal.com | www.gratoengineering.com', 40, currentY, { width: 515, height: 9, lineBreak: false, ellipsis: true, continued: false });
     currentY += footerLineHeight;
 
     doc.text('Location: Bonaberi-Douala, beside Santa Lucia Telecommunications', 40, currentY, { width: 515, height: 9, lineBreak: false, ellipsis: true, continued: false });

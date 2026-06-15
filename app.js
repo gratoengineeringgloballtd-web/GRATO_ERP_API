@@ -80,6 +80,7 @@ const legalComplianceRoutes = require('./routes/legalComplianceRoutes');
 const ceoEscalation = require('./jobs/ceoApprovalEscalation');
 const ceoRoutes = require('./routes/ceoavailabilityroutes');
 const itInventoryRoutes = require('./routes/inventoryRoutes');
+const siteInventoryRoutes = require('./routes/engineeringIncidentRoutes');
 
 // Critical check for projectRoutes
 if (!projectRoutes) {
@@ -470,6 +471,7 @@ app.use('/api/ceo', ceoRoutes);
 
 app.use('/api/it-inventory', itInventoryRoutes);
 
+app.use('/api/engineering-incidents', siteInventoryRoutes);
 
 app.use('/api/legal', legalComplianceRoutes);
 

@@ -50,6 +50,23 @@ router.get('/admin/approvals/statistics',
   supplierApprovalController.getSupplierApprovalStats
 );
 
+// In suppliers.js routes
+router.get('/files/signed-url',
+  combinedAuthMiddleware, 
+  supplierInvoiceController.getSignedFileUrl
+);
+
+router.get('/files/proxy',
+  combinedAuthMiddleware,
+  supplierInvoiceController.proxyFile
+);
+
+router.post('/admin/files/make-public',
+  authMiddleware,
+  requireRoles('admin'),
+  supplierInvoiceController.makeFilePublic
+);
+
 /**
  * Get approval dashboard data
  * MUST be before /:supplierId

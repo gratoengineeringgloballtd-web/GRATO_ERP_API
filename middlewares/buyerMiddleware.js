@@ -17,6 +17,7 @@ const checkRequisitionAccess = async (req, res, next) => {
       });
     }
     
+    
     // Check if requisition is in a state that buyers can work with
     const allowedStatuses = [
       'supply_chain_approved',

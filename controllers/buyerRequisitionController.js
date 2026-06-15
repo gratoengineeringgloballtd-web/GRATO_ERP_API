@@ -182,28 +182,6 @@ const getAssignedRequisitions = async (req, res) => {
 };
  
 
-// // Helper function to map backend status to frontend sourcingStatus
-// const mapBackendStatusToFrontend = (backendStatus) => {
-//     const statusMapping = {
-//       'approved': 'pending_sourcing',
-//       'pending_head_approval': 'pending_sourcing',
-//       'in_procurement': 'in_progress',
-//       'quotes_received': 'quotes_received',
-//       'procurement_complete': 'completed',
-//       'delivered': 'completed',
-//       'justification_pending_supervisor': 'justified',
-//       'justification_pending_finance': 'justified',
-//       'justification_pending_supply_chain': 'justified',
-//       'justification_pending_head': 'justified',
-//       'justification_rejected': 'justified',
-//       'justification_approved': 'justified',
-//       'completed': 'completed'
-//     };
-    
-//     return statusMapping[backendStatus] || 'pending_sourcing';
-// };
-
-
 const mapBackendStatusToFrontend = (backendStatus) => {
   const map = {
     // ── Pending sourcing ──────────────────────────────────────
