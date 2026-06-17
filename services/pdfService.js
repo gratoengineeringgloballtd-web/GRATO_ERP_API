@@ -2001,10 +2001,18 @@ drawOrderSummary(doc, yPos, netTotal, taxTotal, amountPayable, taxRate, isWithho
     });
 
     if (currentY + 100 > pageBottomLimit) { doc.addPage(); currentPage++; currentY = 50; }
-    this.drawOrderSummary(doc, currentY, grandTotal, taxRate);
-    currentY += 90;
-    return { yPos: currentY, currentPage };
-  }
+    // this.drawOrderSummary(doc, currentY, grandTotal, taxRate);
+    const quotNetTotal = items.reduce((s, item) => {
+      const qty   = this.safeNumber(item.quantity, 0);
+      const price = this.safeNumber(item.unitPrice, 0);
+      return s + qty * price;
+    }, 0);
+    const quotTaxTotal    = grandTotal - quotNetTotal;
+    const quotWithholding = Math.abs(taxRate - 0.055) < 0.0001;
+    this.drawOrderSummary(doc, currentY, quotNetTotal, quotTaxTotal, grandTotal, taxRate, quotWithholding, data.taxApplicable);
+        currentY += 90;
+        return { yPos: currentY, currentPage };
+      }
 
   drawQuotationTerms(doc, yPos, data) {
     doc.fontSize(9).font(this.boldFont).fillColor('#000000').text('Payment Terms:', 40, yPos);
