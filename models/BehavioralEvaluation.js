@@ -34,7 +34,8 @@ const BehavioralEvaluationSchema = new mongoose.Schema({
         'Problem Solving',
         'Time Management',
         'Quality of Work',
-        'Leadership'
+        'Leadership',
+        'other'
       ]
     },
     score: {

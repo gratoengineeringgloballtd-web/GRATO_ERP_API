@@ -105,39 +105,44 @@ exports.submitApplication = async (req, res) => {
         supplierType,
         documents: {}
     };
-
+    
     if (req.files) {
-        const moveFile = (file) => {
-            const tempPath = file.path;
-            const originalName = file.originalname;
-            const extension = path.extname(originalName);
-            const newFileName = `supplier_doc_${Date.now()}_${crypto.randomBytes(16).toString('hex')}${extension}`;
-            const newPath = path.join(__dirname, '..', 'uploads', 'attachments', newFileName);
-            fs.renameSync(tempPath, newPath);
-            
+        const { saveFile, STORAGE_CATEGORIES } = require('../utils/cloudinaryStorage');
+
+        const uploadFile = async (file) => {
+            const result = await saveFile(
+                file,
+                STORAGE_CATEGORIES.SUPPLIER_ONBOARDING,
+                'documents'
+            );
             return {
-                name: originalName,
-                url: `/uploads/attachments/${newFileName}`,
-                publicId: newFileName,
+                name: file.originalname,
+                url: result.url,
+                publicId: result.publicId,
                 size: file.size,
                 mimetype: file.mimetype
             };
         };
 
         if (req.files.businessRegistrationCertificate) {
-            applicationData.documents.businessRegistrationCertificate = moveFile(req.files.businessRegistrationCertificate[0]);
+            applicationData.documents.businessRegistrationCertificate =
+                await uploadFile(req.files.businessRegistrationCertificate[0]);
         }
         if (req.files.taxClearanceCertificate) {
-            applicationData.documents.taxClearanceCertificate = moveFile(req.files.taxClearanceCertificate[0]);
+            applicationData.documents.taxClearanceCertificate =
+                await uploadFile(req.files.taxClearanceCertificate[0]);
         }
         if (req.files.bankStatement) {
-            applicationData.documents.bankStatement = moveFile(req.files.bankStatement[0]);
+            applicationData.documents.bankStatement =
+                await uploadFile(req.files.bankStatement[0]);
         }
         if (req.files.insuranceCertificate) {
-            applicationData.documents.insuranceCertificate = moveFile(req.files.insuranceCertificate[0]);
+            applicationData.documents.insuranceCertificate =
+                await uploadFile(req.files.insuranceCertificate[0]);
         }
         if (req.files.additionalDocuments) {
-            applicationData.documents.additionalDocuments = req.files.additionalDocuments.map(moveFile);
+            applicationData.documents.additionalDocuments =
+                await Promise.all(req.files.additionalDocuments.map(uploadFile));
         }
     }
 
@@ -175,7 +180,7 @@ exports.submitApplication = async (req, res) => {
           businessRegistrationNumber: businessRegistrationNumber,
           taxIdNumber: taxIdNumber,
           bankDetails: bankDetails,
-          documents: this.normalizeDocuments(applicationData.documents || {})
+          documents: normalizeDocuments(applicationData.documents || {})
         },
         
         supplierStatus: {
@@ -342,72 +347,6 @@ exports.getAllApplications = async (req, res) => {
   }
 };
 
-// exports.getAllApplications = async (req, res) => {
-//   try {
-//     const {
-//       status,
-//       category,
-//       priority,
-//       page = 1,
-//       limit = 20,
-//       sortBy = 'submissionDate',
-//       sortOrder = 'desc',
-//       search
-//     } = req.query;
-
-//     // Build filter
-//     const filter = {};
-//     if (status) filter.status = status;
-//     if (category) filter.category = category;
-//     if (priority) filter.priority = priority;
-//     if (search) {
-//       filter.$or = [
-//         { companyName: { $regex: search, $options: 'i' } },
-//         { contactPerson: { $regex: search, $options: 'i' } },
-//         { email: { $regex: search, $options: 'i' } },
-//         { applicationId: { $regex: search, $options: 'i' } }
-//       ];
-//     }
-
-//     // Build sort
-//     const sort = {};
-//     sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
-
-//     const skip = (parseInt(page) - 1) * parseInt(limit);
-
-//     const applications = await SupplierOnboardingApplication
-//       .find(filter)
-//       .populate('reviewHistory.reviewer', 'fullName email')
-//       .sort(sort)
-//       .skip(skip)
-//       .limit(parseInt(limit))
-//       .lean();
-
-//     const total = await SupplierOnboardingApplication.countDocuments(filter);
-
-//     // Get statistics for dashboard
-//     const stats = await this.getApplicationStatistics();
-
-//     res.json({
-//       success: true,
-//       data: applications,
-//       pagination: {
-//         current: parseInt(page),
-//         pageSize: parseInt(limit),
-//         total,
-//         pages: Math.ceil(total / parseInt(limit))
-//       },
-//       statistics: stats
-//     });
-
-//   } catch (error) {
-//     console.error('Error fetching applications:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Failed to fetch applications'
-//     });
-//   }
-// };
 
 // ===============================
 // GET APPLICATION BY ID
