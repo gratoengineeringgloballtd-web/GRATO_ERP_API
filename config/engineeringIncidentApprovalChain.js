@@ -26,14 +26,6 @@ const ENGINEERING_APPROVERS = {
     role:        'approved_by',
     label:       'Approved By',
     level:       2
-  },
-  bechem: {
-    name:        'Mr. Ovo Bechem',
-    email:       'bechem.mbu@gratoglobal.com',
-    designation: 'HSE Coordinator',
-    role:        'hse',
-    label:       'HSE Sign-off',
-    level:       3
   }
 };
 
@@ -77,23 +69,6 @@ const getEngineeringApprovalChain = () => {
       actionTime:   '',
       signatureUrl: '',
       assignedDate: null   // Assigned after Pascal approves
-    },
-    {
-      level:        ENGINEERING_APPROVERS.bechem.level,
-      role:         ENGINEERING_APPROVERS.bechem.role,
-      label:        ENGINEERING_APPROVERS.bechem.label,
-      approver: {
-        name:        ENGINEERING_APPROVERS.bechem.name,
-        email:       ENGINEERING_APPROVERS.bechem.email,
-        designation: ENGINEERING_APPROVERS.bechem.designation,
-        userId:      null
-      },
-      status:       'pending',
-      comments:     '',
-      actionDate:   null,
-      actionTime:   '',
-      signatureUrl: '',
-      assignedDate: null   // Assigned after Didier approves
     }
   ];
 };
@@ -104,7 +79,7 @@ const getEngineeringApprovalChain = () => {
 const getStatusAfterApproval = (level, totalLevels) => {
   if (level >= totalLevels) return 'approved';
   const nextLevel = level + 1;
-  const map = { 1: 'pending_review', 2: 'pending_approval', 3: 'pending_hse' };
+  const map = { 1: 'pending_review', 2: 'pending_approval' };
   return map[nextLevel] || 'pending_review';
 };
 
@@ -114,8 +89,7 @@ const getStatusAfterApproval = (level, totalLevels) => {
 const getNotificationEmailForLevel = (level) => {
   const map = {
     1: ENGINEERING_APPROVERS.pascal.email,
-    2: ENGINEERING_APPROVERS.didier.email,
-    3: ENGINEERING_APPROVERS.bechem.email
+    2: ENGINEERING_APPROVERS.didier.email
   };
   return map[level] || null;
 };
@@ -135,8 +109,7 @@ const isEngineeringApprover = (email) => {
 const canViewAllTechnicalReports = (email) => {
   const viewers = [
     ENGINEERING_APPROVERS.pascal.email,
-    ENGINEERING_APPROVERS.didier.email,
-    ENGINEERING_APPROVERS.bechem.email
+    ENGINEERING_APPROVERS.didier.email
   ].map(e => e.toLowerCase());
   return viewers.includes((email || '').toLowerCase());
 };

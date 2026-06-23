@@ -165,15 +165,12 @@ class PDFService {
  
       const step0 = chain[0] || {};   // Pascal  (Reviewed By)
       const step1 = chain[1] || {};   // Didier  (Approved By)
-      const step2 = chain[2] || {};   // Bechem  (HSE)
  
       // Fallback names in case approvalChain is sparse
       const PASCAL_NAME  = step0.approver?.name        || 'Mr. Pascal Assam';
       const PASCAL_DESIG = step0.approver?.designation || 'Operations Manager';
       const DIDIER_NAME  = step1.approver?.name        || 'Mr. Didier Oyong';
       const DIDIER_DESIG = step1.approver?.designation || 'Technical Director';
-      const BECHEM_NAME  = step2.approver?.name        || 'Mr. Ovo Bechem';
-      const BECHEM_DESIG = step2.approver?.designation || 'HSE Coordinator';
  
       // ── PDF setup ────────────────────────────────────────────────────────
       const doc = new PDFDocument({
@@ -708,52 +705,6 @@ class PDFService {
         doc.fillColor('#000000');
       }
       y += sigBoxH + 14;
- 
-      // ── HSE Sign-Off (full-width box) ─────────────────────────────────────
-      const hseStep     = step2;
-      const hseApproved = hseStep.status === 'approved';
-      checkPage(90);
- 
-      doc.rect(marginL, y, contentW, 82)
-        .fillAndStroke(hseApproved ? '#e6fffb' : '#fafafa', hseApproved ? '#36cfc9' : '#d9d9d9');
- 
-      doc.font('Helvetica-Bold').fontSize(9).fillColor('#13c2c2')
-        .text('HSE Coordinator Sign-Off', marginL + 10, y + 8);
- 
-      // HSE signature image
-      if (hseStep.signatureUrl) {
-        try {
-          await this.renderSignatureImage(
-            doc, hseStep.signatureUrl,
-            marginL + 10, y + 22,
-            { width: 130, height: 38, fit: [130, 38] }
-          );
-        } catch (_) { /* skip */ }
-      }
- 
-      doc.strokeColor('#aaa').lineWidth(0.5)
-        .moveTo(marginL + 10, y + 62).lineTo(marginL + 220, y + 62).stroke();
- 
-      doc.font('Helvetica-Bold').fontSize(8).fillColor('#333333')
-        .text(BECHEM_NAME,  marginL + 10, y + 65);
-      doc.font('Helvetica').fontSize(7.5).fillColor('#888888')
-        .text(BECHEM_DESIG, marginL + 10, y + 76);
- 
-      doc.font('Helvetica').fontSize(8).fillColor('#555555')
-        .text(`Date: ${fmtDate(hseStep.actionDate)}`, marginL + 250, y + 65);
- 
-      if (hseApproved) {
-        doc.fillColor('#13c2c2').font('Helvetica-Bold').fontSize(10)
-          .text('✓ HSE APPROVED', marginL + contentW - 140, y + 30, { width: 130, align: 'right' });
-      }
- 
-      if (hseStep.comments) {
-        doc.font('Helvetica').fontSize(7.5).fillColor('#333333')
-          .text(`Comments: ${hseStep.comments}`, marginL + 250, y + 76, { width: contentW - 260 });
-      }
- 
-      doc.fillColor('#000000');
-      y += 96;
  
       // ── Approver comments banner ──────────────────────────────────────────
       if (report.approverComments) {
