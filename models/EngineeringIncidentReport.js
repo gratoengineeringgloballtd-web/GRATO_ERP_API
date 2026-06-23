@@ -66,11 +66,33 @@ const engineeringIncidentReportSchema = new mongoose.Schema({
     required: true
   },
 
+  // incidentTypes: [{
+  //   type: String,
+  //   enum: ['Network Outage', 'Hardware Failure', 'Software Bug', 'Security Breach',
+  //          'Power Failure', 'Human Error', 'Other']
+  // }],
+
   incidentTypes: [{
-    type: String,
-    enum: ['Network Outage', 'Hardware Failure', 'Software Bug', 'Security Breach',
-           'Power Failure', 'Human Error', 'Other']
-  }],
+  type: String,
+  enum: [
+    'Grid Outage',
+    'Generator Failure',
+    'Fuel Shortage / Diesel Runout',
+    'ATS / AMF Failure',
+    'Rectifier Failure',
+    'Power Cabinet Issue',
+    'Battery Failure',
+    'Theft',
+    'Fire / Burned Equipment',
+    'Lightning / Weather Damage',
+    'Planned / Maintenance Activity',
+    'Cascade Passive',
+    'Landlord / Access Issue',
+    'Vendor / Third-Party Delay',
+    'Software / Configuration Error',
+    'Other'
+  ]
+}],
 
   affectedSiteLocation:    { type: String, required: true },
   affectedServices:        { type: String, required: true },  // free-text list
@@ -99,14 +121,14 @@ const engineeringIncidentReportSchema = new mongoose.Schema({
     enum: ['Critical (Revenue Loss)', 'High (Major Disruption)', 'Medium (Partial Outage)', 'Low (Minor Degradation)'],
     required: true
   },
-  impactAffectedServices:  { type: String, required: true },
-  numberOfUsersAffected:   { type: String, default: '' },
+  impactAffectedServices:  { type: String, default: '' },
+  numberOfSitesAffected: { type: String, default: '' },
 
   financialImpact: {
     type: String,
     enum: ['None', 'Minor', 'Significant', 'Severe — quantify below'],
-    required: true
-  },
+    default: ''   // no longer required
+  },              
 
   regulatoryImpact: {
     type: String,
@@ -137,15 +159,60 @@ const engineeringIncidentReportSchema = new mongoose.Schema({
   initialObservation:      { type: String, required: true },
   systemsChecked:          { type: String, default: '' },
 
+  // testsPerformed: [{
+  //   type: String,
+  //   enum: ['Ping Test', 'Reboot', 'Hardware Swap', 'Remote Diagnostics', 'On-site Inspection', 'Other']
+  // }],
+
   testsPerformed: [{
-    type: String,
-    enum: ['Ping Test', 'Reboot', 'Hardware Swap', 'Remote Diagnostics', 'On-site Inspection', 'Other']
-  }],
+  type: String,
+  enum: [
+    'Generator Manual Start Test',
+    'ATS / AMF Bypass Test',
+    'Fuel Level Check',
+    'Oil Level Check',
+    'Coolant / Water Level Check',
+    'Battery Voltage Check',
+    'Rectifier Reset / Module Check',
+    'Grid Voltage / Phase Check',
+    'Control Panel / Card Reset',
+    'Load Measurement (KVA / Amperage)',
+    'Visual Inspection (On-site)',
+    'Remote Diagnostics (NOC)',
+    'Reboot / Power Reset',
+    'Cable / Wiring Inspection',
+    'Fuel Line / Pump Check',
+    'Other'
+  ]
+}],
+
+  // initialConclusion: [{
+  //   type: String,
+  //   enum: ['Hardware', 'Software', 'Configuration', 'Human Error', 'External (Power / Infrastructure)', 'Unknown']
+  // }],
 
   initialConclusion: [{
-    type: String,
-    enum: ['Hardware', 'Software', 'Configuration', 'Human Error', 'External (Power / Infrastructure)', 'Unknown']
-  }],
+  type: String,
+  enum: [
+    'Grid Outage — External',
+    'Grid Bad Voltage / Phase Issue',
+    'Generator Overload',
+    'Generator Mechanical Fault',
+    'Generator Control / Card Fault',
+    'Fuel Shortage',
+    'ATS / AMF Fault',
+    'Battery / Backup Failure',
+    'Rectifier Fault',
+    'Power Cabinet Issue',
+    'Theft',
+    'Fire / Physical Damage',
+    'Lightning / Weather Related',
+    'Cascade from Parent Site',
+    'Planned Activity',
+    'Human Error',
+    'Unknown — Investigation Ongoing'
+  ]
+}],
 
   detailedFindings:        { type: String, required: true },
 
@@ -156,10 +223,31 @@ const engineeringIncidentReportSchema = new mongoose.Schema({
     default: ''
   },
 
+  // rootCauseCategories: [{
+  //   type: String,
+  //   enum: ['Hardware', 'Software', 'Process / Procedure', 'Human Factor', 'Environmental', 'Third-Party / Vendor']
+  // }],
+
   rootCauseCategories: [{
-    type: String,
-    enum: ['Hardware', 'Software', 'Process / Procedure', 'Human Factor', 'Environmental', 'Third-Party / Vendor']
-  }],
+  type: String,
+  enum: [
+    'External Grid Failure',
+    'Generator Mechanical Fault',
+    'Generator Electrical Fault',
+    'Fuel / Diesel Supply Issue',
+    'ATS / Control Panel Fault',
+    'Battery / Backup Degradation',
+    'Rectifier / Power Equipment Fault',
+    'Physical Damage (Fire / Lightning)',
+    'Theft / Vandalism',
+    'Cascade / Dependency Failure',
+    'Process / Maintenance Gap',
+    'Human Factor',
+    'Third-Party / Vendor Failure',
+    'Environmental / Infrastructure',
+    'Unknown'
+  ]
+}],
 
   contributingFactors:     { type: String, default: '' },
   rootCauseConfirmedBy:    { type: String, required: true },
