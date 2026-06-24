@@ -2,9 +2,9 @@
 // config/engineeringIncidentApprovalChain.js
 // ─────────────────────────────────────────────────────────────────────────────
 // Fixed 3-level approval chain for Engineering Incident Reports.
-// Level 1 (Reviewed By)  → Pascal Assam  (Operations Manager)
-// Level 2 (Approved By)  → Didier Oyong  (Technical Director)
-// Level 3 (HSE)          → Ovo Bechem    (HSE Coordinator)
+// Level 1 (Reviewed By)      → Pascal Assam  (Operations Manager)
+// Level 2 (Approved By)      → Didier Oyong  (Technical Director)
+// Level 3 (Final Approval)   → Kelvin Eyong  (Head of Business)
 //
 // The submitter's "Prepared By" block is auto-filled from the logged-in user
 // and requires no approval — it is captured as metadata only.
@@ -26,6 +26,14 @@ const ENGINEERING_APPROVERS = {
     role:        'approved_by',
     label:       'Approved By',
     level:       2
+  },
+  kelvin: {
+    name:        'Mr. E.T Kelvin',
+    email:       'kelvin.eyong@gratoglobal.com',
+    designation: 'Head of Business',
+    role:        'final_approved_by',
+    label:       'Final Approval',
+    level:       3
   }
 };
 
@@ -69,18 +77,38 @@ const getEngineeringApprovalChain = () => {
       actionTime:   '',
       signatureUrl: '',
       assignedDate: null   // Assigned after Pascal approves
+    },
+    {
+      level:        ENGINEERING_APPROVERS.kelvin.level,
+      role:         ENGINEERING_APPROVERS.kelvin.role,
+      label:        ENGINEERING_APPROVERS.kelvin.label,
+      approver: {
+        name:        ENGINEERING_APPROVERS.kelvin.name,
+        email:       ENGINEERING_APPROVERS.kelvin.email,
+        designation: ENGINEERING_APPROVERS.kelvin.designation,
+        userId:      null
+      },
+      status:       'pending',
+      comments:     '',
+      actionDate:   null,
+      actionTime:   '',
+      signatureUrl: '',
+      assignedDate: null   // Assigned after Didier approves
     }
   ];
 };
 
 /**
- * Map currentApprovalLevel → overallStatus string.
+ * Map currentApprovalLevel → overallStatus string after a given level approves.
+ * totalLevels = 3 (Pascal → Didier → Kelvin)
  */
 const getStatusAfterApproval = (level, totalLevels) => {
   if (level >= totalLevels) return 'approved';
-  const nextLevel = level + 1;
-  const map = { 1: 'pending_review', 2: 'pending_approval' };
-  return map[nextLevel] || 'pending_review';
+  const map = {
+    1: 'pending_approval',        // Pascal done → Didier's turn
+    2: 'pending_final_approval'   // Didier done → Kelvin's turn
+  };
+  return map[level] || 'pending_review';
 };
 
 /**
@@ -89,9 +117,17 @@ const getStatusAfterApproval = (level, totalLevels) => {
 const getNotificationEmailForLevel = (level) => {
   const map = {
     1: ENGINEERING_APPROVERS.pascal.email,
-    2: ENGINEERING_APPROVERS.didier.email
+    2: ENGINEERING_APPROVERS.didier.email,
+    3: ENGINEERING_APPROVERS.kelvin.email
   };
   return map[level] || null;
+};
+
+/**
+ * Return the approver config object for a given level.
+ */
+const getApproverForLevel = (level) => {
+  return Object.values(ENGINEERING_APPROVERS).find(a => a.level === level) || null;
 };
 
 /**
@@ -104,13 +140,21 @@ const isEngineeringApprover = (email) => {
 };
 
 /**
- * Check whether Pascal or Didier (dashboard viewers) can see all Technical reports.
+ * Return which level a given approver email belongs to (or null if not an approver).
+ */
+const getApproverLevel = (email) => {
+  const found = Object.values(ENGINEERING_APPROVERS).find(
+    a => a.email.toLowerCase() === (email || '').toLowerCase()
+  );
+  return found ? found.level : null;
+};
+
+/**
+ * Check whether Pascal, Didier, or Kelvin can see all Technical reports.
  */
 const canViewAllTechnicalReports = (email) => {
-  const viewers = [
-    ENGINEERING_APPROVERS.pascal.email,
-    ENGINEERING_APPROVERS.didier.email
-  ].map(e => e.toLowerCase());
+  const viewers = Object.values(ENGINEERING_APPROVERS)
+    .map(a => a.email.toLowerCase());
   return viewers.includes((email || '').toLowerCase());
 };
 
@@ -119,7 +163,10 @@ module.exports = {
   getEngineeringApprovalChain,
   getStatusAfterApproval,
   getNotificationEmailForLevel,
+  getApproverForLevel,
+  getApproverLevel,
   isEngineeringApprover,
   canViewAllTechnicalReports
 };
+
 
