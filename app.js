@@ -81,6 +81,8 @@ const ceoEscalation = require('./jobs/ceoApprovalEscalation');
 const ceoRoutes = require('./routes/ceoavailabilityroutes');
 const itInventoryRoutes = require('./routes/inventoryRoutes');
 const siteInventoryRoutes = require('./routes/engineeringIncidentRoutes');
+const documentSigningRoutes = require('./routes/documentSigningRoutes');
+const documentSigningReminders = require('./jobs/documentSigningReminders');
 
 // Critical check for projectRoutes
 if (!projectRoutes) {
@@ -463,6 +465,11 @@ if (buyerRoutes) {
   console.log('✅ Mounted: /api/project-plans');
 }
 
+if (documentSigningRoutes) {
+  app.use('/api/document-signing', documentSigningRoutes);
+  console.log('✅ Mounted: /api/document-signing');
+}
+
 app.use('/api/project-plans', projectPlanRoutes);
 
 app.use('/api/tenders', tenderRoutes);
@@ -536,6 +543,7 @@ releaseStaleReservationsJob.start();
 scheduleBudgetAlerts();
 initializeScheduledReports();
 ceoEscalation.start();
+documentSigningReminders.start();
 
 // Global error handler
 app.use((err, req, res, next) => {
