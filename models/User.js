@@ -164,6 +164,47 @@ const UserSchema = new mongoose.Schema({
  
         // Who last changed this setting (email)
         lastUpdatedBy: String,
+
+        typeDelegations: [
+            {
+                // Key matching CEO_THRESHOLDS (e.g. 'cash_request', 'invoice')
+                requestType: {
+                    type: String,
+                    trim: true,
+                },
+ 
+                // Who handles CEO-level approvals for this type
+                delegateEmail: {
+                    type: String,
+                    trim: true,
+                    lowercase: true,
+                },
+ 
+                // Denormalised name for fast display (avoids an extra DB lookup)
+                delegateName: {
+                    type: String,
+                    trim: true,
+                },
+ 
+                // Optional free-text note shown to the delegate
+                reason: {
+                    type: String,
+                    trim: true,
+                },
+ 
+                // When this type delegation was activated
+                delegatedAt: {
+                    type:    Date,
+                    default: Date.now,
+                },
+ 
+                // Email of whoever activated it (audit trail)
+                delegatedBy: {
+                    type: String,
+                    trim: true,
+                },
+            },
+        ],
     },
     
     isActive: {
@@ -508,6 +549,7 @@ UserSchema.index({ hierarchyPath: 1 });
 UserSchema.index({ 'supplierDetails.supplierType': 1 });
 UserSchema.index({ 'supplierStatus.accountStatus': 1 });
 UserSchema.index({ 'buyerDetails.specializations': 1 });
+UserSchema.index({ 'ceoAvailability.typeDelegations.requestType': 1 });
 
 // ==========================================
 // VIRTUALS

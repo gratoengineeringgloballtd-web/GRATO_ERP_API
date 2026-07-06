@@ -169,74 +169,6 @@ const processSupplierApproval = async (req, res) => {
 
 
 
-// const getPendingApprovalsForUser = async (req, res) => {
-//   try {
-//     console.log('=== GET PENDING APPROVALS FOR USER ===');
-//     const user = await User.findById(req.user.userId);
-//     if (!user) {
-//       return res.status(404).json({
-//         success: false,
-//         message: 'User not found'
-//       });
-//     }
-
-//     console.log('User:', user.email, 'Role:', user.role);
-
-//     // Find suppliers where:
-//     // 1. Role is supplier
-//     // 2. Account status is NOT approved or rejected
-//     // 3. Has approval chain
-//     // 4. Current pending step matches this user's email
-//     const allPendingSuppliers = await User.find({
-//       role: 'supplier',
-//       'supplierStatus.accountStatus': { 
-//         $in: ['pending', 'pending_supply_chain', 'pending_head_of_business', 'pending_finance'] 
-//       },
-//       approvalChain: { $exists: true, $ne: [] }
-//     }).sort({ createdAt: -1 });
-
-//     console.log(`Found ${allPendingSuppliers.length} pending suppliers`);
-
-//     // Filter to only show suppliers where current user is the pending approver
-//     const userPendingSuppliers = allPendingSuppliers.filter(supplier => {
-//       // Find the first pending step in the approval chain
-//       const currentStep = supplier.approvalChain.find(step => step.status === 'pending');
-      
-//       if (!currentStep) {
-//         console.log(`Supplier ${supplier.supplierDetails?.companyName} has no pending step`);
-//         return false;
-//       }
-
-//       const isMatch = currentStep.approver.email === user.email;
-      
-//       if (isMatch) {
-//         console.log(`✅ Match: ${supplier.supplierDetails?.companyName} - Level ${currentStep.level} - ${currentStep.approver.role}`);
-//       }
-      
-//       return isMatch;
-//     });
-
-//     console.log(`Filtered to ${userPendingSuppliers.length} suppliers for this user`);
-
-//     res.json({
-//       success: true,
-//       data: userPendingSuppliers,
-//       count: userPendingSuppliers.length
-//     });
-
-//   } catch (error) {
-//     console.error('❌ Get pending approvals error:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Failed to fetch pending approvals',
-//       error: error.message
-//     });
-//   }
-// };
-
-
-
-
 const getPendingApprovalsForUser = async (req, res) => {
   try {
     console.log('=== GET PENDING APPROVALS FOR USER ===');
@@ -879,41 +811,6 @@ const bulkProcessSupplierApprovals = async (req, res) => {
     });
   }
 };
-
-
-/**
- * Get supplier approval statistics
- * Returns counts by approval status for dashboard metrics
- */
-// const getSupplierApprovalStats = async (req, res) => {
-//   try {
-//     console.log('=== GET SUPPLIER APPROVAL STATISTICS ===');
-    
-//     const User = require('../models/User');
-//     const { getSupplierApprovalStats: calculateStats } = require('../config/supplierApprovalChain');
-    
-//     // Get all suppliers
-//     const suppliers = await User.find({ role: 'supplier' });
-    
-//     // Calculate statistics
-//     const stats = calculateStats(suppliers);
-    
-//     console.log('Approval statistics:', stats);
-    
-//     res.json({
-//       success: true,
-//       data: stats
-//     });
-    
-//   } catch (error) {
-//     console.error('Get supplier approval statistics error:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Failed to fetch approval statistics',
-//       error: error.message
-//     });
-//   }
-// };
 
 
 const getSupplierApprovalStats = async (req, res) => {

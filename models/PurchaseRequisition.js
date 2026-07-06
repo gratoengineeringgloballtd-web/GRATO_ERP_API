@@ -211,38 +211,6 @@ const PurchaseRequisitionSchema = new mongoose.Schema({
     }
   }],
 
-  // status: {
-  //   type: String,
-  //   enum: [
-  //     'draft',
-  //     'pending_supervisor',
-  //     'pending_finance_verification',
-  //     'pending_supply_chain_review',
-  //     'pending_buyer_assignment',
-  //     'pending_head_approval',
-  //     'approved',
-  //     'partially_disbursed',  
-  //     'fully_disbursed',
-  //     'rejected',
-  //     'supply_chain_approved',
-  //     'supply_chain_rejected',
-  //     'in_procurement',
-  //     'procurement_complete',
-  //     'delivered',
-  //     'justification_pending_supervisor',
-  //     'justification_pending_finance',
-  //     'justification_pending_supply_chain',
-  //     'justification_pending_head',
-  //     'justification_rejected',
-  //     'justification_approved',
-  //     'completed',
-  //     'pending_clarification',
-  //     'pending_cancellation',
-  //     'cancelled'
-  //   ],
-  //   default: 'pending_supervisor'
-  // },
-
   status: {
     type: String,
     enum: [
@@ -624,18 +592,6 @@ const PurchaseRequisitionSchema = new mongoose.Schema({
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User'
     },
-    // status: {
-    //   type: String,
-    //   enum: [
-    //     'pending_supervisor',
-    //     'pending_finance',
-    //     'pending_supply_chain',
-    //     'pending_head',
-    //     'approved',
-    //     'rejected'
-    //   ],
-    //   default: 'pending_supervisor'
-    // },
     status: {
       type: String,
       enum: [
