@@ -154,3 +154,7 @@ if (filenameArg && emailArg) {
 module.exports = { attachSignatureToUser };
 
 
+
+
+
+// node attach-signature-by-email.js "Minka-removebg-preview" "minka.kevin@gratoglobal.com"

@@ -482,6 +482,8 @@ app.use('/api/engineering-incidents', siteInventoryRoutes);
 
 app.use('/api/legal', legalComplianceRoutes);
 
+app.use('/api/delegations', require('./routes/userDelegationRoutes'));
+
 // app.use('/api/salary-payments', salaryPaymentRoutes);
 
 if (salaryPaymentRoutes) {
