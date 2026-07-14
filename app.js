@@ -240,8 +240,32 @@ cron.schedule('0 9 * * *', async () => {
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
+// app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+//   setHeaders: (res, filePath) => {
+//     if (filePath.endsWith('.pdf')) {
+//       res.setHeader('Content-Type', 'application/pdf');
+//     } else if (filePath.match(/\.(jpg|jpeg|png|gif)$/i)) {
+//       res.setHeader('Content-Type', 'image/' + path.extname(filePath).substring(1));
+//     } else if (filePath.match(/\.(doc|docx)$/i)) {
+//       res.setHeader('Content-Type', 'application/msword');
+//     } else if (filePath.match(/\.(xls|xlsx)$/i)) {
+//       res.setHeader('Content-Type', 'application/vnd.ms-excel');
+//     }
+//   }
+// }));
+
+// AFTER — add CORS headers so PDF.js can fetch PDFs cross-origin:
 app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
   setHeaders: (res, filePath) => {
+    // ── CORS headers — required for PDF.js to fetch cross-origin ────────────
+    // PDF.js running on localhost:3001 fetches files from localhost:5001.
+    // Without these, the browser silently blocks the response and the
+    // canvas stays blank with no error, even though the file exists.
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+    // ── MIME types (keep these exactly as before) ────────────────────────────
     if (filePath.endsWith('.pdf')) {
       res.setHeader('Content-Type', 'application/pdf');
     } else if (filePath.match(/\.(jpg|jpeg|png|gif)$/i)) {

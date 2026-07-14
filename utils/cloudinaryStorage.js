@@ -12,10 +12,25 @@ const fs          = require('fs');
 // ─── Lazy config ──────────────────────────────────────────────────────────────
 // Called right before each upload instead of at module load time.
 // This ensures process.env vars are available even if dotenv loads after require().
-const ensureCloudinaryConfig = () => {
-  const current = cloudinary.config();
-  if (current.api_key) return; // already configured
+// const ensureCloudinaryConfig = () => {
+//   const current = cloudinary.config();
+//   if (current.api_key) return; // already configured
 
+//   if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+//     throw new Error(
+//       'Cloudinary credentials missing. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET in your environment.'
+//     );
+//   }
+
+//   cloudinary.config({
+//     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+//     api_key:    process.env.CLOUDINARY_API_KEY,
+//     api_secret: process.env.CLOUDINARY_API_SECRET,
+//     secure:     true
+//   });
+// };
+
+const ensureCloudinaryConfig = () => {
   if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
     throw new Error(
       'Cloudinary credentials missing. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET in your environment.'
@@ -23,9 +38,9 @@ const ensureCloudinaryConfig = () => {
   }
 
   cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key:    process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET,
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME.trim(),
+    api_key:    process.env.CLOUDINARY_API_KEY.trim(),
+    api_secret: process.env.CLOUDINARY_API_SECRET.trim(),
     secure:     true
   });
 };
