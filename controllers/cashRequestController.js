@@ -4281,7 +4281,7 @@ const createReimbursementRequest = async (req, res) => {
     const advance = parseFloat(advanceReceived) || 0;
     const spent = parseFloat(amountSpent);
 
-    if (isNaN(amount) || amount <= 0 || amount > 100000) {
+    if (isNaN(amount) || amount <= 0 || amount > 5000000) {
       return res.status(400).json({
         success: false,
         message: 'Reimbursement amount must be between XAF 1 and XAF 100,000'

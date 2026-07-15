@@ -104,13 +104,13 @@ const CashRequestSchema = new mongoose.Schema({
     validate: {
       validator: function(value) {
         if (this.requestMode === 'reimbursement') {
-          return value <= 100000;
+          return value <= 5000000;
         }
         return value > 0 && value <= 999999999;
       },
       message: function(props) {
         if (props.instance.requestMode === 'reimbursement') {
-          return `Reimbursement amount cannot exceed XAF 100,000. Requested: XAF ${props.value.toLocaleString()}`;
+          return `Reimbursement amount cannot exceed XAF 5,000,000. Requested: XAF ${props.value.toLocaleString()}`;
         }
         return `Amount must be between XAF 1 and XAF 999,999,999. Requested: XAF ${props.value.toLocaleString()}`;
       }
