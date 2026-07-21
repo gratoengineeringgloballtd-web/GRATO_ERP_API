@@ -23,6 +23,7 @@ const CEO_THRESHOLDS = {
   cash_request: {
     // minAmountForCEO: 100_000,       // Below 100k → stops at Kelvin
     minAmountForCEO: 100_000, 
+    minAmountForCEO: 2_000, 
     currency: 'XAF',
     description: 'Cash / petty cash requests',
     escalationField: 'amount',       // field on the request object to check
@@ -30,7 +31,7 @@ const CEO_THRESHOLDS = {
 
   // ── PURCHASE REQUISITIONS ────────────────────────────────────────────────
   purchase_requisition: {
-    minAmountForCEO: 500_000,        // Below 500k → stops at Supply Chain + Kelvin
+    minAmountForCEO: 100_000,        // Below 500k → stops at Supply Chain + Kelvin
     currency: 'XAF',
     description: 'Purchase requisition requests',
     escalationField: 'totalBudget',  // or estimatedCost / budgetXAF
@@ -38,7 +39,7 @@ const CEO_THRESHOLDS = {
 
   // ── INVOICES ─────────────────────────────────────────────────────────────
   invoice: {
-    minAmountForCEO: 1_000_000,      // Below 1M → stops at Finance
+    minAmountForCEO: 100_000,      // Below 1M → stops at Finance
     currency: 'XAF',
     description: 'Supplier / employee invoices',
     escalationField: 'invoiceAmount',
@@ -46,7 +47,7 @@ const CEO_THRESHOLDS = {
 
   // ── PURCHASE ORDERS ──────────────────────────────────────────────────────
   purchase_order: {
-    minAmountForCEO: 500_000,
+    minAmountForCEO: 100_000,
     currency: 'XAF',
     description: 'Purchase orders raised by buyers',
     escalationField: 'totalAmount',
@@ -62,7 +63,7 @@ const CEO_THRESHOLDS = {
 
   // ── BUDGET CODES ─────────────────────────────────────────────────────────
   budget_code: {
-    minAmountForCEO: 1_000_000,      // Budget codes below 1M end at Finance
+    minAmountForCEO: 100_000,      // Budget codes below 1M end at Finance
     currency: 'XAF',
     description: 'Budget code creation and revisions',
     escalationField: 'budget',
@@ -70,7 +71,7 @@ const CEO_THRESHOLDS = {
 
   // ── BUDGET TRANSFERS ─────────────────────────────────────────────────────
   budget_transfer: {
-    minAmountForCEO: 500_000,
+    minAmountForCEO: 100_000,
     currency: 'XAF',
     description: 'Budget transfers between codes',
     escalationField: 'transferAmount',
@@ -78,7 +79,7 @@ const CEO_THRESHOLDS = {
 
   // ── SALARY PAYMENTS ──────────────────────────────────────────────────────
   salary_payment: {
-    minAmountForCEO: 5_000_000,      // Bulk payroll above 5M needs CEO
+    minAmountForCEO: 100_000,      // Bulk payroll above 5M needs CEO
     currency: 'XAF',
     description: 'Bulk salary payment processing',
     escalationField: 'totalAmount',
