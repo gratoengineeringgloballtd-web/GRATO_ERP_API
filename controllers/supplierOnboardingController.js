@@ -56,12 +56,28 @@ exports.submitApplication = async (req, res) => {
       contactName,
       email,
       phoneNumber,
+      alternatePhone,
       address,
       businessRegistrationNumber,
       taxIdNumber,
-      bankDetails,
-      supplierType
+      supplierType,
+      businessType,
+      website,
+      establishedYear,
+      employeeCount
     } = req.body;
+
+    // bankDetails arrives as a JSON string when sent via multipart/form-data
+    let bankDetails = {};
+    if (req.body.bankDetails) {
+      try {
+        bankDetails = typeof req.body.bankDetails === 'string'
+          ? JSON.parse(req.body.bankDetails)
+          : req.body.bankDetails;
+      } catch (e) {
+        console.warn('Could not parse bankDetails:', e.message);
+      }
+    }
 
     if (!companyName || !contactName || !email || !phoneNumber) {
       return res.status(400).json({
@@ -169,7 +185,12 @@ exports.submitApplication = async (req, res) => {
           companyName: companyName,
           contactName: contactName,
           phoneNumber: phoneNumber,
+          alternatePhone: alternatePhone,
           supplierType: supplierType,
+          businessType: businessType,
+          website: website,
+          establishedYear: establishedYear ? parseInt(establishedYear) : undefined,
+          employeeCount: employeeCount,
           address: typeof address === 'object' && address !== null ? address : {
             street: address || '',
             city: '',
@@ -182,7 +203,7 @@ exports.submitApplication = async (req, res) => {
           bankDetails: bankDetails,
           documents: normalizeDocuments(applicationData.documents || {})
         },
-        
+                
         supplierStatus: {
           accountStatus: 'pending_supply_chain',
           isVerified: false, // ✅ Start as false
@@ -1126,43 +1147,41 @@ exports.sendStatusUpdateEmail = async function(application, oldStatus) {
   }
 };
 
-// Create supplier user account
+
 exports.createSupplierAccount = async function(application) {
   try {
-    // Check if supplier user already exists
     const existingUser = await User.findOne({ email: application.email });
     if (existingUser) {
       console.log('Supplier user already exists:', application.email);
       return;
     }
 
-    // Generate temporary password
     const tempPassword = crypto.randomBytes(12).toString('hex');
 
-    // Create supplier user
     const supplierData = {
       email: application.email,
       password: tempPassword,
-      fullName: application.contactPerson,
+      fullName: application.contactName,
       role: 'supplier',
       isActive: true,
-      
+
       supplierDetails: {
         companyName: application.companyName,
-        contactName: application.contactPerson,
-        phoneNumber: application.phone,
+        contactName: application.contactName,
+        phoneNumber: application.phoneNumber,
+        alternatePhone: application.alternatePhone,
         address: application.address,
-        businessRegistrationNumber: application.businessLicense,
-        taxIdNumber: application.taxId,
-        supplierType: this.mapCategoryToSupplierType(application.category),
+        businessRegistrationNumber: application.businessRegistrationNumber,
+        taxIdNumber: application.taxIdNumber,
+        supplierType: application.supplierType,
+        businessType: application.businessType,
+        website: application.website,
+        establishedYear: application.establishedYear,
+        employeeCount: application.employeeCount,
         bankDetails: application.bankDetails,
-        businessInfo: {
-          yearsInBusiness: application.yearsInBusiness,
-          primaryServices: application.services,
-          website: application.website
-        }
+        documents: normalizeDocuments(application.documents || {})
       },
-      
+
       supplierStatus: {
         accountStatus: 'approved',
         isVerified: true,
@@ -1175,7 +1194,6 @@ exports.createSupplierAccount = async function(application) {
     const supplier = await User.create(supplierData);
     console.log('Supplier account created:', supplier.email);
 
-    // Send login credentials
     await sendEmail({
       to: application.email,
       subject: 'Supplier Portal Access - Login Credentials',
@@ -1183,10 +1201,8 @@ exports.createSupplierAccount = async function(application) {
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="background-color: #d4edda; padding: 20px; border-radius: 8px;">
             <h2>Welcome to Grato Engineering Supplier Portal</h2>
-            <p>Dear ${application.contactPerson},</p>
-            
+            <p>Dear ${application.contactName},</p>
             <p>Your supplier account has been approved and created. You can now access our supplier portal.</p>
-            
             <div style="background-color: white; padding: 20px; border-radius: 5px; margin: 20px 0;">
               <h3>Login Credentials:</h3>
               <ul>
@@ -1194,12 +1210,10 @@ exports.createSupplierAccount = async function(application) {
                 <li><strong>Temporary Password:</strong> ${tempPassword}</li>
                 <li><strong>Portal URL:</strong> ${process.env.CLIENT_URL}/supplier/login</li>
               </ul>
-              
               <div style="background-color: #fff3cd; padding: 10px; border-radius: 3px; margin-top: 15px;">
                 <p><strong>Important:</strong> Please change your password after first login for security.</p>
               </div>
             </div>
-            
             <p>You can now submit quotes, track orders, and manage your supplier profile through the portal.</p>
             <p>Best regards,<br>Grato Engineering Team</p>
           </div>

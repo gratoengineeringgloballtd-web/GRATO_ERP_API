@@ -117,6 +117,117 @@ const serveAttachment = (attachment, res, disposition) => {
 //   purchaseRequisitionController.getDashboardStats
 // );
 
+// router.get(
+//   '/dashboard-stats',
+//   authMiddleware,
+//   async (req, res) => {
+//     try {
+//       const PurchaseRequisition = require('../models/PurchaseRequisition');
+//       const User = require('../models/User');
+
+//       const user = await User.findById(req.user.userId);
+
+//       const ALL_PENDING = [
+//         'pending_supervisor',
+//         'pending_finance_verification',
+//         'pending_supply_chain_review',
+//         'pending_buyer_assignment',
+//         'pending_head_approval',
+//         'pending_ceo_approval'
+//       ];
+
+//       let baseFilter   = {};
+//       let pendingFilter = {};
+
+//       if (user.role === 'employee') {
+//         // Employee sees only their own requisitions
+//         baseFilter    = { employee: req.user.userId };
+//         pendingFilter = { employee: req.user.userId, status: { $in: ALL_PENDING } };
+
+//       } else if (['supervisor', 'technical', 'hr', 'it', 'hse', 'project'].includes(user.role)) {
+//         // Supervisor-type roles: only requests where it is currently their turn
+//         baseFilter = {
+//           'approvalChain': { $elemMatch: { 'approver.email': user.email } }
+//         };
+//         pendingFilter = {
+//           $and: [
+//             {
+//               'approvalChain': {
+//                 $elemMatch: { 'approver.email': user.email, 'status': 'pending' }
+//               }
+//             },
+//             { status: { $in: ALL_PENDING } }
+//           ]
+//         };
+
+//       } else if (user.role === 'finance') {
+//         // Finance: requests sitting at finance verification stage
+//         baseFilter    = { status: { $in: ['pending_finance_verification', 'approved', 'completed', 'in_procurement', 'procurement_complete', 'delivered'] } };
+//         pendingFilter = {
+//           status: 'pending_finance_verification',
+//           'approvalChain': {
+//             $elemMatch: { 'approver.email': user.email, 'status': 'pending' }
+//           }
+//         };
+
+//       } else if (user.role === 'supply_chain') {
+//         // Supply chain: requests at their review / buyer-assignment stage
+//         baseFilter    = { status: { $in: ['pending_supply_chain_review', 'pending_buyer_assignment', 'supply_chain_approved', 'in_procurement', 'procurement_complete'] } };
+//         pendingFilter = { status: { $in: ['pending_supply_chain_review', 'pending_buyer_assignment'] } };
+
+//       } else if (user.role === 'buyer') {
+//         // Buyer: requisitions assigned to them
+//         baseFilter    = { 'supplyChainReview.assignedBuyer': req.user.userId };
+//         pendingFilter = {
+//           'supplyChainReview.assignedBuyer': req.user.userId,
+//           status: { $in: ['pending_buyer_assignment', 'in_procurement'] }
+//         };
+
+//       } else if (user.role === 'ceo') {
+//         // CEO: only requests explicitly waiting for CEO sign-off
+//         baseFilter    = {};
+//         pendingFilter = { status: 'pending_ceo_approval' };
+
+//       } else if (user.role === 'admin') {
+//         baseFilter    = {};
+//         pendingFilter = { status: { $in: ALL_PENDING } };
+
+//       } else {
+//         // Fallback — own requests
+//         baseFilter    = { employee: req.user.userId };
+//         pendingFilter = { employee: req.user.userId, status: { $in: ALL_PENDING } };
+//       }
+
+//       const [total, pending, approved, rejected, completed] = await Promise.all([
+//         PurchaseRequisition.countDocuments(baseFilter),
+//         PurchaseRequisition.countDocuments(pendingFilter),
+//         PurchaseRequisition.countDocuments({ ...baseFilter, status: { $in: ['approved', 'in_procurement', 'procurement_complete', 'delivered'] } }),
+//         PurchaseRequisition.countDocuments({ ...baseFilter, status: 'rejected' }),
+//         PurchaseRequisition.countDocuments({ ...baseFilter, status: 'completed' })
+//       ]);
+
+//       res.json({
+//         success: true,
+//         data: { total, pending, approved, rejected, completed }
+//       });
+
+//     } catch (error) {
+//       console.error('PR dashboard stats error:', error);
+//       res.status(500).json({
+//         success: false,
+//         message: 'Failed to fetch purchase requisition stats',
+//         error: error.message
+//       });
+//     }
+//   }
+// );
+
+
+
+// ============================================
+// PURCHASE REQUISITION DASHBOARD STATS
+// (single definition — do NOT duplicate this route elsewhere in the file)
+// ============================================
 router.get(
   '/dashboard-stats',
   authMiddleware,
@@ -136,16 +247,15 @@ router.get(
         'pending_ceo_approval'
       ];
 
-      let baseFilter   = {};
+      let baseFilter = {};
       let pendingFilter = {};
 
       if (user.role === 'employee') {
-        // Employee sees only their own requisitions
-        baseFilter    = { employee: req.user.userId };
+        baseFilter = { employee: req.user.userId };
         pendingFilter = { employee: req.user.userId, status: { $in: ALL_PENDING } };
 
       } else if (['supervisor', 'technical', 'hr', 'it', 'hse', 'project'].includes(user.role)) {
-        // Supervisor-type roles: only requests where it is currently their turn
+        // Only requisitions where this user currently has a pending approval-chain step
         baseFilter = {
           'approvalChain': { $elemMatch: { 'approver.email': user.email } }
         };
@@ -156,45 +266,55 @@ router.get(
                 $elemMatch: { 'approver.email': user.email, 'status': 'pending' }
               }
             },
-            { status: { $in: ALL_PENDING } }
+            { status: 'pending_supervisor' }
           ]
         };
 
       } else if (user.role === 'finance') {
-        // Finance: requests sitting at finance verification stage
-        baseFilter    = { status: { $in: ['pending_finance_verification', 'approved', 'completed', 'in_procurement', 'procurement_complete', 'delivered'] } };
-        pendingFilter = {
-          status: 'pending_finance_verification',
-          'approvalChain': {
-            $elemMatch: { 'approver.email': user.email, 'status': 'pending' }
+        // Finance verification is a separate field, not part of approvalChain
+        baseFilter = {
+          status: {
+            $in: [
+              'pending_finance_verification', 'pending_supply_chain_review',
+              'pending_buyer_assignment', 'pending_head_approval',
+              'pending_ceo_approval', 'approved', 'in_procurement',
+              'procurement_complete', 'delivered', 'completed',
+              'partially_disbursed', 'fully_disbursed'
+            ]
           }
         };
+        pendingFilter = { status: 'pending_finance_verification' };
 
       } else if (user.role === 'supply_chain') {
-        // Supply chain: requests at their review / buyer-assignment stage
-        baseFilter    = { status: { $in: ['pending_supply_chain_review', 'pending_buyer_assignment', 'supply_chain_approved', 'in_procurement', 'procurement_complete'] } };
+        baseFilter = {
+          status: {
+            $in: [
+              'pending_supply_chain_review', 'pending_buyer_assignment',
+              'pending_head_approval', 'pending_ceo_approval',
+              'approved', 'in_procurement', 'procurement_complete', 'delivered'
+            ]
+          }
+        };
         pendingFilter = { status: { $in: ['pending_supply_chain_review', 'pending_buyer_assignment'] } };
 
       } else if (user.role === 'buyer') {
-        // Buyer: requisitions assigned to them
-        baseFilter    = { 'supplyChainReview.assignedBuyer': req.user.userId };
+        baseFilter = { 'supplyChainReview.assignedBuyer': req.user.userId };
         pendingFilter = {
           'supplyChainReview.assignedBuyer': req.user.userId,
-          status: { $in: ['pending_buyer_assignment', 'in_procurement'] }
+          status: { $in: ['pending_head_approval', 'in_procurement'] }
         };
 
       } else if (user.role === 'ceo') {
-        // CEO: only requests explicitly waiting for CEO sign-off
-        baseFilter    = {};
+        // CEO pending = only requisitions explicitly waiting on CEO sign-off
+        baseFilter = {};
         pendingFilter = { status: 'pending_ceo_approval' };
 
       } else if (user.role === 'admin') {
-        baseFilter    = {};
+        baseFilter = {};
         pendingFilter = { status: { $in: ALL_PENDING } };
 
       } else {
-        // Fallback — own requests
-        baseFilter    = { employee: req.user.userId };
+        baseFilter = { employee: req.user.userId };
         pendingFilter = { employee: req.user.userId, status: { $in: ALL_PENDING } };
       }
 
@@ -260,11 +380,11 @@ router.get('/finance/budget-codes',
   purchaseRequisitionController.getBudgetCodesForVerification
 );
 
-// Dashboard stats
-router.get('/dashboard-stats', 
-  authMiddleware,
-  purchaseRequisitionController.getDashboardStats
-);
+// // Dashboard stats
+// router.get('/dashboard-stats', 
+//   authMiddleware,
+//   purchaseRequisitionController.getDashboardStats
+// );
 
 // Purchase requisition specific dashboard stats
 router.get('/pr-dashboard-stats', 
