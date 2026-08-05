@@ -20,7 +20,6 @@ const SharePointFolderSchema = new mongoose.Schema({
   name: {
     type: String,
     required: true,
-    unique: true,
     trim: true,
     maxlength: 100
   },
@@ -46,6 +45,26 @@ const SharePointFolderSchema = new mongoose.Schema({
   isPublic: {
     type: Boolean,
     default: false
+  },
+
+  // ── Nested folders ─────────────────────────────────────────────────────
+  // parentFolder is the direct parent (null = top-level/root folder).
+  // ancestors is the full chain from root to direct parent, in order - a
+  // materialized path that makes "is this folder inside X" and breadcrumb
+  // lookups a single indexed query instead of walking parentFolder links
+  // one hop at a time.
+  parentFolder: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'SharePointFolder',
+    default: null
+  },
+  ancestors: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'SharePointFolder'
+  }],
+  depth: {
+    type: Number,
+    default: 0
   },
 
   createdBy: {
@@ -84,6 +103,11 @@ const SharePointFolderSchema = new mongoose.Schema({
 SharePointFolderSchema.index({ department: 1, privacyLevel: 1 });
 SharePointFolderSchema.index({ 'accessControl.invitedUsers.userId': 1 });
 SharePointFolderSchema.index({ createdBy: 1 });
+SharePointFolderSchema.index({ parentFolder: 1 });
+SharePointFolderSchema.index({ ancestors: 1 });
+// A folder name only needs to be unique among its siblings (same parent),
+// not globally - "Reports" can exist under both Finance and HR.
+SharePointFolderSchema.index({ parentFolder: 1, name: 1 }, { unique: true });
 
 
 // ============================================

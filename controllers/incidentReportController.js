@@ -1374,7 +1374,7 @@ const getDashboardStats = async (req, res) => {
       criticalIncidents
     ] = await Promise.all([
       IncidentReport.countDocuments(query),
-      IncidentReport.countDocuments({ ...query, status: { $in: ['pending_supervisor', 'pending_hr_review'] } }),
+      IncidentReport.countDocuments({ ...query, status: { $in: IncidentReport.STATUS_GROUPS.OPEN } }),
       IncidentReport.countDocuments({ ...query, status: 'resolved' }),
       IncidentReport.countDocuments({ ...query, severity: 'critical' })
     ]);
@@ -1562,7 +1562,7 @@ const getUrgentIncidentReports = async (req, res) => {
           createdAt: { 
             $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) // Last 24 hours
           },
-          status: { $in: ['pending_supervisor', 'pending_hr_review'] }
+          status: { $in: IncidentReport.STATUS_GROUPS.OPEN }
         }
       ]
     };
@@ -1572,7 +1572,7 @@ const getUrgentIncidentReports = async (req, res) => {
       query['approvalChain.approver.email'] = user.email;
       query['approvalChain.status'] = 'pending';
     } else if (user.role === 'hr') {
-      query.status = { $in: ['pending_hr_review', 'under_investigation'] };
+      query.status = { $in: ['under_review', 'under_investigation'] };
     }
 
     const urgentReports = await IncidentReport.find(query)
@@ -1589,7 +1589,7 @@ const getUrgentIncidentReports = async (req, res) => {
       priorityScore: getIncidentTypePriority(
         report.incidentType,
         report.severity,
-        report.injuresReported
+        report.injuriesReported
       )
     }));
 
@@ -1659,7 +1659,15 @@ const getIncidentAnalytics = async (req, res) => {
             count: { $sum: 1 },
             injuryCount: { $sum: { $cond: ['$injuriesReported', 1, 0] } },
             resolvedCount: { $sum: { $cond: [{ $eq: ['$status', 'resolved'] }, 1, 0] } },
-            avgResolutionTime: { $avg: '$resolutionTime' }
+            avgResolutionTime: {
+              $avg: {
+                $cond: [
+                  { $and: [{ $eq: ['$status', 'resolved'] }, { $ne: ['$resolutionDate', null] }] },
+                  { $divide: [{ $subtract: ['$resolutionDate', '$createdAt'] }, 1000 * 60 * 60 * 24] },
+                  null
+                ]
+              }
+            }
           }
         }
       ]),
@@ -1726,10 +1734,10 @@ const getIncidentAnalytics = async (req, res) => {
             },
             supervisorNotifiedCount: { $sum: { $cond: ['$supervisorNotified', 1, 0] } },
             emergencyServicesCount: { $sum: { $cond: ['$emergencyServicesContacted', 1, 0] } },
-            investigationRequiredCount: { $sum: { $cond: ['$investigation.required', 1, 0] } },
+            investigationRequiredCount: { $sum: { $cond: ['$hseManagement.investigationRequired', 1, 0] } },
             investigationCompletedCount: {
               $sum: {
-                $cond: [{ $eq: ['$investigation.status', 'completed'] }, 1, 0]
+                $cond: [{ $ne: ['$hseManagement.investigationCompletedDate', null] }, 1, 0]
               }
             }
           }
@@ -3122,6 +3130,9 @@ const getIncidentDashboardStats = async (req, res) => {
 
     const stats = {
       pending: pendingIncidents,
+      underReview: underReviewIncidents,
+      underInvestigation: underInvestigationIncidents,
+      resolved: resolvedIncidents,
       total: totalIncidents
     };
 

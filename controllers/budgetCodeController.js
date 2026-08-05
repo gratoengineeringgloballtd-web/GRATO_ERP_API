@@ -13,19 +13,15 @@ const calculateBudgetUsage = async (budgetCodeId) => {
 
     // 1. Calculate usage from Purchase Requisitions (only count those approved by head or beyond)
     const requisitionStatuses = [
-      'approved',
-      'assigned_to_buyer',
-      'converted_to_po',
-      'partially_delivered',
-      'fully_delivered',
-      'fully_disbursed',
-      'sourcing',
-      'justified',
-      'justification_pending_supervisor',
-      'justification_pending_finance',
-      'justification_pending_supply_chain',
-      'justification_pending_head',
-      'justification_approved'
+      ...PurchaseRequisition.STATUS_GROUPS.APPROVED,
+      ...PurchaseRequisition.STATUS_GROUPS.JUSTIFICATION_PENDING,
+      'justification_approved',
+      'justification_rejected',
+      'justification_rejected_supervisor',
+      'justification_rejected_finance',
+      'justification_rejected_supply_chain',
+      'justification_rejected_head',
+      'justification_rejected_ceo'
     ];
 
     const purchaseRequisitions = await PurchaseRequisition.find({
@@ -39,6 +35,7 @@ const calculateBudgetUsage = async (budgetCodeId) => {
     // 2. Calculate usage from Cash Requests (only approved and disbursed)
     const cashRequestStatuses = [
       'approved',
+      'partially_disbursed',
       'fully_disbursed',
       'completed'
     ];

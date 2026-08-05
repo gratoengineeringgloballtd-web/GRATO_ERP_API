@@ -249,10 +249,22 @@ const processCancellationApproval = async (req, res) => {
       requisition.cancellationRequest.finalizedAt = new Date();
       requisition.status = 'cancelled';
 
-      // Budget note: budget.used is only incremented on disbursement (processDisbursement).
-      // Since cancellation is blocked after disbursement, totalDisbursed should be 0 here.
-      // No budget release action required.
-      console.log(`✅ PR ${requisition.requisitionNumber} cancelled. Budget code: ${requisition.budgetCode} — no disbursement had occurred.`);
+      // Release any active budget reservation. Disbursed statuses ('partially_disbursed',
+      // 'fully_disbursed') are already excluded via NON_CANCELLABLE_STATUSES, so the only
+      // reservation that can exist here is from a fully-approved-but-undisbursed PR.
+      if (requisition.budgetCode) {
+        try {
+          const BudgetCode = require('../models/BudgetCode');
+          const budgetCodeDoc = await BudgetCode.findById(requisition.budgetCode);
+          if (budgetCodeDoc) {
+            await budgetCodeDoc.releaseReservation(requisition._id, `PR ${requisition.requisitionNumber} cancelled`);
+          }
+        } catch (releaseError) {
+          console.error(`Failed to release budget reservation for cancelled PR ${requisition.requisitionNumber}:`, releaseError);
+        }
+      }
+
+      console.log(`✅ PR ${requisition.requisitionNumber} cancelled. Budget code: ${requisition.budgetCode}.`);
 
       await requisition.save();
 

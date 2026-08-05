@@ -61,7 +61,8 @@ const STORAGE_CATEGORIES = {
   ACTION_ITEMS:          'action-items',
   IT_SUPPORT:            'it-support',
   SALARY_PAYMENTS:       'salary-payments',
-  USER_SIGNATURES:       'user-signatures'
+  USER_SIGNATURES:       'user-signatures',
+  SHAREPOINT:            'sharepoint'
 };
 
 const CLOUDINARY_ROOT = process.env.CLOUDINARY_ROOT_FOLDER || 'grato-erp';

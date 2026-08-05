@@ -3810,30 +3810,30 @@ const getDashboardStats = async (req, res) => {
       pendingMyApproval: 0
     };
 
+    const { PENDING, APPROVED } = CashRequest.STATUS_GROUPS;
+
     // Role-based stats
     if (user.role === 'admin') {
       // Admin sees all requests
       const allRequests = await CashRequest.find({});
       
       stats.total = allRequests.length;
-      stats.pending = allRequests.filter(req => 
-        ['pending_supervisor', 'pending_departmental_head', 'pending_head_of_business', 'pending_finance'].includes(req.status)
-      ).length;
-      stats.approved = allRequests.filter(req => req.status === 'approved').length;
-      stats.disbursed = allRequests.filter(req => req.status === 'disbursed').length;
+      stats.pending = allRequests.filter(req => PENDING.includes(req.status)).length;
+      stats.approved = allRequests.filter(req => APPROVED.includes(req.status)).length;
+      stats.disbursed = allRequests.filter(req => ['partially_disbursed', 'fully_disbursed'].includes(req.status)).length;
       stats.completed = allRequests.filter(req => req.status === 'completed').length;
       stats.rejected = allRequests.filter(req => req.status === 'denied').length;
 
     } else if (user.role === 'finance') {
       // Finance sees finance-related requests
       const financeRequests = await CashRequest.find({
-        status: { $in: ['pending_finance', 'approved', 'disbursed', 'completed'] }
+        status: { $in: ['pending_finance', ...APPROVED] }
       });
       
       stats.total = financeRequests.length;
       stats.pending = financeRequests.filter(req => req.status === 'pending_finance').length;
-      stats.approved = financeRequests.filter(req => req.status === 'approved').length;
-      stats.disbursed = financeRequests.filter(req => req.status === 'disbursed').length;
+      stats.approved = financeRequests.filter(req => APPROVED.includes(req.status)).length;
+      stats.disbursed = financeRequests.filter(req => ['partially_disbursed', 'fully_disbursed'].includes(req.status)).length;
       stats.completed = financeRequests.filter(req => req.status === 'completed').length;
       stats.pendingMyApproval = financeRequests.filter(req => 
         req.status === 'pending_finance' &&
@@ -3849,12 +3849,8 @@ const getDashboardStats = async (req, res) => {
       });
       
       stats.total = supervisorRequests.length;
-      stats.pending = supervisorRequests.filter(req => 
-        ['pending_supervisor', 'pending_departmental_head', 'pending_head_of_business'].includes(req.status)
-      ).length;
-      stats.approved = supervisorRequests.filter(req => 
-        ['approved', 'disbursed', 'completed'].includes(req.status)
-      ).length;
+      stats.pending = supervisorRequests.filter(req => PENDING.includes(req.status)).length;
+      stats.approved = supervisorRequests.filter(req => APPROVED.includes(req.status)).length;
       stats.rejected = supervisorRequests.filter(req => req.status === 'denied').length;
       stats.pendingMyApproval = supervisorRequests.filter(req => 
         req.approvalChain?.some(step => 
@@ -3868,11 +3864,9 @@ const getDashboardStats = async (req, res) => {
       
       stats.total = myRequests.length;
       stats.myRequests = myRequests.length;
-      stats.pending = myRequests.filter(req => 
-        ['pending_supervisor', 'pending_departmental_head', 'pending_head_of_business', 'pending_finance'].includes(req.status)
-      ).length;
-      stats.approved = myRequests.filter(req => req.status === 'approved').length;
-      stats.disbursed = myRequests.filter(req => req.status === 'disbursed').length;
+      stats.pending = myRequests.filter(req => PENDING.includes(req.status)).length;
+      stats.approved = myRequests.filter(req => APPROVED.includes(req.status)).length;
+      stats.disbursed = myRequests.filter(req => ['partially_disbursed', 'fully_disbursed'].includes(req.status)).length;
       stats.completed = myRequests.filter(req => req.status === 'completed').length;
       stats.rejected = myRequests.filter(req => req.status === 'denied').length;
     }

@@ -183,14 +183,14 @@ router.get('/supply-chain/dashboard/stats',
 // Get pending supplier approvals for user
 router.get('/supervisor/pending',
   authMiddleware,
-  requireRoles('supervisor', 'admin', 'finance', 'hr', 'it', 'technical', 'ceo'),
+  requireRoles('supervisor', 'admin', 'finance', 'hr', 'it', 'technical', 'ceo', 'supply-chain'),
   supplierInvoiceController.getPendingSupplierApprovalsForUser
 );
 
 // Process supplier invoice approval/rejection WITH signed document
 router.put('/supervisor/invoices/:invoiceId/decision',
   authMiddleware,
-  requireRoles('supervisor', 'admin', 'finance', 'hr', 'it', 'technical', 'ceo'),
+  requireRoles('supervisor', 'admin', 'finance', 'hr', 'it', 'technical', 'ceo', 'supply-chain'),
   upload.fields([
     { name: 'signedDocument', maxCount: 1 }
   ]),
@@ -354,19 +354,19 @@ router.get('/admin/onboarding/applications/:applicationId/documents/:documentId'
 
 router.post('/contracts',
   authMiddleware,
-  requireRoles('admin', 'supply_chain', 'ceo'),
+  requireRoles('admin', 'supply_chain', 'ceo', 'supply-chain'),
   contractController.createContract
 );
 
 router.post('/contracts/:contractId/link-invoice',
   authMiddleware,
-  requireRoles('admin', 'finance', 'ceo'),
+  requireRoles('admin', 'finance', 'ceo', 'supply-chain'),
   contractController.linkInvoiceToContract
 );
 
 router.delete('/contracts/:contractId/invoices/:invoiceId',
   authMiddleware,
-  requireRoles('admin', 'finance', 'ceo'),
+  requireRoles('admin', 'finance', 'ceo', 'supply-chain'),
   contractController.unlinkInvoiceFromContract
 );
 
@@ -408,19 +408,19 @@ router.get('/invoices/:invoiceId',
 
 router.get('/admin/invoices',
   authMiddleware,
-  requireRoles('admin', 'finance', 'ceo'),
+  requireRoles('admin', 'finance', 'ceo', 'supply-chain'),
   supplierInvoiceController.getSupplierInvoicesForFinance
 );
 
 router.put('/admin/invoices/:invoiceId/details',
   authMiddleware,
-  requireRoles('finance', 'admin', 'ceo'),
+  requireRoles('finance', 'admin', 'ceo', 'supply-chain'),
   supplierInvoiceController.updateSupplierInvoiceDetails
 );
 
 router.post('/admin/invoices/:invoiceId/process-and-assign',
   authMiddleware,
-  requireRoles('finance', 'admin', 'ceo'),
+  requireRoles('finance', 'admin', 'ceo', 'supply-chain'),
   async (req, res) => {
     const { department, comments, updateDetails } = req.body;
     req.body = { department, comments, updateDetails };
@@ -430,31 +430,31 @@ router.post('/admin/invoices/:invoiceId/process-and-assign',
 
 router.post('/admin/invoices/:invoiceId/assign',
   authMiddleware,
-  requireRoles('finance', 'admin', 'ceo'),
+  requireRoles('finance', 'admin', 'ceo', 'supply-chain'),
   supplierInvoiceController.assignSupplierInvoiceToDepartment
 );
 
 router.post('/admin/invoices/bulk-assign',
   authMiddleware,
-  requireRoles('finance', 'admin', 'ceo'),
+  requireRoles('finance', 'admin', 'ceo', 'supply-chain'),
   supplierInvoiceController.bulkAssignSupplierInvoices
 );
 
 router.post('/admin/invoices/:invoiceId/payment',
   authMiddleware,
-  requireRoles('finance', 'admin', 'ceo'),
+  requireRoles('finance', 'admin', 'ceo', 'supply-chain'),
   supplierInvoiceController.processSupplierInvoicePayment
 );
 
 router.put('/admin/invoices/:invoiceId/process',
   authMiddleware,
-  requireRoles('finance', 'admin', 'ceo'),
+  requireRoles('finance', 'admin', 'ceo', 'supply-chain'),
   supplierInvoiceController.markSupplierInvoiceAsProcessed
 );
 
 router.get('/admin/analytics',
   authMiddleware,
-  requireRoles('finance', 'admin', 'ceo'),
+  requireRoles('finance', 'admin', 'ceo', 'supply-chain'),
   supplierInvoiceController.getSupplierInvoiceAnalytics
 );
 

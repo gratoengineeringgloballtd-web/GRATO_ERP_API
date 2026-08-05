@@ -3,6 +3,9 @@ const {
   generateBudgetDashboardReport,
   generateUtilizationReport,
   generateAlertsReport,
+  generateRequisitionSummaryReport,
+  generateRequisitionSpendReport,
+  generateRequisitionPendingApprovalsReport,
   generateExcelReport,
   sendScheduledReportEmail
 } = require('./reportGenerationService');
@@ -29,6 +32,15 @@ const executeScheduledReport = async (scheduledReport) => {
         break;
       case 'budget_alerts':
         reportData = await generateAlertsReport(scheduledReport.filters);
+        break;
+      case 'requisition_summary':
+        reportData = await generateRequisitionSummaryReport(scheduledReport.filters);
+        break;
+      case 'requisition_spend':
+        reportData = await generateRequisitionSpendReport(scheduledReport.filters);
+        break;
+      case 'requisition_pending_approvals':
+        reportData = await generateRequisitionPendingApprovalsReport(scheduledReport.filters);
         break;
       default:
         throw new Error(`Unknown report type: ${scheduledReport.reportType}`);

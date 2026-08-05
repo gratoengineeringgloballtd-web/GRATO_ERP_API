@@ -19,6 +19,9 @@ const scheduledReportSchema = new mongoose.Schema({
       'budget_revisions',
       'budget_transfers',
       'budget_alerts',
+      'requisition_summary',
+      'requisition_spend',
+      'requisition_pending_approvals',
       'custom'
     ]
   },

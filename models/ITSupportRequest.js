@@ -576,4 +576,20 @@ ITSupportRequestSchema.pre(['findOneAndUpdate', 'updateOne', 'updateMany'], func
   next();
 });
 
-module.exports = mongoose.model('ITSupportRequest', ITSupportRequestSchema);
+const ITSupportRequestModel = mongoose.model('ITSupportRequest', ITSupportRequestSchema);
+
+ITSupportRequestModel.STATUS_GROUPS = {
+  PENDING: [
+    'pending_supervisor',
+    'pending_departmental_head',
+    'pending_head_of_business',
+    'pending_it_approval',
+    'pending_discharge',
+    'pending_acknowledgment'
+  ],
+  IN_PROGRESS: ['it_assigned', 'in_progress', 'waiting_parts'],
+  RESOLVED: ['resolved', 'closed', 'discharge_complete'],
+  REJECTED: ['supervisor_rejected', 'it_rejected', 'rejected']
+};
+
+module.exports = ITSupportRequestModel;

@@ -609,7 +609,35 @@ CashRequestSchema.statics.checkMonthlyReimbursementLimit = async function(employ
   };
 };
 
-module.exports = mongoose.model('CashRequest', CashRequestSchema);
+const CashRequestModel = mongoose.model('CashRequest', CashRequestSchema);
+
+CashRequestModel.STATUS_GROUPS = {
+  PENDING: [
+    'pending_supervisor',
+    'pending_departmental_head',
+    'pending_hr',
+    'pending_finance',
+    'pending_head_of_business',
+    'pending_ceo'
+  ],
+  APPROVED: [
+    'approved',
+    'partially_disbursed',
+    'fully_disbursed',
+    'completed'
+  ],
+  REJECTED: ['denied'],
+  JUSTIFICATION_PENDING: [
+    'justification_pending_supervisor',
+    'justification_pending_departmental_head',
+    'justification_pending_hr',
+    'justification_pending_finance',
+    'justification_pending_head_of_business',
+    'justification_pending_ceo'
+  ]
+};
+
+module.exports = CashRequestModel;
 
 
 

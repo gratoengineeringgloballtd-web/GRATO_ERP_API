@@ -1469,7 +1469,7 @@ const getHRLeaves = async (req, res) => {
     const { status, category, page = 1, limit = 10 } = req.query;
     
     const filter = {
-      status: { $in: ['pending_hr', 'approved_hr', 'rejected_hr', 'completed'] }
+      status: { $in: ['pending_hr_approval', 'approved', 'rejected', 'completed'] }
     };
     
     if (status) filter.status = status;
@@ -1521,7 +1521,7 @@ const processHRDecision = async (req, res) => {
     }
     
     // Check if leave is in correct status
-    if (leave.status !== 'pending_hr') {
+    if (leave.status !== 'pending_hr_approval') {
       return res.status(400).json({
         success: false,
         message: 'Leave request is not pending HR approval'
@@ -1866,17 +1866,18 @@ const getDashboardStats = async (req, res) => {
     const userRole = req.user.role;
     
     let stats = {};
-    
+    const { PENDING, APPROVED } = Leave.STATUS_GROUPS;
+
     if (userRole === 'employee') {
       // Employee stats
       const pendingCount = await Leave.countDocuments({
         employee: userId,
-        status: { $in: ['pending_supervisor', 'pending_hr'] }
+        status: { $in: PENDING }
       });
       
       const approvedCount = await Leave.countDocuments({
         employee: userId,
-        status: 'approved'
+        status: { $in: APPROVED }
       });
       
       const rejectedCount = await Leave.countDocuments({
@@ -1925,7 +1926,7 @@ const getDashboardStats = async (req, res) => {
     } else if (['hr', 'admin'].includes(userRole)) {
       // HR/Admin stats
       const pendingHRCount = await Leave.countDocuments({
-        status: 'pending_hr'
+        status: 'pending_hr_approval'
       });
       
       const pendingSupervisorCount = await Leave.countDocuments({

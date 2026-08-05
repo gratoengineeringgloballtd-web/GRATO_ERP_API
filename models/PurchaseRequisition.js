@@ -220,8 +220,8 @@ const PurchaseRequisitionSchema = new mongoose.Schema({
       'pending_supply_chain_review',
       'pending_buyer_assignment',
       'pending_head_approval',
-      // 'pending_ceo_approval',           // ← NEW: CEO final sign-off
-      'pending_ceo',
+      'pending_ceo_approval',           // CEO final sign-off (used by processHeadApproval)
+      'pending_ceo',                    // legacy alias kept for backward compatibility with old data
       'approved',
       'partially_disbursed',
       'fully_disbursed',
@@ -949,7 +949,66 @@ PurchaseRequisitionSchema.pre('save', function(next) {
   next();
 });
 
-module.exports = mongoose.model('PurchaseRequisition', PurchaseRequisitionSchema);
+const PurchaseRequisitionModel = mongoose.model('PurchaseRequisition', PurchaseRequisitionSchema);
+
+// Canonical status groupings, used across every dashboard/analytics/report query so they
+// can't silently drift out of sync with each other or with the schema's actual enum.
+// Previously each controller function hand-rolled its own status list (e.g. one counted
+// 'approved' as only ['approved', 'supply_chain_approved'] while another used
+// ['approved', 'in_procurement', 'procurement_complete', 'delivered']), and several
+// referenced statuses that are never actually set in practice (e.g. 'procurement_complete',
+// 'supply_chain_approved') or omitted ones that are (e.g. 'partially_disbursed',
+// 'fully_disbursed'). That mismatch is why summary counts didn't add up to the total.
+PurchaseRequisitionModel.STATUS_GROUPS = {
+  // Still moving through the approval chain (not yet a final decision).
+  PENDING: [
+    'pending_supervisor',
+    'pending_finance_verification',
+    'pending_supply_chain_review',
+    'pending_buyer_assignment',
+    'pending_head_approval',
+    'pending_ceo_approval',
+    'pending_ceo'
+  ],
+  // Approved at some point and not rejected/cancelled since — includes every stage from
+  // initial sign-off through to fully spent, since 'approved' alone undercounts everything
+  // that has since moved to procurement or disbursement.
+  APPROVED: [
+    'approved',
+    'in_procurement',
+    'procurement_complete',
+    'delivered',
+    'partially_disbursed',
+    'fully_disbursed',
+    'completed'
+  ],
+  REJECTED: [
+    'rejected',
+    'supply_chain_rejected'
+  ],
+  IN_PROCUREMENT: [
+    'in_procurement',
+    'procurement_complete',
+    'delivered'
+  ],
+  DISBURSEMENT_COMPLETE: [
+    'fully_disbursed',
+    'completed'
+  ],
+  JUSTIFICATION_PENDING: [
+    'justification_pending_supervisor',
+    'justification_pending_finance',
+    'justification_pending_supply_chain',
+    'justification_pending_head',
+    'justification_pending_ceo'
+  ],
+  CANCELLED_OR_WITHDRAWN: [
+    'cancelled',
+    'pending_cancellation'
+  ]
+};
+
+module.exports = PurchaseRequisitionModel;
 
 
 

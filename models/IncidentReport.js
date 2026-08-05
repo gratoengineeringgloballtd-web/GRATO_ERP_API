@@ -394,7 +394,14 @@ IncidentReportSchema.pre(['findOneAndUpdate', 'updateOne', 'updateMany'], functi
   next();
 });
 
-module.exports = mongoose.model('IncidentReport', IncidentReportSchema);
+const IncidentReportModel = mongoose.model('IncidentReport', IncidentReportSchema);
+
+IncidentReportModel.STATUS_GROUPS = {
+  OPEN: ['submitted', 'under_review', 'under_investigation', 'action_required'],
+  CLOSED: ['resolved', 'archived']
+};
+
+module.exports = IncidentReportModel;
 
 
 

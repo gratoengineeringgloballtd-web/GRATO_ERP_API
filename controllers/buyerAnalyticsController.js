@@ -46,11 +46,19 @@ const getProcurementAnalytics = async (req, res) => {
           _id: '$itemCategory',
           count: { $sum: 1 },
           totalValue: { $sum: '$budgetXAF' },
-          avgProcessingTime: { $avg: '$processingTime' },
+          avgProcessingTime: {
+            $avg: {
+              $cond: [
+                { $in: ['$status', PurchaseRequisition.STATUS_GROUPS.APPROVED] },
+                { $divide: [{ $subtract: ['$updatedAt', '$createdAt'] }, 1000 * 60 * 60 * 24] },
+                null
+              ]
+            }
+          },
           completedCount: {
             $sum: {
               $cond: [
-                { $in: ['$status', ['procurement_complete', 'delivered']] },
+                { $in: ['$status', PurchaseRequisition.STATUS_GROUPS.APPROVED] },
                 1, 0
               ]
             }
@@ -84,7 +92,7 @@ const getProcurementAnalytics = async (req, res) => {
           completed: {
             $sum: {
               $cond: [
-                { $in: ['$status', ['procurement_complete', 'delivered']] },
+                { $in: ['$status', PurchaseRequisition.STATUS_GROUPS.APPROVED] },
                 1, 0
               ]
             }
@@ -99,15 +107,20 @@ const getProcurementAnalytics = async (req, res) => {
       {
         $match: {
           ...matchFilter,
-          status: { $in: ['procurement_complete', 'delivered'] }
+          status: { $in: PurchaseRequisition.STATUS_GROUPS.APPROVED }
+        }
+      },
+      {
+        $addFields: {
+          _processingDays: { $divide: [{ $subtract: ['$updatedAt', '$createdAt'] }, 1000 * 60 * 60 * 24] }
         }
       },
       {
         $group: {
           _id: null,
-          avgProcessingTime: { $avg: '$processingTime' },
-          minProcessingTime: { $min: '$processingTime' },
-          maxProcessingTime: { $max: '$processingTime' },
+          avgProcessingTime: { $avg: '$_processingDays' },
+          minProcessingTime: { $min: '$_processingDays' },
+          maxProcessingTime: { $max: '$_processingDays' },
           count: { $sum: 1 }
         }
       }
@@ -383,7 +396,7 @@ const getCostSavingsAnalytics = async (req, res) => {
       {
         $match: {
           createdAt: { $gte: startDate },
-          status: { $in: ['procurement_complete', 'delivered'] }
+          status: { $in: PurchaseRequisition.STATUS_GROUPS.APPROVED }
         }
       },
       {
@@ -426,7 +439,7 @@ const getCostSavingsAnalytics = async (req, res) => {
       {
         $match: {
           createdAt: { $gte: startDate },
-          status: { $in: ['procurement_complete', 'delivered'] }
+          status: { $in: PurchaseRequisition.STATUS_GROUPS.APPROVED }
         }
       },
       {
@@ -498,7 +511,7 @@ const getDeliveryPerformanceAnalytics = async (req, res) => {
     };
 
     if (supplierId) {
-      matchFilter.supplierId = mongoose.Types.ObjectId(supplierId);
+      matchFilter.supplierId = new mongoose.Types.ObjectId(supplierId);
     }
 
     // Overall delivery performance
@@ -750,7 +763,7 @@ const generateProcurementReport = async (startDate, category) => {
       {
         $match: {
           ...matchFilter,
-          status: { $in: ['procurement_complete', 'delivered'] }
+          status: { $in: PurchaseRequisition.STATUS_GROUPS.APPROVED }
         }
       },
       {
@@ -793,7 +806,7 @@ const generateProcurementReport = async (startDate, category) => {
 // Helper function to generate supplier report
 const generateSupplierReport = async (startDate, supplierId) => {
   let matchFilter = { creationDate: { $gte: startDate } };
-  if (supplierId) matchFilter.supplierId = mongoose.Types.ObjectId(supplierId);
+  if (supplierId) matchFilter.supplierId = new mongoose.Types.ObjectId(supplierId);
 
   const [
     performanceMetrics,
@@ -838,7 +851,7 @@ const generateSupplierReport = async (startDate, supplierId) => {
       {
         $match: {
           submissionDate: { $gte: startDate },
-          ...(supplierId && { supplierId: mongoose.Types.ObjectId(supplierId) })
+          ...(supplierId && { supplierId: new mongoose.Types.ObjectId(supplierId) })
         }
       },
       {
@@ -860,7 +873,7 @@ const generateSupplierReport = async (startDate, supplierId) => {
       {
         $match: {
           createdAt: { $gte: startDate },
-          ...(supplierId && { supplierId: mongoose.Types.ObjectId(supplierId) })
+          ...(supplierId && { supplierId: new mongoose.Types.ObjectId(supplierId) })
         }
       },
       {
@@ -892,7 +905,7 @@ const generateCostSavingsReport = async (startDate) => {
       {
         $match: {
           createdAt: { $gte: startDate },
-          status: { $in: ['procurement_complete', 'delivered'] }
+          status: { $in: PurchaseRequisition.STATUS_GROUPS.APPROVED }
         }
       },
       {
@@ -969,7 +982,7 @@ const generateCostSavingsReport = async (startDate) => {
       {
         $match: {
           createdAt: { $gte: startDate },
-          status: { $in: ['procurement_complete', 'delivered'] }
+          status: { $in: PurchaseRequisition.STATUS_GROUPS.APPROVED }
         }
       },
       {

@@ -7,6 +7,7 @@ const User = require('../models/User');
 const BudgetCode = require('../models/BudgetCode');
 const { getApprovalChainForRequisition } = require('../config/requisitionApprovalChain');
 const { sendEmail } = require('../services/emailService');
+const { saveFile, STORAGE_CATEGORIES } = require('../utils/cloudinaryStorage');
 
 /**
  * Resubmit a rejected purchase requisition
@@ -180,12 +181,24 @@ const resubmitRequisition = async (req, res) => {
 
     // 2. Add new uploaded attachments
     if (req.files && req.files.length > 0) {
-      const newAttachments = req.files.map(file => ({
-        name: file.originalname,
-        url: file.path,
-        publicId: file.filename,
-        uploadedAt: new Date()
-      }));
+      const newAttachments = [];
+      for (const file of req.files) {
+        try {
+          const fileMetadata = await saveFile(file, STORAGE_CATEGORIES.PURCHASE_REQUISITIONS, 'attachments', null);
+          newAttachments.push({
+            name: file.originalname,
+            url: fileMetadata.url,
+            publicId: fileMetadata.publicId,
+            localPath: fileMetadata.localPath,
+            size: file.size,
+            mimetype: file.mimetype,
+            uploadedAt: new Date()
+          });
+        } catch (fileError) {
+          console.error(`Error uploading attachment ${file.originalname}:`, fileError);
+          // Continue processing remaining files rather than failing the whole resubmission
+        }
+      }
       requisition.attachments.push(...newAttachments);
       console.log(`Added ${newAttachments.length} new attachments`);
     }

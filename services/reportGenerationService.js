@@ -1,5 +1,6 @@
 const BudgetCode = require('../models/BudgetCode');
 const BudgetTransfer = require('../models/BudgetTransfer');
+const PurchaseRequisition = require('../models/PurchaseRequisition');
 const { sendEmail } = require('./emailService');
 const ExcelJS = require('exceljs');
 const PDFDocument = require('pdfkit');
@@ -312,6 +313,195 @@ const generateAlertsReport = async (filters = {}) => {
 /**
  * Generate Excel Report
  */
+/**
+ * Generate Purchase Requisition Summary Report
+ * Overall counts, status breakdown, and per-department/category rollups.
+ */
+const generateRequisitionSummaryReport = async (filters = {}) => {
+  try {
+    console.log('📊 Generating Purchase Requisition Summary Report...');
+
+    const query = {};
+    if (filters.department) query.department = filters.department;
+    if (filters.itemCategory) query.itemCategory = filters.itemCategory;
+    if (filters.status) query.status = filters.status;
+    if (filters.dateRange?.start || filters.dateRange?.end) {
+      query.createdAt = {};
+      if (filters.dateRange.start) query.createdAt.$gte = new Date(filters.dateRange.start);
+      if (filters.dateRange.end) query.createdAt.$lte = new Date(filters.dateRange.end);
+    }
+
+    const requisitions = await PurchaseRequisition.find(query)
+      .populate('employee', 'fullName email department')
+      .populate('budgetCode', 'code name')
+      .sort({ createdAt: -1 });
+
+    const REJECTED = ['rejected', 'supply_chain_rejected'];
+    const APPROVED = ['approved', 'partially_disbursed', 'fully_disbursed', 'completed'];
+    const PENDING = [
+      'pending_supervisor', 'pending_finance_verification', 'pending_supply_chain_review',
+      'pending_buyer_assignment', 'pending_head_approval', 'pending_ceo_approval', 'pending_ceo'
+    ];
+
+    const summary = {
+      totalRequisitions: requisitions.length,
+      totalValue: 0,
+      approvedCount: 0,
+      approvedValue: 0,
+      rejectedCount: 0,
+      pendingCount: 0,
+      byDepartment: {},
+      byCategory: {}
+    };
+
+    requisitions.forEach(r => {
+      const value = r.budgetXAF || 0;
+      summary.totalValue += value;
+
+      if (APPROVED.includes(r.status)) { summary.approvedCount++; summary.approvedValue += value; }
+      else if (REJECTED.includes(r.status)) { summary.rejectedCount++; }
+      else if (PENDING.includes(r.status)) { summary.pendingCount++; }
+
+      const dept = r.department || 'Unassigned';
+      summary.byDepartment[dept] = summary.byDepartment[dept] || { count: 0, value: 0 };
+      summary.byDepartment[dept].count++;
+      summary.byDepartment[dept].value += value;
+
+      const cat = r.itemCategory || 'Other';
+      summary.byCategory[cat] = summary.byCategory[cat] || { count: 0, value: 0 };
+      summary.byCategory[cat].count++;
+      summary.byCategory[cat].value += value;
+    });
+
+    summary.approvalRate = summary.totalRequisitions > 0
+      ? Math.round((summary.approvedCount / summary.totalRequisitions) * 100)
+      : 0;
+
+    console.log('✅ Requisition summary report generated successfully');
+
+    return { summary, requisitions, generatedAt: new Date() };
+  } catch (error) {
+    console.error('Error generating requisition summary report:', error);
+    throw error;
+  }
+};
+
+/**
+ * Generate Purchase Requisition Spend Report
+ * Tracks approved value vs. actually disbursed value, by budget code.
+ */
+const generateRequisitionSpendReport = async (filters = {}) => {
+  try {
+    console.log('📊 Generating Purchase Requisition Spend Report...');
+
+    const query = { status: { $in: ['approved', 'partially_disbursed', 'fully_disbursed', 'completed'] } };
+    if (filters.department) query.department = filters.department;
+    if (filters.dateRange?.start || filters.dateRange?.end) {
+      query.createdAt = {};
+      if (filters.dateRange.start) query.createdAt.$gte = new Date(filters.dateRange.start);
+      if (filters.dateRange.end) query.createdAt.$lte = new Date(filters.dateRange.end);
+    }
+
+    const requisitions = await PurchaseRequisition.find(query)
+      .populate('budgetCode', 'code name department')
+      .populate('employee', 'fullName department')
+      .sort({ createdAt: -1 });
+
+    const byBudgetCode = {};
+    let totalApproved = 0;
+    let totalDisbursed = 0;
+
+    requisitions.forEach(r => {
+      const approved = r.budgetXAF || 0;
+      const disbursed = r.totalDisbursed || 0;
+      totalApproved += approved;
+      totalDisbursed += disbursed;
+
+      const key = r.budgetCode?.code || 'Unassigned';
+      if (!byBudgetCode[key]) {
+        byBudgetCode[key] = { code: key, name: r.budgetCode?.name || '', approved: 0, disbursed: 0, count: 0 };
+      }
+      byBudgetCode[key].approved += approved;
+      byBudgetCode[key].disbursed += disbursed;
+      byBudgetCode[key].count++;
+    });
+
+    const summary = {
+      totalRequisitions: requisitions.length,
+      totalApproved,
+      totalDisbursed,
+      totalOutstanding: totalApproved - totalDisbursed,
+      disbursementRate: totalApproved > 0 ? Math.round((totalDisbursed / totalApproved) * 100) : 0
+    };
+
+    console.log('✅ Requisition spend report generated successfully');
+
+    return { summary, byBudgetCode: Object.values(byBudgetCode), requisitions, generatedAt: new Date() };
+  } catch (error) {
+    console.error('Error generating requisition spend report:', error);
+    throw error;
+  }
+};
+
+/**
+ * Generate Purchase Requisition Pending Approvals Report
+ * A digest of everything currently stuck in the approval chain, with aging, so
+ * bottlenecks (e.g. a specific approver sitting on requests) are visible.
+ */
+const generateRequisitionPendingApprovalsReport = async (filters = {}) => {
+  try {
+    console.log('📊 Generating Purchase Requisition Pending Approvals Report...');
+
+    const PENDING_STATUSES = [
+      'pending_supervisor', 'pending_finance_verification', 'pending_supply_chain_review',
+      'pending_buyer_assignment', 'pending_head_approval', 'pending_ceo_approval', 'pending_ceo',
+      'justification_pending_supervisor', 'justification_pending_finance',
+      'justification_pending_supply_chain', 'justification_pending_head', 'justification_pending_ceo'
+    ];
+
+    const query = { status: { $in: PENDING_STATUSES } };
+    if (filters.department) query.department = filters.department;
+
+    const requisitions = await PurchaseRequisition.find(query)
+      .populate('employee', 'fullName email department')
+      .sort({ createdAt: 1 });
+
+    const now = Date.now();
+    const items = requisitions.map(r => {
+      const currentStep = r.approvalChain?.find(s => s.status === 'pending');
+      const daysPending = Math.floor((now - new Date(r.createdAt).getTime()) / (1000 * 60 * 60 * 24));
+      return {
+        requisitionNumber: r.requisitionNumber,
+        title: r.title,
+        employee: r.employee?.fullName || 'N/A',
+        department: r.department,
+        status: r.status,
+        budgetXAF: r.budgetXAF || 0,
+        pendingWith: currentStep?.approver?.name || 'N/A',
+        pendingWithEmail: currentStep?.approver?.email || '',
+        daysPending
+      };
+    });
+
+    const summary = {
+      totalPending: items.length,
+      totalValuePending: items.reduce((sum, i) => sum + i.budgetXAF, 0),
+      over7Days: items.filter(i => i.daysPending > 7).length,
+      over14Days: items.filter(i => i.daysPending > 14).length,
+      avgDaysPending: items.length > 0
+        ? Math.round(items.reduce((sum, i) => sum + i.daysPending, 0) / items.length)
+        : 0
+    };
+
+    console.log('✅ Requisition pending approvals report generated successfully');
+
+    return { summary, items, generatedAt: new Date() };
+  } catch (error) {
+    console.error('Error generating requisition pending approvals report:', error);
+    throw error;
+  }
+};
+
 const generateExcelReport = async (reportData, reportType) => {
   try {
     console.log('📄 Generating Excel report...');
@@ -329,6 +519,15 @@ const generateExcelReport = async (reportData, reportType) => {
         break;
       case 'budget_alerts':
         await createAlertsExcel(workbook, reportData);
+        break;
+      case 'requisition_summary':
+        await createRequisitionSummaryExcel(workbook, reportData);
+        break;
+      case 'requisition_spend':
+        await createRequisitionSpendExcel(workbook, reportData);
+        break;
+      case 'requisition_pending_approvals':
+        await createRequisitionPendingApprovalsExcel(workbook, reportData);
         break;
       default:
         throw new Error(`Unknown report type: ${reportType}`);
@@ -743,10 +942,156 @@ const sendScheduledReportEmail = async (scheduledReport, reportData, attachments
   }
 };
 
+/**
+ * Create Requisition Summary Excel
+ */
+const createRequisitionSummaryExcel = async (workbook, reportData) => {
+  const summarySheet = workbook.addWorksheet('Summary');
+  summarySheet.columns = [
+    { header: 'Metric', key: 'metric', width: 30 },
+    { header: 'Value', key: 'value', width: 20 }
+  ];
+  summarySheet.addRows([
+    { metric: 'Total Requisitions', value: reportData.summary.totalRequisitions },
+    { metric: 'Total Value (XAF)', value: reportData.summary.totalValue.toLocaleString() },
+    { metric: 'Approved Count', value: reportData.summary.approvedCount },
+    { metric: 'Approved Value (XAF)', value: reportData.summary.approvedValue.toLocaleString() },
+    { metric: 'Rejected Count', value: reportData.summary.rejectedCount },
+    { metric: 'Pending Count', value: reportData.summary.pendingCount },
+    { metric: 'Approval Rate (%)', value: reportData.summary.approvalRate }
+  ]);
+  summarySheet.getRow(1).font = { bold: true };
+
+  const deptSheet = workbook.addWorksheet('By Department');
+  deptSheet.columns = [
+    { header: 'Department', key: 'department', width: 30 },
+    { header: 'Count', key: 'count', width: 12 },
+    { header: 'Value (XAF)', key: 'value', width: 18 }
+  ];
+  Object.entries(reportData.summary.byDepartment).forEach(([department, data]) => {
+    deptSheet.addRow({ department, count: data.count, value: data.value });
+  });
+  deptSheet.getRow(1).font = { bold: true };
+
+  const categorySheet = workbook.addWorksheet('By Category');
+  categorySheet.columns = [
+    { header: 'Category', key: 'category', width: 25 },
+    { header: 'Count', key: 'count', width: 12 },
+    { header: 'Value (XAF)', key: 'value', width: 18 }
+  ];
+  Object.entries(reportData.summary.byCategory).forEach(([category, data]) => {
+    categorySheet.addRow({ category, count: data.count, value: data.value });
+  });
+  categorySheet.getRow(1).font = { bold: true };
+
+  const listSheet = workbook.addWorksheet('Requisitions');
+  listSheet.columns = [
+    { header: 'Requisition #', key: 'number', width: 18 },
+    { header: 'Title', key: 'title', width: 30 },
+    { header: 'Employee', key: 'employee', width: 22 },
+    { header: 'Department', key: 'department', width: 20 },
+    { header: 'Status', key: 'status', width: 22 },
+    { header: 'Budget (XAF)', key: 'budget', width: 16 },
+    { header: 'Created', key: 'created', width: 14 }
+  ];
+  reportData.requisitions.forEach(r => {
+    listSheet.addRow({
+      number: r.requisitionNumber,
+      title: r.title,
+      employee: r.employee?.fullName || 'N/A',
+      department: r.department,
+      status: r.status,
+      budget: r.budgetXAF || 0,
+      created: new Date(r.createdAt).toLocaleDateString('en-GB')
+    });
+  });
+  listSheet.getRow(1).font = { bold: true };
+};
+
+/**
+ * Create Requisition Spend Excel
+ */
+const createRequisitionSpendExcel = async (workbook, reportData) => {
+  const summarySheet = workbook.addWorksheet('Summary');
+  summarySheet.columns = [
+    { header: 'Metric', key: 'metric', width: 30 },
+    { header: 'Value', key: 'value', width: 20 }
+  ];
+  summarySheet.addRows([
+    { metric: 'Total Requisitions', value: reportData.summary.totalRequisitions },
+    { metric: 'Total Approved (XAF)', value: reportData.summary.totalApproved.toLocaleString() },
+    { metric: 'Total Disbursed (XAF)', value: reportData.summary.totalDisbursed.toLocaleString() },
+    { metric: 'Total Outstanding (XAF)', value: reportData.summary.totalOutstanding.toLocaleString() },
+    { metric: 'Disbursement Rate (%)', value: reportData.summary.disbursementRate }
+  ]);
+  summarySheet.getRow(1).font = { bold: true };
+
+  const codeSheet = workbook.addWorksheet('By Budget Code');
+  codeSheet.columns = [
+    { header: 'Code', key: 'code', width: 15 },
+    { header: 'Name', key: 'name', width: 30 },
+    { header: 'Requisitions', key: 'count', width: 14 },
+    { header: 'Approved (XAF)', key: 'approved', width: 18 },
+    { header: 'Disbursed (XAF)', key: 'disbursed', width: 18 }
+  ];
+  reportData.byBudgetCode.forEach(c => {
+    codeSheet.addRow({ code: c.code, name: c.name, count: c.count, approved: c.approved, disbursed: c.disbursed });
+  });
+  codeSheet.getRow(1).font = { bold: true };
+};
+
+/**
+ * Create Requisition Pending Approvals Excel
+ */
+const createRequisitionPendingApprovalsExcel = async (workbook, reportData) => {
+  const summarySheet = workbook.addWorksheet('Summary');
+  summarySheet.columns = [
+    { header: 'Metric', key: 'metric', width: 30 },
+    { header: 'Value', key: 'value', width: 20 }
+  ];
+  summarySheet.addRows([
+    { metric: 'Total Pending', value: reportData.summary.totalPending },
+    { metric: 'Total Value Pending (XAF)', value: reportData.summary.totalValuePending.toLocaleString() },
+    { metric: 'Pending Over 7 Days', value: reportData.summary.over7Days },
+    { metric: 'Pending Over 14 Days', value: reportData.summary.over14Days },
+    { metric: 'Average Days Pending', value: reportData.summary.avgDaysPending }
+  ]);
+  summarySheet.getRow(1).font = { bold: true };
+
+  const itemsSheet = workbook.addWorksheet('Pending Items');
+  itemsSheet.columns = [
+    { header: 'Requisition #', key: 'number', width: 18 },
+    { header: 'Title', key: 'title', width: 30 },
+    { header: 'Employee', key: 'employee', width: 22 },
+    { header: 'Department', key: 'department', width: 20 },
+    { header: 'Status', key: 'status', width: 22 },
+    { header: 'Budget (XAF)', key: 'budget', width: 16 },
+    { header: 'Pending With', key: 'pendingWith', width: 22 },
+    { header: 'Days Pending', key: 'daysPending', width: 14 }
+  ];
+  reportData.items.forEach(i => {
+    const row = itemsSheet.addRow({
+      number: i.requisitionNumber,
+      title: i.title,
+      employee: i.employee,
+      department: i.department,
+      status: i.status,
+      budget: i.budgetXAF,
+      pendingWith: i.pendingWith,
+      daysPending: i.daysPending
+    });
+    if (i.daysPending > 14) row.getCell('daysPending').font = { color: { argb: 'FFCC0000' }, bold: true };
+  });
+  itemsSheet.getRow(1).font = { bold: true };
+};
+
 module.exports = {
   generateBudgetDashboardReport,
   generateUtilizationReport,
   generateAlertsReport,
+  generateRequisitionSummaryReport,
+  generateRequisitionSpendReport,
+  generateRequisitionPendingApprovalsReport,
   generateExcelReport,
   sendScheduledReportEmail
 };

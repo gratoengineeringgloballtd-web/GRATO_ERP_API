@@ -476,6 +476,21 @@ leaveSchema.pre('save', async function(next) {
   next();
 });
 
-module.exports = mongoose.model('Leave', leaveSchema);
+const LeaveModel = mongoose.model('Leave', leaveSchema);
+
+LeaveModel.STATUS_GROUPS = {
+  PENDING: [
+    'pending_supervisor',
+    'pending_departmental_head',
+    'pending_head_of_business',
+    'pending_hr_approval',
+    'pending_documents'
+  ],
+  APPROVED: ['approved', 'in_progress', 'completed'],
+  REJECTED: ['rejected'],
+  CANCELLED: ['cancelled']
+};
+
+module.exports = LeaveModel;
 
 

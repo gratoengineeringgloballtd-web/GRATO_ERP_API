@@ -560,7 +560,8 @@ exports.getSupplyChainDashboardStats = async (req, res) => {
           $in: [
             'pending_department_head_approval',
             'pending_head_of_business_approval',
-            'pending_finance_approval'
+            'pending_finance_approval',
+            'pending_ceo_approval'
           ]
         }
       })

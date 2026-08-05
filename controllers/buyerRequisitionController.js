@@ -3121,35 +3121,50 @@ module.exports = {
     getSuppliers: async (req, res) => {
       try {
         const { category, search, page = 1, limit = 20, sortBy } = req.query;
-        
-        // Mock implementation - replace with actual supplier fetching
-        const mockSuppliers = [
-          {
-            id: 'supplier_1',
-            name: 'TechCorp Solutions',
-            email: 'contact@techcorp.cm',
-            categories: ['IT Equipment', 'Office Supplies'],
-            rating: 4.5,
-            status: 'approved'
-          },
-          {
-            id: 'supplier_2',
-            name: 'Office Plus Ltd',
-            email: 'info@officeplus.cm',
-            categories: ['Office Supplies', 'Furniture'],
-            rating: 4.2,
-            status: 'approved'
-          }
-        ];
-        
+        const Supplier = require('../models/Supplier');
+
+        const query = { 'approvalStatus.status': 'approved' };
+        if (category) query.categories = category;
+        if (search) {
+          query.$or = [
+            { name: { $regex: search, $options: 'i' } },
+            { email: { $regex: search, $options: 'i' } }
+          ];
+        }
+
+        const sortMap = {
+          rating: { 'performance.overallRating': -1 },
+          name: { name: 1 },
+          recent: { createdAt: -1 }
+        };
+        const sort = sortMap[sortBy] || { name: 1 };
+
+        const [suppliers, totalRecords] = await Promise.all([
+          Supplier.find(query)
+            .select('name email categories performance approvalStatus.status')
+            .sort(sort)
+            .limit(limit * 1)
+            .skip((page - 1) * limit),
+          Supplier.countDocuments(query)
+        ]);
+
+        const data = suppliers.map(s => ({
+          id: s._id,
+          name: s.name,
+          email: s.email,
+          categories: s.categories,
+          rating: s.performance?.overallRating || 0,
+          status: s.approvalStatus?.status
+        }));
+
         res.json({
           success: true,
-          data: mockSuppliers,
+          data,
           pagination: {
             current: parseInt(page),
-            total: 1,
-            count: mockSuppliers.length,
-            totalRecords: mockSuppliers.length
+            total: Math.ceil(totalRecords / limit),
+            count: data.length,
+            totalRecords
           }
         });
       } catch (error) {
@@ -3164,28 +3179,35 @@ module.exports = {
     getSupplierDetails: async (req, res) => {
       try {
         const { supplierId } = req.params;
-        
-        // Mock supplier details
-        const mockSupplier = {
-          id: supplierId,
-          name: 'TechCorp Solutions',
-          email: 'contact@techcorp.cm',
-          phone: '+237 677 123 456',
-          address: 'Douala, Cameroon',
-          rating: 4.5,
-          categories: ['IT Equipment', 'Office Supplies'],
+        const Supplier = require('../models/Supplier');
+
+        const supplier = await Supplier.findById(supplierId)
+          .select('name email phone address categories performance');
+
+        if (!supplier) {
+          return res.status(404).json({ success: false, message: 'Supplier not found' });
+        }
+
+        const supplierDetails = {
+          id: supplier._id,
+          name: supplier.name,
+          email: supplier.email,
+          phone: supplier.phone,
+          address: supplier.address,
+          rating: supplier.performance?.overallRating || 0,
+          categories: supplier.categories,
           performance: {
-            overallRating: 4.5,
-            qualityRating: 4.7,
-            deliveryRating: 4.3,
-            communicationRating: 4.6
+            overallRating: supplier.performance?.overallRating || 0,
+            qualityRating: supplier.performance?.qualityRating || 0,
+            deliveryRating: supplier.performance?.deliveryRating || 0,
+            communicationRating: supplier.performance?.communicationRating || 0
           }
         };
-        
+
         res.json({
           success: true,
           data: {
-            supplier: mockSupplier,
+            supplier: supplierDetails,
             recentQuotes: [],
             statistics: {
               totalQuotes: 0,

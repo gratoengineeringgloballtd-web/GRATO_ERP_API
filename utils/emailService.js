@@ -219,5 +219,11 @@ const sendCashRequestEmail = {
 module.exports = {
   sendEmail,
   sendCashRequestEmail,
-  transporter // Export transporter for direct access if needed
+  transporter 
 };
+
+
+
+
+
+

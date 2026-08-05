@@ -2144,7 +2144,7 @@ const getProjectStats = async (req, res) => {
         // Get ALL active projects (not just non-drafts)
         const allProjects = await Project.find({ 
             isActive: true 
-        }).select('status isDraft timeline').lean();
+        }).select('status isDraft timeline progress').lean();
 
         console.log(`Total active projects in DB: ${allProjects.length}`);
         console.log('Draft breakdown:', {

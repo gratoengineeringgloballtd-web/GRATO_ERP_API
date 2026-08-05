@@ -983,12 +983,28 @@ const getITRequestStats = async (req, res) => {
 
 const getInventoryStatus = async (req, res) => {
   try {
-    const mockInventoryData = [
-      { item: 'Wireless Mouse', category: 'accessories', inStock: 15, allocated: 8, available: 7, reorderLevel: 10, needsReorder: false },
-      { item: 'HDMI Cable', category: 'accessories', inStock: 3, allocated: 2, available: 1, reorderLevel: 5, needsReorder: true },
-      { item: 'Laptop Charger', category: 'hardware', inStock: 8, allocated: 5, available: 3, reorderLevel: 4, needsReorder: true }
-    ];
-    res.json({ success: true, data: mockInventoryData, message: 'Inventory status data (mock)' });
+    const ITInventory = require('../models/Itinventory');
+
+    const items = await ITInventory.find({ status: { $ne: 'retired' } })
+      .select('itemName category stockInfo')
+      .sort({ itemName: 1 });
+
+    const data = items.map(i => {
+      const inStock = i.stockInfo?.quantity || 0;
+      const reorderLevel = i.stockInfo?.reorderPoint ?? i.stockInfo?.minStockLevel ?? 0;
+      // "allocated" isn't tracked as a separate counter on this model - each document IS
+      // one unit/batch and 'assigned'/'installed' status means it's in use, so available
+      // stock is simply the current quantity for non-assigned items.
+      return {
+        item: i.itemName,
+        category: i.category,
+        inStock,
+        reorderLevel,
+        needsReorder: inStock <= reorderLevel
+      };
+    });
+
+    res.json({ success: true, data });
   } catch (error) {
     console.error('Get inventory status error:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch inventory status', error: error.message });
@@ -1070,27 +1086,31 @@ const getDashboardStats = async (req, res) => {
       filter['approvalChain.approver.email'] = user.email;
     } else if (role === 'it') {
       filter.$or = [
-        { status: { $in: ['pending_it_review', 'supervisor_approved', 'it_assigned', 'in_progress', 'waiting_parts'] } },
+        { status: { $in: ['pending_it_approval', ...ITSupportRequest.STATUS_GROUPS.IN_PROGRESS] } },
         { 'itReview.technicianId': userId }
       ];
     } else if (role === 'finance') {
       filter.$or = [
-        { status: 'pending_finance' },
         { requestType: 'material_request', totalEstimatedCost: { $gt: 100000 } }
       ];
     }
 
-    const [totalCount, pendingCount, inProgressCount, resolvedCount, materialRequestCount, technicalIssueCount, criticalCount, recentRequests, slaBreached] = await Promise.all([
+    const { PENDING, IN_PROGRESS, RESOLVED } = ITSupportRequest.STATUS_GROUPS;
+
+    const [totalCount, pendingCount, inProgressCount, resolvedCount, materialRequestCount, technicalIssueCount, criticalCount, recentRequests, slaBreached, avgResponseTimeAgg] = await Promise.all([
       ITSupportRequest.countDocuments(filter),
-      ITSupportRequest.countDocuments({ ...filter, status: { $in: ['pending_supervisor', 'pending_it_review', 'pending_finance'] } }),
-      ITSupportRequest.countDocuments({ ...filter, status: { $in: ['it_assigned', 'in_progress', 'waiting_parts'] } }),
-      ITSupportRequest.countDocuments({ ...filter, status: { $in: ['resolved', 'closed'] } }),
+      ITSupportRequest.countDocuments({ ...filter, status: { $in: PENDING } }),
+      ITSupportRequest.countDocuments({ ...filter, status: { $in: IN_PROGRESS } }),
+      ITSupportRequest.countDocuments({ ...filter, status: { $in: RESOLVED } }),
       ITSupportRequest.countDocuments({ ...filter, requestType: 'material_request' }),
       ITSupportRequest.countDocuments({ ...filter, requestType: 'technical_issue' }),
-      ITSupportRequest.countDocuments({ ...filter, priority: 'critical', status: { $nin: ['resolved', 'closed', 'rejected'] } }),
+      ITSupportRequest.countDocuments({ ...filter, priority: 'critical', status: { $nin: [...RESOLVED, 'rejected'] } }),
       ITSupportRequest.find(filter).populate('employee', 'fullName email department').sort({ createdAt: -1 }).limit(10),
-      ITSupportRequest.countDocuments({ ...filter, 'slaMetrics.slaBreached': true, status: { $nin: ['resolved', 'closed'] } })
+      ITSupportRequest.countDocuments({ ...filter, 'slaMetrics.slaBreached': true, status: { $nin: RESOLVED } }),
+      ITSupportRequest.aggregate([{ $match: { ...filter, 'slaMetrics.responseTime': { $ne: null } } }, { $group: { _id: null, avg: { $avg: '$slaMetrics.responseTime' } } }])
     ]);
+
+    const avgResponseTime = Math.round(avgResponseTimeAgg[0]?.avg || 0);
 
     res.json({
       success: true,
@@ -1099,7 +1119,7 @@ const getDashboardStats = async (req, res) => {
         recent: recentRequests,
         trends: {
           resolutionRate: totalCount > 0 ? Math.round((resolvedCount / totalCount) * 100) : 0,
-          avgResponseTime: 45,
+          avgResponseTime,
           slaCompliance: totalCount > 0 ? Math.round(((totalCount - slaBreached) / totalCount) * 100) : 100
         }
       }

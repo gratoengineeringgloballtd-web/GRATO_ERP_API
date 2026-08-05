@@ -3,6 +3,7 @@ const User = require('../models/User');
 const fs = require('fs');
 const crypto = require('crypto');
 const mongoose = require('mongoose');
+const { saveFile, STORAGE_CATEGORIES } = require('../utils/cloudinaryStorage');
 const {
   canUserAccessFolder,
   canUserUploadToFolder,
@@ -73,30 +74,64 @@ const notifyCollaborators = async (file, action, actor, extra = {}) => {
 // FOLDER OPERATIONS
 // ============================================================
 
+const PRIVACY_RANK = { public: 0, department: 1, confidential: 2 };
+
 const createFolder = async (req, res) => {
   try {
-    const { name, description, privacyLevel, allowedDepartments } = req.body;
+    const { name, description, privacyLevel, allowedDepartments, parentFolderId } = req.body;
     const user = await User.findById(req.user.userId);
     if (!user) return res.status(401).json({ success: false, message: 'User not found' });
- 
+
+    if (!name || !description) {
+      return res.status(400).json({ success: false, message: 'name and description are required' });
+    }
+
+    let parentFolder = null;
+    if (parentFolderId) {
+      if (!mongoose.Types.ObjectId.isValid(parentFolderId)) {
+        return res.status(400).json({ success: false, message: 'Invalid parentFolderId' });
+      }
+      parentFolder = await SharePointFolder.findById(parentFolderId);
+      if (!parentFolder) {
+        return res.status(404).json({ success: false, message: 'Parent folder not found' });
+      }
+      if (!canUserUploadToFolder(parentFolder, user)) {
+        return res.status(403).json({ success: false, message: 'No permission to create a subfolder here' });
+      }
+    }
+
     // ── Determine department ───────────────────────────────────────────────
-    // Admins can specify any department; everyone else uses their own.
-    const department = user.role === 'admin'
-      ? (req.body.department || user.department)
-      : user.department;
- 
-    if (!name || !description || !department) {
-      return res.status(400).json({ success: false, message: 'name, description and department are required' });
+    // A subfolder must stay within its parent's department - otherwise a
+    // department-scoped access check on the parent wouldn't hold for the child.
+    // Top-level folders: admins can specify any department; everyone else uses their own.
+    const department = parentFolder
+      ? parentFolder.department
+      : (user.role === 'admin' ? (req.body.department || user.department) : user.department);
+
+    if (!department) {
+      return res.status(400).json({ success: false, message: 'department is required' });
     }
- 
-    const resolvedPrivacy = ['public', 'department', 'confidential'].includes(privacyLevel)
+
+    // ── Determine privacy level ─────────────────────────────────────────────
+    // A subfolder can be equally or more restrictive than its parent, never less -
+    // otherwise a 'confidential' folder could contain a 'public' one that leaks its
+    // contents to anyone.
+    let resolvedPrivacy = ['public', 'department', 'confidential'].includes(privacyLevel)
       ? privacyLevel
-      : 'department';
- 
-    if (await SharePointFolder.findOne({ name })) {
-      return res.status(400).json({ success: false, message: 'A folder with this name already exists' });
+      : (parentFolder ? parentFolder.privacyLevel : 'department');
+
+    if (parentFolder && PRIVACY_RANK[resolvedPrivacy] < PRIVACY_RANK[parentFolder.privacyLevel]) {
+      return res.status(400).json({
+        success: false,
+        message: `Subfolder privacy level cannot be less restrictive than its parent (${parentFolder.privacyLevel})`
+      });
     }
- 
+
+    // Sibling-scoped uniqueness: same name is fine in a different parent.
+    if (await SharePointFolder.findOne({ name, parentFolder: parentFolder ? parentFolder._id : null })) {
+      return res.status(400).json({ success: false, message: 'A folder with this name already exists here' });
+    }
+
     // ── Determine allowedDepartments ──────────────────────────────────────
     // Company folders: accessible to all → empty allowedDepartments list
     //   (the helper checks department === 'Company' directly)
@@ -107,16 +142,24 @@ const createFolder = async (req, res) => {
       resolvedAllowedDepts = [];
     } else if (Array.isArray(allowedDepartments) && allowedDepartments.length > 0) {
       resolvedAllowedDepts = allowedDepartments;
+    } else if (parentFolder) {
+      resolvedAllowedDepts = parentFolder.accessControl?.allowedDepartments || [department];
     } else {
       resolvedAllowedDepts = [department];
     }
- 
+
+    const ancestors = parentFolder ? [...(parentFolder.ancestors || []), parentFolder._id] : [];
+    const depth = parentFolder ? (parentFolder.depth || 0) + 1 : 0;
+
     const folder = await new SharePointFolder({
       name,
       description,
       department,
       privacyLevel: resolvedPrivacy,
       isPublic:     resolvedPrivacy === 'public',
+      parentFolder: parentFolder ? parentFolder._id : null,
+      ancestors,
+      depth,
       createdBy:    req.user.userId,
       accessControl: {
         allowedDepartments: resolvedAllowedDepts,
@@ -125,18 +168,21 @@ const createFolder = async (req, res) => {
         blockedUsers:       []
       }
     }).save();
- 
+
     await new SharePointActivityLog({
       action:     'folder_create',
       userId:     req.user.userId,
       folderId:   folder._id,
       folderName: folder.name,
-      details:    { department, privacyLevel: resolvedPrivacy }
+      details:    { department, privacyLevel: resolvedPrivacy, parentFolderId: parentFolder ? parentFolder._id : null }
     }).save();
- 
+
     res.status(201).json({ success: true, message: 'Folder created', data: folder });
   } catch (error) {
     console.error('createFolder error:', error);
+    if (error.code === 11000) {
+      return res.status(400).json({ success: false, message: 'A folder with this name already exists here' });
+    }
     res.status(500).json({ success: false, message: 'Failed to create folder', error: error.message });
   }
 };
@@ -181,7 +227,7 @@ const getFolders = async (req, res) => {
     const user = await User.findById(req.user.userId);
     if (!user) return res.status(401).json({ success: false, message: 'User not found' });
  
-    const { department } = req.query;
+    const { department, parentFolderId } = req.query;
  
     // ── Build a query that finds every folder that COULD be visible ─────────
     //
@@ -228,10 +274,30 @@ const getFolders = async (req, res) => {
     if (department && department !== 'all') {
       dbQuery = { $and: [dbQuery, { department }] };
     }
+
+    // ── Optional folder-tree navigation ──────────────────────────────────
+    // parentFolderId='root'  -> only top-level folders (parentFolder: null)
+    // parentFolderId=<id>    -> only direct children of that folder
+    // omitted                -> unchanged flat-all behavior (backward compatible)
+    if (parentFolderId === 'root') {
+      dbQuery = { $and: [dbQuery, { parentFolder: null }] };
+    } else if (parentFolderId) {
+      if (!mongoose.Types.ObjectId.isValid(parentFolderId)) {
+        return res.status(400).json({ success: false, message: 'Invalid parentFolderId' });
+      }
+      dbQuery = { $and: [dbQuery, { parentFolder: toObjectId(parentFolderId) }] };
+    }
  
     const allFolders = await SharePointFolder.find(dbQuery)
       .populate('createdBy', 'fullName email')
       .sort({ department: 1, name: 1 });
+
+    // Subfolder counts in one query rather than N+1 per-folder lookups.
+    const subfolderCounts = await SharePointFolder.aggregate([
+      { $match: { parentFolder: { $in: allFolders.map(f => f._id) } } },
+      { $group: { _id: '$parentFolder', count: { $sum: 1 } } }
+    ]);
+    const subfolderCountMap = new Map(subfolderCounts.map(c => [c._id.toString(), c.count]));
  
     const result = [];
  
@@ -244,6 +310,7 @@ const getFolders = async (req, res) => {
  
         result.push({
           ...folder.toObject(),
+          subfolderCount: subfolderCountMap.get(folder._id.toString()) || 0,
           userAccess: {
             canView:    access.canAccess,
             canUpload:  canUserUploadToFolder(folder, user),
@@ -281,7 +348,49 @@ const getFolder = async (req, res) => {
     const access = canUserAccessFolder(folder, user);
     if (!access.canAccess) return res.status(403).json({ success: false, message: 'Access denied' });
 
-    res.json({ success: true, data: folder });
+    // Breadcrumb: resolve the ancestors chain to {_id, name} pairs, root first.
+    const breadcrumb = folder.ancestors?.length
+      ? await SharePointFolder.find({ _id: { $in: folder.ancestors } }).select('name parentFolder')
+      : [];
+    // ancestors is stored root-to-parent in order already, but find() doesn't
+    // guarantee order, so re-sort to match the stored ancestors sequence.
+    const breadcrumbOrdered = folder.ancestors.map(
+      ancestorId => breadcrumb.find(b => b._id.equals(ancestorId))
+    ).filter(Boolean).map(b => ({ _id: b._id, name: b.name }));
+
+    // Direct subfolders, filtered to what this user can actually see.
+    const childFolders = await SharePointFolder.find({ parentFolder: folder._id }).sort({ name: 1 });
+    const visibleChildren = childFolders
+      .filter(child => isFolderVisibleToUser(child, user))
+      .map(child => {
+        const childAccess = canUserAccessFolder(child, user);
+        return {
+          ...child.toObject(),
+          userAccess: {
+            canView:    childAccess.canAccess,
+            canUpload:  canUserUploadToFolder(child, user),
+            canManage:  canUserManageFolder(child, user),
+            canDelete:  canUserDeleteFolder(child, user),
+            permission: childAccess.permission
+          }
+        };
+      });
+
+    res.json({
+      success: true,
+      data: {
+        ...folder.toObject(),
+        userAccess: {
+          canView:   access.canAccess,
+          canUpload: canUserUploadToFolder(folder, user),
+          canManage: canUserManageFolder(folder, user),
+          canDelete: canUserDeleteFolder(folder, user),
+          permission: access.permission
+        }
+      },
+      breadcrumb: breadcrumbOrdered,
+      subfolders: visibleChildren
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to fetch folder', error: error.message });
   }
@@ -296,14 +405,89 @@ const updateFolder = async (req, res) => {
     if (!canUserManageFolder(folder, user))
       return res.status(403).json({ success: false, message: 'No permission to manage this folder' });
 
-    const { description, isPublic, allowedDepartments } = req.body;
+    const { description, isPublic, allowedDepartments, parentFolderId } = req.body;
     if (description)         folder.description = description;
     if (isPublic !== undefined) folder.isPublic = isPublic;
     if (allowedDepartments)  folder.accessControl.allowedDepartments = allowedDepartments;
+
+    // ── Move to a new parent (or to root with parentFolderId: null) ─────────
+    if (parentFolderId !== undefined) {
+      const currentParentId = folder.parentFolder ? folder.parentFolder.toString() : null;
+      const targetParentId  = parentFolderId || null;
+
+      if (currentParentId !== targetParentId) {
+        let newParent = null;
+
+        if (targetParentId) {
+          if (!mongoose.Types.ObjectId.isValid(targetParentId)) {
+            return res.status(400).json({ success: false, message: 'Invalid parentFolderId' });
+          }
+          if (targetParentId === folder._id.toString()) {
+            return res.status(400).json({ success: false, message: 'A folder cannot be its own parent' });
+          }
+
+          newParent = await SharePointFolder.findById(targetParentId);
+          if (!newParent) return res.status(404).json({ success: false, message: 'Target parent folder not found' });
+
+          if (!canUserUploadToFolder(newParent, user)) {
+            return res.status(403).json({ success: false, message: 'No permission to move a folder into the target parent' });
+          }
+
+          // Cycle check: the new parent can't be this folder or any of its descendants.
+          const isMovingIntoOwnSubtree =
+            newParent._id.equals(folder._id) ||
+            (newParent.ancestors || []).some(a => a.equals(folder._id));
+          if (isMovingIntoOwnSubtree) {
+            return res.status(400).json({ success: false, message: 'Cannot move a folder into its own subfolder' });
+          }
+
+          if (newParent.department !== folder.department) {
+            return res.status(400).json({
+              success: false,
+              message: `Cannot move: target parent is in "${newParent.department}", folder is in "${folder.department}"`
+            });
+          }
+        }
+
+        // Sibling-scoped uniqueness at the destination.
+        const nameClash = await SharePointFolder.findOne({
+          _id: { $ne: folder._id },
+          name: folder.name,
+          parentFolder: targetParentId
+        });
+        if (nameClash) {
+          return res.status(400).json({ success: false, message: 'A folder with this name already exists at the destination' });
+        }
+
+        const newAncestors = newParent ? [...(newParent.ancestors || []), newParent._id] : [];
+        const depthDelta = newAncestors.length - (folder.ancestors || []).length;
+
+        folder.parentFolder = newParent ? newParent._id : null;
+        folder.ancestors = newAncestors;
+        folder.depth = newAncestors.length;
+
+        // Cascade the same shift to every descendant so their stored ancestors/depth
+        // stay accurate - otherwise breadcrumbs and subtree queries below the moved
+        // folder would silently go stale.
+        const descendants = await SharePointFolder.find({ ancestors: folder._id });
+        for (const descendant of descendants) {
+          const oldIdx = descendant.ancestors.findIndex(a => a.equals(folder._id));
+          const tail = descendant.ancestors.slice(oldIdx + 1); // path from folder down to descendant's parent
+          descendant.ancestors = [...newAncestors, folder._id, ...tail];
+          descendant.depth = descendant.depth + depthDelta;
+          await descendant.save();
+        }
+      }
+    }
+
     await folder.save();
 
     res.json({ success: true, message: 'Folder updated', data: folder });
   } catch (error) {
+    console.error('updateFolder error:', error);
+    if (error.code === 11000) {
+      return res.status(400).json({ success: false, message: 'A folder with this name already exists at the destination' });
+    }
     res.status(500).json({ success: false, message: 'Failed to update folder', error: error.message });
   }
 };
@@ -320,6 +504,10 @@ const deleteFolder = async (req, res) => {
     const fileCount = await SharePointFile.countDocuments({ folderId: folder._id, isDeleted: false });
     if (fileCount > 0)
       return res.status(400).json({ success: false, message: 'Delete all files in this folder first' });
+
+    const subfolderCount = await SharePointFolder.countDocuments({ parentFolder: folder._id });
+    if (subfolderCount > 0)
+      return res.status(400).json({ success: false, message: `Delete or move ${subfolderCount} subfolder(s) first` });
 
     await SharePointFolder.findByIdAndDelete(req.params.folderId);
     await new SharePointActivityLog({ action: 'folder_delete', userId: req.user.userId, folderId: folder._id, folderName: folder.name }).save();
@@ -340,24 +528,24 @@ const uploadFile = async (req, res) => {
     if (!req.file) return res.status(400).json({ success: false, message: 'No file provided' });
 
     const folder = await SharePointFolder.findById(req.params.folderId);
-    if (!folder) { cleanupLocalFile(req.file); return res.status(404).json({ success: false, message: 'Folder not found' }); }
+    if (!folder) return res.status(404).json({ success: false, message: 'Folder not found' });
 
     const user = await User.findById(req.user.userId);
     if (!canUserUploadToFolder(folder, user)) {
-      cleanupLocalFile(req.file);
       return res.status(403).json({ success: false, message: 'No permission to upload to this folder' });
     }
 
-    const cloudinary = isCloudinaryFile(req.file);
+    const fileMetadata = await saveFile(req.file, STORAGE_CATEGORIES.SHAREPOINT, folder._id.toString(), null);
+
     const file = await new SharePointFile({
       folderId:    folder._id,
       name:        req.file.originalname,
       description: req.body.description,
       mimetype:    req.file.mimetype,
       size:        req.file.size,
-      path:        req.file.path,
-      publicId:    req.file.filename || req.file.public_id || null,
-      storageType: cloudinary ? 'cloudinary' : 'local',
+      path:        fileMetadata.url,
+      publicId:    fileMetadata.publicId,
+      storageType: 'cloudinary',
       uploadedBy:  req.user.userId,
       tags:        req.body.tags ? req.body.tags.split(',').map(t => t.trim()) : []
     }).save();
@@ -371,7 +559,7 @@ const uploadFile = async (req, res) => {
 
     res.status(201).json({ success: true, message: 'File uploaded', data: file });
   } catch (error) {
-    cleanupLocalFile(req.file);
+    console.error('uploadFile error:', error);
     res.status(500).json({ success: false, message: 'Failed to upload file', error: error.message });
   }
 };
@@ -1182,28 +1370,36 @@ const bulkUploadFiles = async (req, res) => {
     if (!req.files?.length) return res.status(400).json({ success: false, message: 'No files provided' });
 
     const folder = await SharePointFolder.findById(req.params.folderId);
-    if (!folder) { req.files.forEach(cleanupLocalFile); return res.status(404).json({ success: false, message: 'Folder not found' }); }
+    if (!folder) return res.status(404).json({ success: false, message: 'Folder not found' });
 
     const user = await User.findById(req.user.userId);
     if (!canUserUploadToFolder(folder, user)) {
-      req.files.forEach(cleanupLocalFile);
       return res.status(403).json({ success: false, message: 'No permission to upload to this folder' });
     }
 
     const saved = [];
     let totalSize = 0;
     for (const f of req.files) {
-      const cloudinary = isCloudinaryFile(f);
-      const nf = await new SharePointFile({
-        folderId: folder._id, name: f.originalname, description: req.body.description,
-        mimetype: f.mimetype, size: f.size, path: f.path,
-        publicId: f.filename || null, storageType: cloudinary ? 'cloudinary' : 'local',
-        uploadedBy: req.user.userId,
-        tags: req.body.tags ? req.body.tags.split(',').map(t => t.trim()) : []
-      }).save();
-      saved.push(nf);
-      totalSize += f.size;
-      await new SharePointActivityLog({ action: 'upload', userId: req.user.userId, fileId: nf._id, folderId: folder._id, fileName: nf.name, folderName: folder.name }).save();
+      try {
+        const fileMetadata = await saveFile(f, STORAGE_CATEGORIES.SHAREPOINT, folder._id.toString(), null);
+        const nf = await new SharePointFile({
+          folderId: folder._id, name: f.originalname, description: req.body.description,
+          mimetype: f.mimetype, size: f.size, path: fileMetadata.url,
+          publicId: fileMetadata.publicId, storageType: 'cloudinary',
+          uploadedBy: req.user.userId,
+          tags: req.body.tags ? req.body.tags.split(',').map(t => t.trim()) : []
+        }).save();
+        saved.push(nf);
+        totalSize += f.size;
+        await new SharePointActivityLog({ action: 'upload', userId: req.user.userId, fileId: nf._id, folderId: folder._id, fileName: nf.name, folderName: folder.name }).save();
+      } catch (fileError) {
+        console.error(`Error uploading ${f.originalname}:`, fileError);
+        // Continue with remaining files rather than failing the whole batch
+      }
+    }
+
+    if (saved.length === 0) {
+      return res.status(500).json({ success: false, message: 'All file uploads failed' });
     }
 
     folder.fileCount  += saved.length;
@@ -1211,9 +1407,9 @@ const bulkUploadFiles = async (req, res) => {
     folder.lastModified = new Date();
     await folder.save();
 
-    res.status(201).json({ success: true, message: `${saved.length} files uploaded`, data: saved });
+    res.status(201).json({ success: true, message: `${saved.length} of ${req.files.length} files uploaded`, data: saved });
   } catch (error) {
-    if (req.files) req.files.forEach(cleanupLocalFile);
+    console.error('bulkUploadFiles error:', error);
     res.status(500).json({ success: false, message: 'Failed to upload files', error: error.message });
   }
 };

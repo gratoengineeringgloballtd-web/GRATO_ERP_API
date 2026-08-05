@@ -730,7 +730,7 @@ UserSchema.methods.getPerformanceScore = async function() {
     
     if (evaluations.length === 0) return null;
     
-    const avgScore = evaluations.reduce((sum, eval) => sum + eval.overallScore, 0) / evaluations.length;
+    const avgScore = evaluations.reduce((sum, evaluation) => sum + evaluation.overallScore, 0) / evaluations.length;
     return {
         averageScore: avgScore.toFixed(2),
         latestScore: evaluations[0].overallScore,

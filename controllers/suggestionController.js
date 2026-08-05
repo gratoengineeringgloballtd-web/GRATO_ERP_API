@@ -547,7 +547,7 @@ const getDashboardStats = async (req, res) => {
       Suggestion.countDocuments(filter),
       Suggestion.countDocuments({
         ...filter,
-        status: 'pending'
+        status: { $in: ['pending', 'under_review', 'hr_review', 'management_review'] }
       }),
       Suggestion.countDocuments({
         ...filter,
