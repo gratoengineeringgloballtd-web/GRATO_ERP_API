@@ -199,6 +199,7 @@ const SharePointFileSchema = new mongoose.Schema({
     versionNumber: Number,
     path:          String,
     publicId:      String,
+    storageType:   { type: String, enum: ['local', 'cloudinary'], default: 'cloudinary' },
     size:          Number,
     mimetype:      String,
     uploadedBy:    { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
