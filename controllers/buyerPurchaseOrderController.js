@@ -169,37 +169,63 @@ const getSuppliers = async (req, res) => {
     const { search, category, page = 1, limit = 50 } = req.query;
 
     let query = {
-      status: 'approved',
-      'approvalStatus.status': 'approved'
+      role: 'supplier',
+      isActive: true,
+      'supplierStatus.accountStatus': 'approved'
     };
 
     if (search) {
       query.$or = [
-        { name: { $regex: search, $options: 'i' } },
+        { fullName: { $regex: search, $options: 'i' } },
+        { 'supplierDetails.companyName': { $regex: search, $options: 'i' } },
         { email: { $regex: search, $options: 'i' } },
-        { 'address.city': { $regex: search, $options: 'i' } }
+        { 'supplierDetails.address.city': { $regex: search, $options: 'i' } }
       ];
     }
 
-    if (category && category !== 'all') {
-      query.categories = category;
+    // itemCategory (requisition categories like 'IT Accessories', 'Office Supplies') and
+    // supplierType (supplier categories like 'IT', 'HR/Admin', 'General') are largely
+    // different vocabularies - only apply the filter when it's actually a recognized
+    // supplierType value, otherwise ignore it rather than returning an empty list for
+    // every category that doesn't happen to share a name.
+    const VALID_SUPPLIER_TYPES = [
+      'General', 'Supply Chain', 'HR/Admin', 'Operations', 'HSE', 'Refurbishment',
+      'Civil Works', 'Rollout', 'Security', 'IT', 'Generator Maintenance'
+    ];
+    if (category && category !== 'all' && VALID_SUPPLIER_TYPES.includes(category)) {
+      query['supplierDetails.supplierType'] = category;
     }
 
-    const suppliers = await Supplier.find(query)
-      .select('name email phone address businessType categories performance bankDetails')
-      .sort({ name: 1, 'performance.overallRating': -1 })
+    const suppliers = await User.find(query)
+      .select('fullName email supplierDetails')
+      .sort({ 'supplierDetails.companyName': 1, fullName: 1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
 
-    const total = await Supplier.countDocuments(query);
+    const total = await User.countDocuments(query);
+
+    const data = suppliers.map(s => ({
+      _id: s._id,
+      id: s._id,
+      name: s.supplierDetails?.companyName || s.fullName,
+      contactName: s.supplierDetails?.contactName || s.fullName,
+      email: s.email,
+      phone: s.supplierDetails?.phoneNumber,
+      address: s.supplierDetails?.address,
+      businessType: s.supplierDetails?.businessType,
+      categories: s.supplierDetails?.supplierType ? [s.supplierDetails.supplierType] : [],
+      specialization: s.supplierDetails?.supplierType ? [s.supplierDetails.supplierType] : [],
+      servicesOffered: s.supplierDetails?.servicesOffered || [],
+      bankDetails: s.supplierDetails?.bankDetails
+    }));
 
     res.json({
       success: true,
-      data: suppliers,
+      data,
       pagination: {
         current: parseInt(page),
         total: Math.ceil(total / limit),
-        count: suppliers.length,
+        count: data.length,
         totalRecords: total
       }
     });

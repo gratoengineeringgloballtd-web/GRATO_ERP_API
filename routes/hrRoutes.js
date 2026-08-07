@@ -6,31 +6,49 @@ const { authMiddleware, requireRoles } = require('../middlewares/authMiddleware'
 const upload = require('../middlewares/uploadMiddleware');
 const { handleMulterError, validateFiles, cleanupTempFiles } = require('../middlewares/uploadMiddleware');
 
-// Protect all routes - only HR and Admin
 router.use(authMiddleware);
-router.use(requireRoles('hr', 'admin', 'ceo'));
+
+// Full HR management (employee CRUD, statistics, leave/performance, contracts) —
+// unchanged from before.
+const requireHRRole = requireRoles('hr', 'admin', 'ceo');
+
+// Document-management-only access. Grants carmel.dafny@gratoglobal.com the ability to
+// browse employees and manage their documents specifically, without full HR access
+// (no employee create/edit/deactivate, no statistics/export, no leave/performance data,
+// no contracts). This is additive to whatever her base role already grants elsewhere —
+// it does not change her role or touch any other part of the app.
+const DOCUMENT_ONLY_EMAILS = ['carmel.dafny@gratoglobal.com'];
+const requireHRDocumentAccess = (req, res, next) => {
+  const role = req.user?.role;
+  const email = req.user?.email?.toLowerCase();
+  if (['hr', 'admin', 'ceo'].includes(role) || DOCUMENT_ONLY_EMAILS.includes(email)) {
+    return next();
+  }
+  return res.status(403).json({ success: false, message: 'Access denied' });
+};
 
 // ============================================
 // EMPLOYEE MANAGEMENT ROUTES
 // ============================================
 
 // Statistics and Analytics
-router.get('/employees/statistics', hrController.getStatistics);
+router.get('/employees/statistics', requireHRRole, hrController.getStatistics);
 
 // Export employees to Excel
-router.get('/employees/export', hrController.exportEmployees);
+router.get('/employees/export', requireHRRole, hrController.exportEmployees);
 
 // Employee-specific data
-router.get('/employees/:id/leave-balance', hrController.getEmployeeLeaveBalance);
-router.get('/employees/:id/performance', hrController.getEmployeePerformance);
+router.get('/employees/:id/leave-balance', requireHRRole, hrController.getEmployeeLeaveBalance);
+router.get('/employees/:id/performance', requireHRRole, hrController.getEmployeePerformance);
 
-// CRUD operations
-router.get('/employees', hrController.getEmployees);
-router.get('/employees/:id', hrController.getEmployee);
-router.post('/employees', hrController.createEmployee);
-router.put('/employees/:id', hrController.updateEmployee);
-router.patch('/employees/:id/status', hrController.updateEmployeeStatus);
-router.delete('/employees/:id', hrController.deactivateEmployee);
+// Read access (list + single employee) — needed by document-only users to find and
+// open an employee record; full CRUD below stays HR/admin/ceo only.
+router.get('/employees', requireHRDocumentAccess, hrController.getEmployees);
+router.get('/employees/:id', requireHRDocumentAccess, hrController.getEmployee);
+router.post('/employees', requireHRRole, hrController.createEmployee);
+router.put('/employees/:id', requireHRRole, hrController.updateEmployee);
+router.patch('/employees/:id/status', requireHRRole, hrController.updateEmployeeStatus);
+router.delete('/employees/:id', requireHRRole, hrController.deactivateEmployee);
 
 // ============================================
 // DOCUMENT MANAGEMENT ROUTES - ENHANCED
@@ -39,6 +57,7 @@ router.delete('/employees/:id', hrController.deactivateEmployee);
 // Upload document with enhanced error handling
 router.post(
   '/employees/:id/documents/:type',
+  requireHRDocumentAccess,
   (req, res, next) => {
     console.log('\n=== HR DOCUMENT UPLOAD INITIATED ===');
     console.log('Employee ID:', req.params.id);
@@ -65,13 +84,13 @@ router.post(
 );
 
 // Get document information (metadata only)
-router.get('/employees/:id/documents/:type/info', hrController.getDocumentInfo);
+router.get('/employees/:id/documents/:type/info', requireHRDocumentAccess, hrController.getDocumentInfo);
 
 // Download document (legacy endpoint - kept for backward compatibility)
-router.get('/employees/:id/documents/:type', hrController.downloadDocument);
+router.get('/employees/:id/documents/:type', requireHRDocumentAccess, hrController.downloadDocument);
 
 // Delete document
-router.delete('/employees/:id/documents/:docId', hrController.deleteDocument);
+router.delete('/employees/:id/documents/:docId', requireHRDocumentAccess, hrController.deleteDocument);
 
 // ============================================
 // NEW: ENHANCED DOCUMENT FILE ROUTES
@@ -80,6 +99,7 @@ router.delete('/employees/:id/documents/:docId', hrController.deleteDocument);
 // Download document by publicId (preferred method)
 router.get(
   '/documents/:employeeId/download/:publicId',
+  requireHRDocumentAccess,
   (req, res, next) => {
     console.log('\n=== HR DOCUMENT DOWNLOAD (publicId) ===');
     console.log('Employee ID:', req.params.employeeId);
@@ -92,6 +112,7 @@ router.get(
 // View document inline (for PDFs and images)
 router.get(
   '/documents/:employeeId/view/:publicId',
+  requireHRDocumentAccess,
   (req, res, next) => {
     console.log('\n=== HR DOCUMENT VIEW (publicId) ===');
     console.log('Employee ID:', req.params.employeeId);
@@ -104,6 +125,7 @@ router.get(
 // Get document metadata without downloading
 router.get(
   '/documents/:employeeId/info/:publicId',
+  requireHRDocumentAccess,
   hrFileController.getHRDocumentInfo
 );
 
@@ -112,10 +134,10 @@ router.get(
 // ============================================
 
 // Get contracts expiring soon
-router.get('/contracts/expiring', hrController.getExpiringContracts);
+router.get('/contracts/expiring', requireHRRole, hrController.getExpiringContracts);
 
 // Request contract renewal (HR only)
-router.post('/contracts/:id/renew', hrController.requestContractRenewal);
+router.post('/contracts/:id/renew', requireHRRole, hrController.requestContractRenewal);
 
 // Approve/reject contract renewal (Admin only)
 router.put(

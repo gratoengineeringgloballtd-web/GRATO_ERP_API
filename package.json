@@ -60,8 +60,10 @@
     "org:seed-hierarchy:dry": "node scripts/seedOrgHierarchyFromConfig.js --dry-run",
     "sharepoint:fix-folder-index": "node scripts/fixSharePointFolderNameIndex.js",
     "attach:utility-bill-july2026": "node scripts/attach-utility-bill-july2026.js",
+    "attach:office-kitchen-quotation": "node scripts/attach-office-kitchen-quotation.js",
     "sharepoint:diagnose-file": "node scripts/diagnose-sharepoint-file.js",
     "sharepoint:audit-local-files": "node scripts/audit-sharepoint-local-files.js",
+    "diagnose:buyer-sourcing": "node scripts/diagnose-buyer-sourcing.js",
     "test": "jest --runInBand"
   },
   "jest": {

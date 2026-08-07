@@ -62,7 +62,8 @@ const STORAGE_CATEGORIES = {
   IT_SUPPORT:            'it-support',
   SALARY_PAYMENTS:       'salary-payments',
   USER_SIGNATURES:       'user-signatures',
-  SHAREPOINT:            'sharepoint'
+  SHAREPOINT:            'sharepoint',
+  HR_DOCUMENTS:          'hr-documents'
 };
 
 const CLOUDINARY_ROOT = process.env.CLOUDINARY_ROOT_FOLDER || 'grato-erp';

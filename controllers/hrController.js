@@ -6,6 +6,7 @@ const { promisify } = require('util');
 const unlinkAsync = promisify(fs.unlink);
 const crypto = require('crypto');
 const sendEmail = require('../utils/sendEmail');
+const { saveFile, deleteFile: deleteCloudinaryFile, STORAGE_CATEGORIES } = require('../utils/cloudinaryStorage');
 
 // ===== DOCUMENT UPLOAD - COMPLETELY REWRITTEN =====
 exports.uploadDocument = async (req, res) => {
@@ -29,10 +30,6 @@ exports.uploadDocument = async (req, res) => {
 
     if (!employee) {
       console.error('Employee not found');
-      // Clean up uploaded file
-      if (file.path && fs.existsSync(file.path)) {
-        await unlinkAsync(file.path);
-      }
       return res.status(404).json({
         success: false,
         message: 'Employee not found'
@@ -40,55 +37,6 @@ exports.uploadDocument = async (req, res) => {
     }
 
     console.log(`Employee found: ${employee.fullName}`);
-
-    // Create permanent storage directory
-    const permanentDir = path.join(__dirname, '../uploads/hr-documents', id);
-    
-    try {
-      await fs.promises.mkdir(permanentDir, { recursive: true, mode: 0o755 });
-      console.log(`✓ Permanent directory ready: ${permanentDir}`);
-    } catch (dirError) {
-      console.error('Failed to create permanent directory:', dirError);
-      if (file.path && fs.existsSync(file.path)) {
-        await unlinkAsync(file.path);
-      }
-      throw new Error('Failed to prepare storage directory');
-    }
-
-    // Generate unique filename
-    const timestamp = Date.now();
-    const sanitizedType = type.replace(/[^a-zA-Z0-9]/g, '_');
-    const ext = path.extname(file.originalname).toLowerCase();
-    const baseName = path.basename(file.originalname, ext).replace(/[^a-zA-Z0-9]/g, '_');
-    const uniqueFilename = `${sanitizedType}-${timestamp}-${baseName}${ext}`;
-    const permanentPath = path.join(permanentDir, uniqueFilename);
-
-    console.log(`Moving file from ${file.path} to ${permanentPath}`);
-
-    // Move file from temp to permanent storage
-    try {
-      await fs.promises.rename(file.path, permanentPath);
-      console.log('✓ File moved successfully');
-    } catch (moveError) {
-      console.error('Failed to move file:', moveError);
-      // Try copy + delete as fallback
-      try {
-        await fs.promises.copyFile(file.path, permanentPath);
-        await fs.promises.unlink(file.path);
-        console.log('✓ File copied and temp deleted');
-      } catch (fallbackError) {
-        console.error('Fallback copy failed:', fallbackError);
-        throw new Error('Failed to save document');
-      }
-    }
-
-    // Verify file was saved
-    if (!fs.existsSync(permanentPath)) {
-      throw new Error('File was not saved successfully');
-    }
-
-    const fileStats = fs.statSync(permanentPath);
-    console.log(`✓ File verified: ${fileStats.size} bytes`);
 
     // Initialize documents object if not exists
     if (!employee.employmentDetails) {
@@ -98,47 +46,44 @@ exports.uploadDocument = async (req, res) => {
       employee.employmentDetails.documents = {};
     }
 
+    // Upload to Cloudinary, scoped under this employee's id so files are easy to find/audit
+    const sanitizedType = type.replace(/[^a-zA-Z0-9]/g, '_');
+    let uploadResult;
+    try {
+      uploadResult = await saveFile(file, STORAGE_CATEGORIES.HR_DOCUMENTS, id, null);
+    } catch (uploadError) {
+      console.error('Cloudinary upload failed:', uploadError);
+      throw new Error('Failed to save document');
+    }
+
     const documentData = {
       name: file.originalname,
-      filename: uniqueFilename,
-      publicId: uniqueFilename, // For download endpoint
-      filePath: permanentPath,
-      relativePath: `/uploads/hr-documents/${id}/${uniqueFilename}`,
-      size: file.size,
-      mimetype: file.mimetype,
+      url: uploadResult.url,
+      publicId: uploadResult.publicId,
+      filename: `${sanitizedType}-${Date.now()}-${file.originalname}`,
+      filePath: uploadResult.url,       // legacy field kept for backward compatibility with older readers
+      relativePath: uploadResult.url,   // legacy field kept for backward compatibility with older readers
+      size: uploadResult.bytes || file.size,
+      mimetype: uploadResult.mimetype || file.mimetype,
       uploadedAt: new Date(),
       uploadedBy: req.user.userId
     };
 
     // Check if document type supports multiple files
     const multipleDocsTypes = ['references', 'academicDiplomas', 'workCertificates'];
+    const oldDoc = employee.employmentDetails.documents[type];
 
     if (multipleDocsTypes.includes(type)) {
       console.log(`Document type '${type}' supports multiple files`);
-      
-      // Initialize array if not exists
+
       if (!employee.employmentDetails.documents[type]) {
         employee.employmentDetails.documents[type] = [];
       }
-      
+
       employee.employmentDetails.documents[type].push(documentData);
       console.log(`Added to array. Total ${type} documents: ${employee.employmentDetails.documents[type].length}`);
     } else {
       console.log(`Document type '${type}' is single file`);
-      
-      // Delete old file if exists
-      const oldDoc = employee.employmentDetails.documents[type];
-      if (oldDoc && oldDoc.filePath) {
-        if (fs.existsSync(oldDoc.filePath)) {
-          try {
-            await unlinkAsync(oldDoc.filePath);
-            console.log('✓ Old document deleted');
-          } catch (err) {
-            console.warn('Failed to delete old file:', err.message);
-          }
-        }
-      }
-      
       employee.employmentDetails.documents[type] = documentData;
     }
 
@@ -146,8 +91,15 @@ exports.uploadDocument = async (req, res) => {
     employee.markModified('employmentDetails');
     await employee.save();
 
+    // Only delete the old Cloudinary file once the new one is confirmed saved to the DB,
+    // so a failure here never leaves the employee record pointing at nothing.
+    if (oldDoc && !Array.isArray(oldDoc) && oldDoc.publicId) {
+      deleteCloudinaryFile({ publicId: oldDoc.publicId, mimetype: oldDoc.mimetype })
+        .catch(err => console.warn('Failed to delete old Cloudinary document:', err.message));
+    }
+
     console.log('✅ Document saved to database');
-    console.log(`Document metadata:`, documentData);
+    console.log('Document metadata:', documentData);
 
     res.status(200).json({
       success: true,
@@ -157,19 +109,7 @@ exports.uploadDocument = async (req, res) => {
 
   } catch (error) {
     console.error('❌ Upload document error:', error);
-    
-    // Clean up uploaded file on error
-    if (req.file && req.file.path) {
-      try {
-        if (fs.existsSync(req.file.path)) {
-          await unlinkAsync(req.file.path);
-          console.log('✓ Temp file cleaned up');
-        }
-      } catch (cleanupErr) {
-        console.error('Failed to cleanup temp file:', cleanupErr);
-      }
-    }
-    
+
     res.status(500).json({
       success: false,
       message: 'Failed to upload document',
@@ -218,16 +158,21 @@ exports.downloadDocument = async (req, res) => {
       docToDownload = document[index];
     }
 
+    // Cloudinary-backed document — just redirect to the real URL.
+    if (docToDownload.url && docToDownload.url.startsWith('http')) {
+      console.log('Redirecting to Cloudinary URL:', docToDownload.url);
+      return res.redirect(docToDownload.url);
+    }
+
+    // Legacy fallback: document predates the Cloudinary fix and only has a local path.
     const filePath = docToDownload.filePath;
+    console.log('Document path (legacy local):', filePath);
 
-    console.log('Document path:', filePath);
-
-    // Check if file exists
-    if (!fs.existsSync(filePath)) {
+    if (!filePath || !fs.existsSync(filePath)) {
       console.error('File not found on disk:', filePath);
       return res.status(404).json({
         success: false,
-        message: 'File not found on server. It may have been moved or deleted.'
+        message: 'File not found on server. It may have been uploaded before storage was migrated to Cloudinary — please re-upload it.'
       });
     }
 
@@ -308,7 +253,7 @@ exports.deleteDocument = async (req, res) => {
     }
 
     let deleted = false;
-    let filePath = null;
+    let deletedDoc = null;
 
     // Check each document type
     for (const [key, value] of Object.entries(docs)) {
@@ -316,7 +261,7 @@ exports.deleteDocument = async (req, res) => {
         // Multiple documents
         const index = value.findIndex(doc => doc._id && doc._id.toString() === docId);
         if (index !== -1) {
-          filePath = value[index].filePath;
+          deletedDoc = value[index];
           value.splice(index, 1);
           deleted = true;
           console.log(`✓ Document removed from ${key} array at index ${index}`);
@@ -324,7 +269,7 @@ exports.deleteDocument = async (req, res) => {
         }
       } else if (value && value._id && value._id.toString() === docId) {
         // Single document
-        filePath = value.filePath;
+        deletedDoc = value;
         docs[key] = null;
         deleted = true;
         console.log(`✓ Single document ${key} removed`);
@@ -339,16 +284,22 @@ exports.deleteDocument = async (req, res) => {
       });
     }
 
-    // Delete physical file
-    if (filePath && fs.existsSync(filePath)) {
-      try {
-        await unlinkAsync(filePath);
-        console.log('✓ Physical file deleted');
-      } catch (err) {
-        console.warn('Failed to delete physical file:', err.message);
+    // Delete the underlying file - Cloudinary if it has a publicId, otherwise fall back
+    // to the legacy local-disk path for documents uploaded before the Cloudinary fix.
+    if (deletedDoc?.publicId && deletedDoc?.url?.startsWith('http')) {
+      const result = await deleteCloudinaryFile({ publicId: deletedDoc.publicId, mimetype: deletedDoc.mimetype });
+      if (result.success) {
+        console.log('✓ Cloudinary file deleted');
+      } else {
+        console.warn('Failed to delete Cloudinary file:', result.error);
       }
-    } else {
-      console.warn('Physical file not found:', filePath);
+    } else if (deletedDoc?.filePath && fs.existsSync(deletedDoc.filePath)) {
+      try {
+        await unlinkAsync(deletedDoc.filePath);
+        console.log('✓ Legacy local file deleted');
+      } catch (err) {
+        console.warn('Failed to delete legacy local file:', err.message);
+      }
     }
 
     employee.markModified('employmentDetails');
@@ -606,8 +557,13 @@ exports.getEmployees = async (req, res) => {
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
+    const isDocumentOnlyUser = !['hr', 'admin', 'ceo'].includes(req.user.role);
+    const selectFields = isDocumentOnlyUser
+      ? 'fullName email department position employmentDetails.employeeId employmentDetails.employmentStatus employmentDetails.documents'
+      : '-password';
+
     const employees = await User.find(query)
-      .select('-password')
+      .select(selectFields)
       .sort('-createdAt')
       .skip(skip)
       .limit(parseInt(limit))
@@ -637,8 +593,13 @@ exports.getEmployees = async (req, res) => {
 
 exports.getEmployee = async (req, res) => {
   try {
+    const isDocumentOnlyUser = !['hr', 'admin', 'ceo'].includes(req.user.role);
+    const selectFields = isDocumentOnlyUser
+      ? 'fullName email department position employmentDetails.employeeId employmentDetails.employmentStatus employmentDetails.documents'
+      : '-password';
+
     const employee = await User.findById(req.params.id)
-      .select('-password')
+      .select(selectFields)
       .populate('supervisor', 'fullName email')
       .populate('departmentHead', 'fullName email');
 

@@ -3,6 +3,25 @@ const fs = require('fs');
 const User = require('../models/User');
 
 /**
+ * Find a specific document by publicId anywhere in an employee's employmentDetails.documents
+ * (single-file fields and array fields like references/academicDiplomas/workCertificates).
+ */
+const findDocumentByPublicId = (employee, publicId) => {
+  const docs = employee.employmentDetails?.documents;
+  if (!docs) return null;
+
+  for (const value of Object.values(docs)) {
+    if (Array.isArray(value)) {
+      const match = value.find(d => d.publicId === publicId);
+      if (match) return match;
+    } else if (value && value.publicId === publicId) {
+      return value;
+    }
+  }
+  return null;
+};
+
+/**
  * Download HR document by employee ID and publicId/filename
  */
 const downloadHRDocument = async (req, res) => {
@@ -25,6 +44,16 @@ const downloadHRDocument = async (req, res) => {
     const decodedPublicId = decodeURIComponent(publicId);
     console.log('Decoded Public ID:', decodedPublicId);
 
+    // Cloudinary-backed document (the normal case after the storage fix) — redirect straight
+    // to the real URL instead of searching local disk.
+    const employee = await User.findById(employeeId);
+    const doc = employee ? findDocumentByPublicId(employee, decodedPublicId) : null;
+    if (doc?.url?.startsWith('http')) {
+      console.log('✓ Found Cloudinary document, redirecting:', doc.url);
+      return res.redirect(doc.url);
+    }
+
+    // Legacy fallback: document predates the Cloudinary fix and only exists as a local file.
     // Possible file locations for HR documents
     const possiblePaths = [
       path.join(__dirname, '../uploads/hr-documents', employeeId, decodedPublicId),
@@ -148,6 +177,15 @@ const viewHRDocument = async (req, res) => {
     
     const decodedPublicId = decodeURIComponent(publicId);
 
+    // Cloudinary-backed document — redirect straight to the real URL.
+    const employee = await User.findById(employeeId);
+    const doc = employee ? findDocumentByPublicId(employee, decodedPublicId) : null;
+    if (doc?.url?.startsWith('http')) {
+      console.log('✓ Found Cloudinary document, redirecting:', doc.url);
+      return res.redirect(doc.url);
+    }
+
+    // Legacy fallback: document predates the Cloudinary fix and only exists as a local file.
     // Possible file locations
     const possiblePaths = [
       path.join(__dirname, '../uploads/hr-documents', employeeId, decodedPublicId),
@@ -222,6 +260,26 @@ const getHRDocumentInfo = async (req, res) => {
     const { employeeId, publicId } = req.params;
     const decodedPublicId = decodeURIComponent(publicId);
 
+    const employee = await User.findById(employeeId);
+    const doc = employee ? findDocumentByPublicId(employee, decodedPublicId) : null;
+
+    if (doc?.url?.startsWith('http')) {
+      const ext = path.extname(doc.name || '').toLowerCase();
+      return res.json({
+        success: true,
+        data: {
+          publicId: decodedPublicId,
+          name: doc.name,
+          size: doc.size,
+          mimetype: doc.mimetype,
+          extension: ext,
+          canViewInline: ['.pdf', '.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext),
+          uploadedAt: doc.uploadedAt
+        }
+      });
+    }
+
+    // Legacy fallback: document predates the Cloudinary fix and only exists as a local file.
     const possiblePaths = [
       path.join(__dirname, '../uploads/hr-documents', employeeId, decodedPublicId),
       path.join(__dirname, '../uploads/documents', employeeId, decodedPublicId),
