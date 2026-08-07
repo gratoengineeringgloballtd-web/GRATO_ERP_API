@@ -64,6 +64,8 @@
     "sharepoint:diagnose-file": "node scripts/diagnose-sharepoint-file.js",
     "sharepoint:audit-local-files": "node scripts/audit-sharepoint-local-files.js",
     "diagnose:buyer-sourcing": "node scripts/diagnose-buyer-sourcing.js",
+    "migrate:documents-to-arrays": "node scripts/migrateDocumentsToArrays.js",
+    "migrate:documents-to-arrays:dry": "node scripts/migrateDocumentsToArrays.js --dry-run",
     "test": "jest --runInBand"
   },
   "jest": {

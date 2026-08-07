@@ -282,16 +282,16 @@ const UserSchema = new mongoose.Schema({
         }],
         hrNotes: String,
         documents: {
-            nationalId: documentSchema,
-            birthCertificate: documentSchema,
-            bankAttestation: documentSchema,
-            locationPlan: documentSchema,
-            medicalCertificate: documentSchema,
-            criminalRecord: documentSchema,
+            nationalId: [documentSchema],
+            birthCertificate: [documentSchema],
+            bankAttestation: [documentSchema],
+            locationPlan: [documentSchema],
+            medicalCertificate: [documentSchema],
+            criminalRecord: [documentSchema],
             references: [documentSchema],
             academicDiplomas: [documentSchema],
             workCertificates: [documentSchema],
-            employmentContract: documentSchema
+            employmentContract: [documentSchema]
         }
     },
     

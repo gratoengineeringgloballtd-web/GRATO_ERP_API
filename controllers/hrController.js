@@ -69,34 +69,19 @@ exports.uploadDocument = async (req, res) => {
       uploadedBy: req.user.userId
     };
 
-    // Check if document type supports multiple files
-    const multipleDocsTypes = ['references', 'academicDiplomas', 'workCertificates'];
-    const oldDoc = employee.employmentDetails.documents[type];
-
-    if (multipleDocsTypes.includes(type)) {
-      console.log(`Document type '${type}' supports multiple files`);
-
-      if (!employee.employmentDetails.documents[type]) {
-        employee.employmentDetails.documents[type] = [];
-      }
-
-      employee.employmentDetails.documents[type].push(documentData);
-      console.log(`Added to array. Total ${type} documents: ${employee.employmentDetails.documents[type].length}`);
-    } else {
-      console.log(`Document type '${type}' is single file`);
-      employee.employmentDetails.documents[type] = documentData;
+    // Every document type accumulates a history rather than being replaced - uploading a
+    // new file always adds to the list, and nothing already on file is ever removed or
+    // overwritten. (Previously only references/academicDiplomas/workCertificates behaved
+    // this way; everything else silently replaced - and deleted - the prior upload.)
+    if (!Array.isArray(employee.employmentDetails.documents[type])) {
+      employee.employmentDetails.documents[type] = [];
     }
+    employee.employmentDetails.documents[type].push(documentData);
+    console.log(`Added to array. Total ${type} documents: ${employee.employmentDetails.documents[type].length}`);
 
     // Mark as modified to ensure save
     employee.markModified('employmentDetails');
     await employee.save();
-
-    // Only delete the old Cloudinary file once the new one is confirmed saved to the DB,
-    // so a failure here never leaves the employee record pointing at nothing.
-    if (oldDoc && !Array.isArray(oldDoc) && oldDoc.publicId) {
-      deleteCloudinaryFile({ publicId: oldDoc.publicId, mimetype: oldDoc.mimetype })
-        .catch(err => console.warn('Failed to delete old Cloudinary document:', err.message));
-    }
 
     console.log('✅ Document saved to database');
     console.log('Document metadata:', documentData);
@@ -145,11 +130,15 @@ exports.downloadDocument = async (req, res) => {
       });
     }
 
-    // Handle array documents (get the first one, or specify index in query)
+    // Handle array documents (defaults to the most recent upload, or a specific index via ?index=)
     let docToDownload = document;
     if (Array.isArray(document)) {
-      const index = parseInt(req.query.index) || 0;
-      if (index >= document.length) {
+      if (document.length === 0) {
+        return res.status(404).json({ success: false, message: 'Document not found' });
+      }
+      const hasIndex = req.query.index !== undefined;
+      const index = hasIndex ? parseInt(req.query.index) : document.length - 1;
+      if (index < 0 || index >= document.length) {
         return res.status(404).json({
           success: false,
           message: 'Document index out of range'
@@ -228,6 +217,15 @@ exports.downloadDocument = async (req, res) => {
 
 // ===== DELETE DOCUMENT - ENHANCED =====
 exports.deleteDocument = async (req, res) => {
+  // Policy: employee documents are append-only. Once uploaded, a document can never be
+  // deleted through this endpoint - only new documents can be added. This preserves a
+  // complete history for compliance/audit purposes.
+  return res.status(403).json({
+    success: false,
+    message: 'Documents cannot be deleted. Upload a new version if needed - all previously submitted documents are retained.'
+  });
+
+  // eslint-disable-next-line no-unreachable
   try {
     const { id, docId } = req.params;
 
