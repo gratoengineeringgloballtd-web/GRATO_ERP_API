@@ -453,8 +453,8 @@ exports.getStatistics = async (req, res) => {
       ];
       
       const docs = emp.employmentDetails?.documents || {};
-      const hasAllDocs = requiredDocs.every(doc => 
-        docs[doc] && (docs[doc].filename || docs[doc].filePath)
+      const hasAllDocs = requiredDocs.every(doc =>
+        Array.isArray(docs[doc]) && docs[doc].length > 0
       );
       
       if (!hasAllDocs) pendingDocuments++;

@@ -66,6 +66,7 @@
     "diagnose:buyer-sourcing": "node scripts/diagnose-buyer-sourcing.js",
     "migrate:documents-to-arrays": "node scripts/migrateDocumentsToArrays.js",
     "migrate:documents-to-arrays:dry": "node scripts/migrateDocumentsToArrays.js --dry-run",
+    "fix:ranibell-department": "node scripts/fixRanibellDepartment.js",
     "test": "jest --runInBand"
   },
   "jest": {
