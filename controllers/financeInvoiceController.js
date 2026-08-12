@@ -216,8 +216,8 @@ exports.getPOsForInvoicing = async (req, res) => {
       status: 'approved',
       hasInvoice: false
     })
-      .populate('supplier', 'name email')
-      .select('poNumber poDate supplier totalAmount status hasInvoice items')
+      .populate('supplierId', 'fullName email supplierDetails.companyName')
+      .select('poNumber poDate supplierDetails supplierId totalAmount status hasInvoice items')
       .sort({ createdAt: -1 });
 
     res.json({
@@ -375,9 +375,16 @@ exports.submitInvoiceForApproval = async (req, res) => {
 
     // Update status
     invoice.status = 'pending_approval';
-    invoice.approvalStatus = 'pending_manager_approval';
     invoice.submittedDate = new Date();
     invoice.submittedBy = req.user.userId;
+
+    // Build a real approval chain via the schema's own method - previously this just set
+    // approvalStatus to an invalid value and never populated approvalChain at all, so even
+    // a "successful" submission would leave the invoice permanently unapprovable (every
+    // approval method on this model depends on approvalChain being populated). Nothing
+    // upstream in this flow assigns a department, so default to the finance preparer's own.
+    const financeUser = await User.findById(req.user.userId).select('department');
+    invoice.assignToDepartment(invoice.assignedDepartment || financeUser?.department || 'Finance', req.user.userId);
 
     await invoice.save();
 

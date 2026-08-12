@@ -521,41 +521,44 @@ exports.processApprovalStep = async (req, res) => {
       await safePostCustomerInvoiceEntry(invoice._id, req.user.userId, 'final approval');
     }
 
-    // Send notification to employee
+    // Send notification to employee (skipped for finance-prepared invoices, which have no
+    // associated employee by design - see the schema's 'employee' field comment)
     const statusText = decision === 'approved' ? 'approved' : 'rejected';
-    await sendEmail({
-      to: invoice.employee.email,
-      subject: `Invoice ${statusText.charAt(0).toUpperCase() + statusText.slice(1)} - ${invoice.poNumber}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background-color: ${decision === 'approved' ? '#f6ffed' : '#fff2f0'}; padding: 20px; border-radius: 8px; border-left: 4px solid ${decision === 'approved' ? '#52c41a' : '#ff4d4f'};">
-            <h3>Invoice ${decision === 'approved' ? 'Approved' : 'Rejected'}</h3>
-            <p>Dear ${invoice.employee.fullName},</p>
-            
-            <p>Your invoice has been ${statusText} by ${processedStep.approver.name} (${processedStep.approver.role}).</p>
-            
-            <div style="background-color: white; padding: 15px; border-radius: 5px; margin: 15px 0;">
-              <ul>
-                <li><strong>PO Number:</strong> ${invoice.poNumber}</li>
-                <li><strong>Invoice Number:</strong> ${invoice.invoiceNumber}</li>
-                <li><strong>Status:</strong> ${invoice.approvalStatus}</li>
-                ${comments ? `<li><strong>Comments:</strong> ${comments}</li>` : ''}
-              </ul>
+    if (invoice.employee?.email) {
+      await sendEmail({
+        to: invoice.employee.email,
+        subject: `Invoice ${statusText.charAt(0).toUpperCase() + statusText.slice(1)} - ${invoice.poNumber}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background-color: ${decision === 'approved' ? '#f6ffed' : '#fff2f0'}; padding: 20px; border-radius: 8px; border-left: 4px solid ${decision === 'approved' ? '#52c41a' : '#ff4d4f'};">
+              <h3>Invoice ${decision === 'approved' ? 'Approved' : 'Rejected'}</h3>
+              <p>Dear ${invoice.employee.fullName},</p>
+              
+              <p>Your invoice has been ${statusText} by ${processedStep.approver.name} (${processedStep.approver.role}).</p>
+              
+              <div style="background-color: white; padding: 15px; border-radius: 5px; margin: 15px 0;">
+                <ul>
+                  <li><strong>PO Number:</strong> ${invoice.poNumber}</li>
+                  <li><strong>Invoice Number:</strong> ${invoice.invoiceNumber}</li>
+                  <li><strong>Status:</strong> ${invoice.approvalStatus}</li>
+                  ${comments ? `<li><strong>Comments:</strong> ${comments}</li>` : ''}
+                </ul>
+              </div>
+              
+              ${decision === 'approved' && invoice.currentApprovalLevel > 0 ? `
+              <div style="background-color: #e6f7ff; padding: 15px; border-radius: 5px;">
+                <p><strong>Next Step:</strong> Awaiting approval from ${invoice.getCurrentApprover().approver.name} (${invoice.getCurrentApprover().approver.role})</p>
+              </div>
+              ` : ''}
+              
+              <p>Thank you!</p>
             </div>
-            
-            ${decision === 'approved' && invoice.currentApprovalLevel > 0 ? `
-            <div style="background-color: #e6f7ff; padding: 15px; border-radius: 5px;">
-              <p><strong>Next Step:</strong> Awaiting approval from ${invoice.getCurrentApprover().approver.name} (${invoice.getCurrentApprover().approver.role})</p>
-            </div>
-            ` : ''}
-            
-            <p>Thank you!</p>
           </div>
-        </div>
-      `
-    }).catch(error => {
-      console.error('Failed to send employee notification:', error);
-    });
+        `
+      }).catch(error => {
+        console.error('Failed to send employee notification:', error);
+      });
+    }
 
     // If approved and there's a next approver, send notification
     if (decision === 'approved' && invoice.currentApprovalLevel > 0) {

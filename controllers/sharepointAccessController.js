@@ -80,10 +80,49 @@ const inviteUsersToFolder = async (req, res) => {
 
     await folder.save();
 
+    // Cascade this same invitation to every existing descendant folder, so access granted
+    // on a parent actually reaches everything nested under it - not just the folder the
+    // invite was made on. (New subfolders created after this point inherit invitedUsers
+    // automatically at creation time - see createFolder.)
+    const descendants = await SharePointFolder.find({ ancestors: folder._id });
+    for (const descendant of descendants) {
+      let changed = false;
+      for (const email of userEmails) {
+        const target = users.find(u => u.email === email);
+        if (!target) continue;
+
+        const existing = descendant.accessControl.invitedUsers.find(
+          inv => safeStr(inv?.userId) === safeStr(target._id)
+        );
+
+        if (existing) {
+          if (existing.permission !== permission) {
+            existing.permission = permission;
+            existing.invitedBy  = req.user.userId;
+            existing.invitedAt  = new Date();
+            changed = true;
+          }
+          continue;
+        }
+
+        descendant.accessControl.blockedUsers = (descendant.accessControl.blockedUsers || []).filter(
+          b => safeStr(b?.userId) !== safeStr(target._id)
+        );
+        descendant.accessControl.invitedUsers.push({
+          userId:    target._id,
+          permission,
+          invitedBy: req.user.userId,
+          invitedAt: new Date()
+        });
+        changed = true;
+      }
+      if (changed) await descendant.save();
+    }
+
     res.json({
       success: true,
       message: `${invited.length} user(s) invited`,
-      data: { invited, alreadyInvited, notFound }
+      data: { invited, alreadyInvited, notFound, descendantFoldersUpdated: descendants.length }
     });
   } catch (error) {
     console.error('inviteUsersToFolder:', error);

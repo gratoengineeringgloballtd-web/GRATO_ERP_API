@@ -64,6 +64,7 @@ router.post('/files/:fileId/share-link',                  authMiddleware, sharep
 
 // ── USER-SPECIFIC ──────────────────────────────────────────────────────────────
 router.get('/my-files',   authMiddleware, sharepointController.getUserFiles);
+router.get('/shared-with-me', authMiddleware, sharepointController.getSharedWithMe);
 router.get('/user-stats', authMiddleware, sharepointController.getUserStats);
 router.get('/users/search', authMiddleware, accessController.searchUsers);
 

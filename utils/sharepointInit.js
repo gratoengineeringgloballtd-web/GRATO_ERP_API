@@ -53,11 +53,11 @@ const initializeSharePoint = async () => {
       {
         name: 'HR Department',
         description: 'Human Resources documents',
-        department: 'HR',
+        department: 'HR & Admin',
         isPublic: false,
         createdBy: adminUser._id,
         accessControl: {
-          allowedDepartments: ['HR'],
+          allowedDepartments: ['HR & Admin'],
           allowedUsers: []
         }
       }

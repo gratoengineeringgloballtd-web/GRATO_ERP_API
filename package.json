@@ -67,6 +67,8 @@
     "migrate:documents-to-arrays": "node scripts/migrateDocumentsToArrays.js",
     "migrate:documents-to-arrays:dry": "node scripts/migrateDocumentsToArrays.js --dry-run",
     "fix:ranibell-department": "node scripts/fixRanibellDepartment.js",
+    "sharepoint:cascade-invites": "node scripts/cascadeFolderInvitesToDescendants.js",
+    "sharepoint:cascade-invites:dry": "node scripts/cascadeFolderInvitesToDescendants.js --dry-run",
     "test": "jest --runInBand"
   },
   "jest": {

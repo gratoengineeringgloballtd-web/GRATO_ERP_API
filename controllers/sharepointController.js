@@ -183,7 +183,9 @@ const createFolder = async (req, res) => {
       accessControl: {
         allowedDepartments: resolvedAllowedDepts,
         allowedUsers:       [req.user.userId],
-        invitedUsers:       [],
+        // Inherit the parent's invited users so someone with explicit access to a parent
+        // folder doesn't lose that access the moment a new subfolder is created under it.
+        invitedUsers:       parentFolder ? (parentFolder.accessControl?.invitedUsers || []) : [],
         blockedUsers:       []
       }
     }).save();
@@ -1329,6 +1331,35 @@ const getUserFiles = async (req, res) => {
   }
 };
 
+// Files shared directly with the current user, independent of whether they otherwise
+// have folder-level access to where the file lives - this is the only way a directly
+// shared file is discoverable if the recipient has no other route to the containing folder.
+const getSharedWithMe = async (req, res) => {
+  try {
+    const { search, sortBy } = req.query;
+    const query = {
+      'sharedWith.userId': toObjectId(req.user.userId),
+      isDeleted: false
+    };
+    if (search) query.name = { $regex: search, $options: 'i' };
+
+    const sortMap = { recent: { uploadedAt: -1 }, size: { size: -1 }, name: { name: 1 } };
+    const files = await SharePointFile.find(query)
+      .populate('uploadedBy', 'fullName email')
+      .populate('folderId', 'name department')
+      .sort(sortMap[sortBy] || { uploadedAt: -1 });
+
+    const data = files.map(f => {
+      const share = (f.sharedWith || []).find(s => String(s.userId) === String(req.user.userId));
+      return { ...f.toObject(), sharedPermission: share?.permission || 'download', sharedAt: share?.sharedAt };
+    });
+
+    res.json({ success: true, data, count: data.length });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch shared files', error: error.message });
+  }
+};
+
 const getUserStats = async (req, res) => {
   try {
     const user = await User.findById(req.user.userId);
@@ -1614,7 +1645,7 @@ module.exports = {
   // Sharing
   shareFile, revokeAccess, generateShareLink,
   // User
-  getUserFiles, getUserStats,
+  getUserFiles, getSharedWithMe, getUserStats,
   // Search
   globalSearch, getRecentFiles,
   // Bulk

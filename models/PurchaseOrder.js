@@ -92,7 +92,7 @@ const PurchaseOrderSchema = new mongoose.Schema({
 
   supplierId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Supplier',
+    ref: 'User',
     required: false
   },
 
