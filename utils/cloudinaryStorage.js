@@ -52,6 +52,7 @@ const STORAGE_CATEGORIES = {
   REIMBURSEMENTS:        'reimbursements',
   SUPPLIER_INVOICES:     'supplier-invoices',
   EMPLOYEE_INVOICES:     'employee-invoices',
+  FINANCE_INVOICES:      'finance-invoices',
   SUPPLIER_DOCUMENTS:    'supplier-documents',
   SUPPLIER_ONBOARDING:   'supplier-onboarding',
   CUSTOMER_ONBOARDING:   'customer-onboarding',

@@ -67,6 +67,26 @@ const invoiceSchema = new mongoose.Schema({
     required: [true, 'Invoice number is required'],
     trim: true
   },
+
+  // ── Partial invoicing context ────────────────────────────────────────────
+  // Snapshot of the PO's total value at the time this invoice was created, so this
+  // invoice's own record of "was this partial, and against what total" survives even
+  // if the PO document changes later.
+  poTotalAmount: {
+    type: Number,
+    default: null
+  },
+  // Amount already invoiced against this PO (across other invoices) before this one
+  // was created - lets this invoice show "this covers XAF Y of the Z already invoiced,
+  // W remaining" without needing to re-query every sibling invoice.
+  poInvoicedAmountBefore: {
+    type: Number,
+    default: 0
+  },
+  isPartialInvoice: {
+    type: Boolean,
+    default: false
+  },
   
   employee: {
     type: mongoose.Schema.Types.ObjectId,
@@ -179,6 +199,20 @@ const invoiceSchema = new mongoose.Schema({
     type: String,
     enum: ['draft', 'pending_approval', 'approved', 'rejected', 'paid', 'assigned'],
     default: 'draft'
+  },
+
+  // ── Payment tracking ──────────────────────────────────────────────────────
+  // Records the actual payment received from the client against this invoice.
+  // Distinct from approvalStatus === 'processed' (finance's internal sign-off) -
+  // this is the real accountability record of money actually received.
+  paymentDetails: {
+    amountPaid:          Number,
+    paymentDate:         Date,
+    paymentMethod:       String,
+    transactionReference: String,
+    bankReference:       String,
+    recordedBy:          { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    comments:            String
   },
 
   items: [

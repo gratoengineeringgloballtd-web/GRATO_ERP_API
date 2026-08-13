@@ -670,13 +670,6 @@ exports.processSupplierApprovalStep = async (req, res) => {
       });
     }
 
-    if (decision === 'approved' && (!req.files || !req.files.signedDocument || req.files.signedDocument.length === 0)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Signed document is required for approval. Please download, sign, and upload the invoice.'
-      });
-    }
-    
     const invoice = await SupplierInvoice.findById(invoiceId)
       .populate('supplier', 'supplierDetails email');
     
@@ -684,6 +677,21 @@ exports.processSupplierApprovalStep = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Supplier invoice not found'
+      });
+    }
+
+    // Only the department-head step (always level 1 - the chain is built department head
+    // first, then Head of Business, then Finance) requires a signed document. Supply chain's
+    // sign-off happens separately, earlier, in assignSupplierInvoiceBySupplyChain. Every
+    // subsequent approver (Head of Business, Finance, CEO) just approves or rejects - no
+    // document to download, sign, or re-upload.
+    const requiresSignature = invoice.currentApprovalLevel === 1;
+
+    if (decision === 'approved' && requiresSignature &&
+        (!req.files || !req.files.signedDocument || req.files.signedDocument.length === 0)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Signed document is required for department-level approval. Please download, sign, and upload the invoice.'
       });
     }
 
@@ -742,7 +750,7 @@ exports.processSupplierApprovalStep = async (req, res) => {
     
     let signedDocData = null;
     
-    if (decision === 'approved') {
+    if (decision === 'approved' && requiresSignature && req.files?.signedDocument?.length > 0) {
       const signedDocFile = req.files.signedDocument[0];
       
       try {
@@ -1104,10 +1112,11 @@ exports.updateSupplierInvoiceDetails = async (req, res) => {
       });
     }
     
-    if (invoice.approvalStatus !== 'pending_finance_assignment') {
+    if (invoice.approvalStatus !== 'pending_supply_chain_assignment') {
       return res.status(400).json({
         success: false,
-        message: 'Invoice details can only be updated while pending finance assignment'
+        message: 'Invoice details can only be updated while pending assignment',
+        currentStatus: invoice.approvalStatus
       });
     }
     
@@ -1344,7 +1353,7 @@ exports.assignSupplierInvoiceToDepartment = async (req, res) => {
       });
     }
     
-    if (invoice.approvalStatus !== 'pending_finance_assignment') {
+    if (invoice.approvalStatus !== 'pending_supply_chain_assignment') {
       return res.status(400).json({
         success: false,
         message: 'Invoice has already been assigned or processed',
@@ -1782,11 +1791,12 @@ exports.bulkAssignSupplierInvoices = async (req, res) => {
           continue;
         }
         
-        if (invoice.approvalStatus !== 'pending_finance_assignment') {
+        if (invoice.approvalStatus !== 'pending_supply_chain_assignment') {
           results.failed.push({ 
             invoiceId, 
             invoiceNumber: invoice.invoiceNumber,
-            error: 'Invoice already assigned or processed' 
+            error: 'Invoice already assigned or processed',
+            currentStatus: invoice.approvalStatus
           });
           continue;
         }
@@ -1900,7 +1910,13 @@ exports.getSupplierInvoiceAnalytics = async (req, res) => {
             $size: {
               $filter: {
                 input: '$statuses',
-                cond: { $in: ['$this', ['pending_finance_assignment', 'pending_department_approval']] }
+                cond: { $in: ['$this', [
+                  'pending_supply_chain_assignment',
+                  'pending_department_head_approval',
+                  'pending_head_of_business_approval',
+                  'pending_finance_approval',
+                  'pending_ceo_approval'
+                ]] }
               }
             }
           },

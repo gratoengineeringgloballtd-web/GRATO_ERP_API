@@ -260,6 +260,31 @@ const PurchaseOrderSchema = new mongoose.Schema({
     default: 0,
     min: 0
   },
+
+  // ── Invoicing tracking ──────────────────────────────────────────────────
+  // Cumulative amount invoiced so far across every invoice raised against this PO.
+  // Supports partial invoicing: a PO can be invoiced multiple times as long as the
+  // running total never exceeds totalAmount.
+  invoicedAmount: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  // Every invoice ever created against this PO, in order - the full accountability
+  // trail for "who invoiced what, when, and for how much" against this PO.
+  invoices: [{
+    invoiceId:     { type: mongoose.Schema.Types.ObjectId, ref: 'Invoice' },
+    invoiceNumber: String,
+    amount:        Number,
+    createdBy:     { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    createdAt:     { type: Date, default: Date.now }
+  }],
+  invoicingStatus: {
+    type: String,
+    enum: ['not_invoiced', 'partially_invoiced', 'fully_invoiced'],
+    default: 'not_invoiced'
+  },
+
   budgetAllocated: Number,
   actualCost: Number,
   costSavings: Number,

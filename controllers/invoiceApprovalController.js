@@ -855,8 +855,9 @@ exports.markInvoiceAsProcessed = async (req, res) => {
     
     await invoice.save();
     
-    // Notify employee
-    if (invoice.employee.email) {
+    // Notify employee (skipped for finance-prepared invoices, which have no associated
+    // employee by design - see the schema's 'employee' field comment)
+    if (invoice.employee?.email) {
       await sendEmail({
         to: invoice.employee.email,
         subject: `✅ Invoice Processed - ${invoice.poNumber}`,
@@ -864,7 +865,7 @@ exports.markInvoiceAsProcessed = async (req, res) => {
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
             <div style="background-color: #d4edda; padding: 20px; border-radius: 8px;">
               <h2>✅ Invoice Successfully Processed</h2>
-              <p>Dear ${invoice.employeeDetails.name},</p>
+              <p>Dear ${invoice.employeeDetails?.name || invoice.employee.fullName || 'colleague'},</p>
               <p>Your invoice has been successfully processed by the finance team.</p>
               
               <div style="background-color: white; padding: 20px; border-radius: 8px;">
@@ -901,6 +902,110 @@ exports.markInvoiceAsProcessed = async (req, res) => {
     res.status(400).json({
       success: false,
       message: error.message || 'Failed to mark invoice as processed'
+    });
+  }
+};
+
+// Record payment received from the client against an approved invoice. This is the real
+// accountability record - separate from markInvoiceAsProcessed, which is just finance's
+// internal sign-off and never recorded an actual payment amount, date, or reference.
+exports.recordInvoicePayment = async (req, res) => {
+  try {
+    console.log('=== RECORDING INVOICE PAYMENT ===');
+    const { invoiceId } = req.params;
+    const {
+      paymentAmount,
+      paymentMethod,
+      transactionReference,
+      bankReference,
+      paymentDate,
+      comments
+    } = req.body;
+
+    const invoice = await Invoice.findById(invoiceId)
+      .populate('employee', 'fullName email')
+      .populate('customer', 'companyName tradingName name primaryEmail email');
+
+    if (!invoice) {
+      return res.status(404).json({
+        success: false,
+        message: 'Invoice not found'
+      });
+    }
+
+    if (!['approved', 'processed'].includes(invoice.approvalStatus)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invoice must be approved before payment can be recorded',
+        currentStatus: invoice.approvalStatus
+      });
+    }
+
+    if (invoice.status === 'paid') {
+      return res.status(400).json({
+        success: false,
+        message: 'Payment has already been recorded for this invoice',
+        existingPayment: invoice.paymentDetails
+      });
+    }
+
+    const amount = paymentAmount ? parseFloat(paymentAmount) : invoice.totalAmount;
+    if (!amount || amount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'A valid payment amount is required'
+      });
+    }
+
+    // Flag (don't block) an amount that doesn't match the invoice total, since partial
+    // client payments are a real possibility finance needs visibility into, not an error.
+    const isPartialPayment = amount < invoice.totalAmount - 0.01;
+
+    invoice.paymentDetails = {
+      amountPaid: amount,
+      paymentDate: paymentDate ? new Date(paymentDate) : new Date(),
+      paymentMethod: paymentMethod || 'Bank Transfer',
+      transactionReference,
+      bankReference,
+      recordedBy: req.user.userId,
+      comments
+    };
+    invoice.status = isPartialPayment ? 'approved' : 'paid';
+
+    await invoice.save();
+
+    console.log(`✓ Payment recorded for invoice ${invoice.invoiceNumber}: ${amount} (${isPartialPayment ? 'partial' : 'full'})`);
+
+    // Notify whoever created the invoice (finance-prepared invoices have no 'employee' -
+    // that's expected, not an error, so this is guarded rather than assumed present)
+    if (invoice.employee?.email) {
+      await sendEmail({
+        to: invoice.employee.email,
+        subject: `Payment Received - Invoice ${invoice.invoiceNumber}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background-color: #d4edda; padding: 20px; border-radius: 8px;">
+              <h2>Payment Recorded</h2>
+              <p>A payment of ${amount.toLocaleString()} has been recorded against invoice ${invoice.invoiceNumber}${isPartialPayment ? ' (partial payment - balance remains outstanding)' : ' (paid in full)'}.</p>
+            </div>
+          </div>
+        `
+      }).catch(error => console.error('Failed to send payment notification:', error));
+    }
+
+    res.json({
+      success: true,
+      message: isPartialPayment
+        ? 'Partial payment recorded successfully'
+        : 'Invoice marked as paid in full',
+      data: invoice
+    });
+
+  } catch (error) {
+    console.error('=== FAILED TO RECORD INVOICE PAYMENT ===', error);
+    res.status(400).json({
+      success: false,
+      message: error.message || 'Failed to record invoice payment'
     });
   }
 };

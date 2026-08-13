@@ -137,6 +137,13 @@ router.put('/finance/process/:invoiceId',
   invoiceApprovalController.markInvoiceAsProcessed
 );
 
+// Record payment received from the client against an approved invoice
+router.put('/finance/payment/:invoiceId',
+  authMiddleware,
+  requireRoles('finance', 'admin', 'ceo'),
+  invoiceApprovalController.recordInvoicePayment
+);
+
 // ==================== UPLOAD ROUTE ====================
 router.post('/upload',
   authMiddleware,
@@ -220,6 +227,18 @@ router.get(
   authMiddleware,
   requireRoles('finance', 'admin', 'ceo'),
   financeInvoiceController.getPOsForInvoicing
+);
+
+/**
+ * @route   GET /api/invoices/finance/po/:poId/history
+ * @desc    Get full invoice history for a specific PO, for accountability (Finance only)
+ * @access  Private (Finance, Admin)
+ */
+router.get(
+  '/finance/po/:poId/history',
+  authMiddleware,
+  requireRoles('finance', 'admin', 'ceo'),
+  financeInvoiceController.getInvoiceHistoryForPO
 );
 
 /**
