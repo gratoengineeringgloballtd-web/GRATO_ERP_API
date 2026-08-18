@@ -2,6 +2,7 @@ const SupplierInvoice = require('../models/SupplierInvoice');
 const User = require('../models/User');
 const { sendEmail, sendSupplierInvoiceEmail } = require('../services/emailService');
 const { getSupplyChainCoordinator } = require('../config/supplierApprovalChain');
+const { getEffectiveApprovalEmails, matchesEffectiveApprover } = require('../utils/delegationHelper');
 const { 
   saveFile, 
   deleteFile, 
@@ -732,8 +733,9 @@ exports.processSupplierApprovalStep = async (req, res) => {
       });
     }
     
-    if (!invoice.canUserApprove(user.email)) {
-      const currentApprover = invoice.getCurrentApprover();
+    const currentApprover = invoice.getCurrentApprover();
+    const effectiveEmails = await getEffectiveApprovalEmails(req.user.userId, user.email);
+    if (!currentApprover || !matchesEffectiveApprover(currentApprover.approver?.email, effectiveEmails)) {
       return res.status(403).json({
         success: false,
         message: `You are not authorized to approve this invoice at this time. Current approver: ${currentApprover?.approver.name} (Level ${currentApprover?.level})`,
@@ -779,7 +781,10 @@ exports.processSupplierApprovalStep = async (req, res) => {
 
     // Capture current level before processing (needed for emails after status changes)
     const processedLevel = invoice.currentApprovalLevel;
-    const processedStep = invoice.processApprovalStep(user.email, decision, comments, req.user.userId);
+    // processApprovalStep matches on the step's own approver email internally, so pass
+    // that (not user.email) to find the step correctly - userId is what actually gets
+    // recorded as who acted, always the real person even when a delegate is acting.
+    const processedStep = invoice.processApprovalStep(currentApprover.approver.email, decision, comments, req.user.userId);
     
     if (signedDocData) {
       processedStep.signedDocument = signedDocData;

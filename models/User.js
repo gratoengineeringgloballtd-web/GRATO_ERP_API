@@ -206,7 +206,70 @@ const UserSchema = new mongoose.Schema({
             },
         ],
     },
-    
+
+    // GENERAL APPROVAL DELEGATION
+    // Lets any user hand off their own pending approvals/requests to a colleague for a
+    // period (e.g. while on leave), independent of the CEO-specific mechanism above.
+    // When active, the delegate can act on anything this user is the current approver
+    // for, across every approval-chain-based flow that checks effective approval emails.
+    delegation: {
+        isActive: {
+            type: Boolean,
+            default: false,
+        },
+        delegateId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+        },
+        delegateEmail: {
+            type: String,
+            trim: true,
+            lowercase: true,
+        },
+        delegateName: {
+            type: String,
+            trim: true,
+        },
+        // Free-text reason shown to the delegate and in audit trails, e.g. "Annual leave"
+        reason: {
+            type: String,
+            trim: true,
+        },
+        fromDate: {
+            type: Date,
+        },
+        // Optional - if unset, delegation stays active until explicitly cleared
+        untilDate: {
+            type: Date,
+        },
+        notifyDelegate: {
+            type: Boolean,
+            default: true,
+        },
+        // Should the delegator still get a read-only copy of notifications while delegated?
+        keepInformed: {
+            type: Boolean,
+            default: true,
+        },
+        setBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+        },
+        setAt: Date,
+        // Audit trail of past delegation periods
+        history: [{
+            delegateEmail: String,
+            delegateName: String,
+            reason: String,
+            fromDate: Date,
+            untilDate: Date,
+            setBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+            setAt: Date,
+            clearedAt: Date,
+            clearedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+        }]
+    },
+
     isActive: {
         type: Boolean,
         default: true
@@ -292,6 +355,15 @@ const UserSchema = new mongoose.Schema({
             academicDiplomas: [documentSchema],
             workCertificates: [documentSchema],
             employmentContract: [documentSchema]
+        },
+        // Documents uploaded into custom sections (see models/DocumentSection.js), keyed
+        // by the section's key - e.g. { passport_copy: [documentSchema, ...] }. Mixed type
+        // so any section key added later just works with the same bracket-notation access
+        // pattern the 10 built-in fields above already use, without a schema migration
+        // every time a new section is created.
+        customDocuments: {
+            type: mongoose.Schema.Types.Mixed,
+            default: {}
         }
     },
     
@@ -803,6 +875,22 @@ UserSchema.pre('save', async function(next) {
 
 UserSchema.methods.comparePassword = async function(candidatePassword) {
     return await bcrypt.compare(candidatePassword, this.password);
+};
+
+/**
+ * Check if this user currently has an active general delegation set up.
+ * Automatically treats an expired untilDate as inactive, even if isActive was never
+ * explicitly cleared - matching the CEO-specific hasActiveDelegate() pattern below.
+ */
+UserSchema.methods.hasActiveDelegation = function () {
+    const d = this.delegation;
+    if (!d || !d.isActive) return false;
+
+    if (d.untilDate && new Date(d.untilDate) < new Date()) {
+        return false;
+    }
+
+    return Boolean(d.delegateEmail);
 };
 
 /**

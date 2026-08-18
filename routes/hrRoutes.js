@@ -93,6 +93,19 @@ router.get('/employees/:id/documents/:type', requireHRDocumentAccess, hrControll
 router.delete('/employees/:id/documents/:docId', requireHRDocumentAccess, hrController.deleteDocument);
 
 // ============================================
+// CUSTOM DOCUMENT SECTIONS
+// ============================================
+
+// List all document sections (built-in + custom)
+router.get('/document-sections', requireHRDocumentAccess, hrController.getDocumentSections);
+
+// Create a new custom document section
+router.post('/document-sections', requireHRDocumentAccess, hrController.createDocumentSection);
+
+// Remove a custom document section (soft delete - built-in sections can't be removed)
+router.delete('/document-sections/:key', requireHRDocumentAccess, hrController.deactivateDocumentSection);
+
+// ============================================
 // NEW: ENHANCED DOCUMENT FILE ROUTES
 // ============================================
 

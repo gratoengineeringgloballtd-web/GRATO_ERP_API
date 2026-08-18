@@ -524,6 +524,13 @@ try {
   console.error('❌ Failed to mount /api/hr:', e.message);
 }
 
+try {
+  app.use('/api/delegation', require('./routes/delegationRoutes'));
+  console.log('✅ Mounted: /api/delegation');
+} catch (e) {
+  console.error('❌ Failed to mount /api/delegation:', e.message);
+}
+
 console.log('✅ Route mounting complete\n');
 
 // Multer error handling

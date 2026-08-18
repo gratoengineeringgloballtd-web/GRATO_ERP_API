@@ -1,5 +1,6 @@
 const Invoice = require('../models/Invoice');
 const User = require('../models/User');
+const { getEffectiveApprovalEmails, matchesEffectiveApprover } = require('../utils/delegationHelper');
 const { sendEmail } = require('../services/emailService');
 const { getInvoiceApprovalChain } = require('../config/invoiceApprovalChain');
 const WorkflowService = require('../services/workflowService');
@@ -499,17 +500,23 @@ exports.processApprovalStep = async (req, res) => {
       });
     }
 
-    // Check if user can approve at current level
-    if (!invoice.canUserApprove(req.user.email)) {
+    // Check if user can approve at current level (including anyone who has delegated
+    // their approvals to the acting user)
+    const currentStep = invoice.getCurrentApprover();
+    const effectiveEmails = await getEffectiveApprovalEmails(req.user.userId, req.user.email);
+    if (!currentStep || !matchesEffectiveApprover(currentStep.approver?.email, effectiveEmails)) {
       return res.status(403).json({
         success: false,
         message: 'You are not authorized to approve this invoice at this level'
       });
     }
 
-    // Process the approval step
+    // Process the approval step. processApprovalStep matches on the step's own approver
+    // email internally, so we pass that (not req.user.email) to find the step correctly -
+    // userId is what actually gets recorded as who acted, which is always the real person
+    // (the delegate, if one is acting), never the original approver by mistake.
     const processedStep = invoice.processApprovalStep(
-      req.user.email,
+      currentStep.approver.email,
       decision,
       comments,
       req.user.userId

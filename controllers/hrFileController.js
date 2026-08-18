@@ -7,10 +7,10 @@ const User = require('../models/User');
  * (single-file fields and array fields like references/academicDiplomas/workCertificates).
  */
 const findDocumentByPublicId = (employee, publicId) => {
-  const docs = employee.employmentDetails?.documents;
-  if (!docs) return null;
+  const builtIn = employee.employmentDetails?.documents || {};
+  const custom = employee.employmentDetails?.customDocuments || {};
 
-  for (const value of Object.values(docs)) {
+  for (const value of [...Object.values(builtIn), ...Object.values(custom)]) {
     if (Array.isArray(value)) {
       const match = value.find(d => d.publicId === publicId);
       if (match) return match;

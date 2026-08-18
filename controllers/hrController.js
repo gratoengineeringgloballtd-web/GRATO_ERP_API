@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const DocumentSection = require('../models/DocumentSection');
 const ExcelJS = require('exceljs');
 const path = require('path');
 const fs = require('fs');
@@ -7,6 +8,17 @@ const unlinkAsync = promisify(fs.unlink);
 const crypto = require('crypto');
 const sendEmail = require('../utils/sendEmail');
 const { saveFile, deleteFile: deleteCloudinaryFile, STORAGE_CATEGORIES } = require('../utils/cloudinaryStorage');
+
+// The 10 document sections that ship with the app. Anything not in this list is a
+// custom section (see models/DocumentSection.js) and is stored in
+// employmentDetails.customDocuments instead of employmentDetails.documents, since the
+// latter is a strict sub-schema that can't hold arbitrary new keys.
+const BUILT_IN_DOCUMENT_TYPES = [
+  'nationalId', 'birthCertificate', 'bankAttestation', 'locationPlan',
+  'medicalCertificate', 'criminalRecord', 'references', 'academicDiplomas',
+  'workCertificates', 'employmentContract'
+];
+const isBuiltInType = (type) => BUILT_IN_DOCUMENT_TYPES.includes(type);
 
 // ===== DOCUMENT UPLOAD - COMPLETELY REWRITTEN =====
 exports.uploadDocument = async (req, res) => {
@@ -38,12 +50,28 @@ exports.uploadDocument = async (req, res) => {
 
     console.log(`Employee found: ${employee.fullName}`);
 
+    // If this isn't one of the built-in types, it must be a real, active custom section -
+    // otherwise a typo in the type param would silently create an orphaned document nobody
+    // can ever find again through the normal section list.
+    if (!isBuiltInType(type)) {
+      const section = await DocumentSection.findOne({ key: type, isActive: true });
+      if (!section) {
+        return res.status(400).json({
+          success: false,
+          message: `"${type}" is not a recognized document section`
+        });
+      }
+    }
+
     // Initialize documents object if not exists
     if (!employee.employmentDetails) {
       employee.employmentDetails = {};
     }
     if (!employee.employmentDetails.documents) {
       employee.employmentDetails.documents = {};
+    }
+    if (!employee.employmentDetails.customDocuments) {
+      employee.employmentDetails.customDocuments = {};
     }
 
     // Upload to Cloudinary, scoped under this employee's id so files are easy to find/audit
@@ -73,11 +101,15 @@ exports.uploadDocument = async (req, res) => {
     // new file always adds to the list, and nothing already on file is ever removed or
     // overwritten. (Previously only references/academicDiplomas/workCertificates behaved
     // this way; everything else silently replaced - and deleted - the prior upload.)
-    if (!Array.isArray(employee.employmentDetails.documents[type])) {
-      employee.employmentDetails.documents[type] = [];
+    const target = isBuiltInType(type)
+      ? employee.employmentDetails.documents
+      : employee.employmentDetails.customDocuments;
+
+    if (!Array.isArray(target[type])) {
+      target[type] = [];
     }
-    employee.employmentDetails.documents[type].push(documentData);
-    console.log(`Added to array. Total ${type} documents: ${employee.employmentDetails.documents[type].length}`);
+    target[type].push(documentData);
+    console.log(`Added to array. Total ${type} documents: ${target[type].length}`);
 
     // Mark as modified to ensure save
     employee.markModified('employmentDetails');
@@ -121,7 +153,9 @@ exports.downloadDocument = async (req, res) => {
       });
     }
 
-    const document = employee.employmentDetails?.documents?.[type];
+    const document = isBuiltInType(type)
+      ? employee.employmentDetails?.documents?.[type]
+      : employee.employmentDetails?.customDocuments?.[type];
 
     if (!document) {
       return res.status(404).json({
@@ -334,7 +368,9 @@ exports.getDocumentInfo = async (req, res) => {
       });
     }
 
-    const document = employee.employmentDetails?.documents?.[type];
+    const document = isBuiltInType(type)
+      ? employee.employmentDetails?.documents?.[type]
+      : employee.employmentDetails?.customDocuments?.[type];
 
     if (!document) {
       return res.status(404).json({
@@ -393,6 +429,174 @@ exports.getDocumentInfo = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to get document info',
+      error: error.message
+    });
+  }
+};
+
+// ===== CUSTOM DOCUMENT SECTIONS =====
+
+// The 10 sections that ship with the app, in a shape matching DocumentSection documents,
+// so the frontend can get one merged list instead of hardcoding built-ins separately.
+const BUILT_IN_SECTIONS = [
+  { key: 'nationalId', label: 'National ID (Certified Copy)', required: true, multiple: true, isCustom: false },
+  { key: 'birthCertificate', label: 'Birth Certificate', required: true, multiple: true, isCustom: false },
+  { key: 'bankAttestation', label: 'Bank Attestation', required: true, multiple: true, isCustom: false },
+  { key: 'locationPlan', label: 'Detailed Location Plan', required: true, multiple: true, isCustom: false },
+  { key: 'medicalCertificate', label: 'Medical Certificate', required: true, multiple: true, isCustom: false },
+  { key: 'criminalRecord', label: 'Criminal Record', required: true, multiple: true, isCustom: false },
+  { key: 'references', label: 'References (3)', required: true, multiple: true, isCustom: false },
+  { key: 'academicDiplomas', label: 'Highest Academic Diplomas', required: true, multiple: true, isCustom: false },
+  { key: 'workCertificates', label: 'Work Certificates (Previous Employers)', required: false, multiple: true, isCustom: false },
+  { key: 'employmentContract', label: 'Employment Contract', required: true, multiple: true, isCustom: false }
+];
+
+/**
+ * List every document section available - the 10 built-in ones plus any custom
+ * sections that have been added, so the frontend has a single source of truth
+ * instead of hardcoding the built-ins and fetching custom ones separately.
+ */
+exports.getDocumentSections = async (req, res) => {
+  try {
+    const customSections = await DocumentSection.find({ isActive: true })
+      .populate('createdBy', 'fullName email')
+      .sort({ createdAt: 1 });
+
+    const custom = customSections.map(s => ({
+      key: s.key,
+      label: s.label,
+      description: s.description,
+      required: s.required,
+      multiple: s.multiple,
+      isCustom: true,
+      createdBy: s.createdBy?.fullName,
+      createdAt: s.createdAt
+    }));
+
+    res.json({
+      success: true,
+      data: [...BUILT_IN_SECTIONS, ...custom]
+    });
+  } catch (error) {
+    console.error('Get document sections error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch document sections',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Add a new custom document section. Available company-wide immediately - every
+ * employee's document manager will show it as soon as it's created.
+ */
+exports.createDocumentSection = async (req, res) => {
+  try {
+    const { label, description, required } = req.body;
+
+    if (!label || !label.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'A label is required for the new section'
+      });
+    }
+
+    // Derive a stable key from the label (e.g. "Passport Copy" -> "passport_copy").
+    // Collisions get a numeric suffix rather than failing outright.
+    const baseKey = label.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+    if (!baseKey) {
+      return res.status(400).json({
+        success: false,
+        message: 'Label must contain at least one letter or number'
+      });
+    }
+
+    if (BUILT_IN_SECTIONS.some(s => s.key === baseKey)) {
+      return res.status(409).json({
+        success: false,
+        message: `"${label}" is too close to an existing built-in section name. Please choose a different label.`
+      });
+    }
+
+    let key = baseKey;
+    let suffix = 1;
+    while (await DocumentSection.findOne({ key })) {
+      suffix += 1;
+      key = `${baseKey}_${suffix}`;
+    }
+
+    const section = await DocumentSection.create({
+      key,
+      label: label.trim(),
+      description: description?.trim(),
+      required: !!required,
+      multiple: true,
+      createdBy: req.user.userId
+    });
+
+    console.log(`✅ Custom document section created: "${section.label}" (${section.key})`);
+
+    res.status(201).json({
+      success: true,
+      message: 'Document section created',
+      data: {
+        key: section.key,
+        label: section.label,
+        description: section.description,
+        required: section.required,
+        multiple: section.multiple,
+        isCustom: true
+      }
+    });
+  } catch (error) {
+    console.error('Create document section error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create document section',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Deactivate a custom document section (soft delete - already-uploaded documents in
+ * that section are untouched and remain retrievable; the section just stops appearing
+ * as an option for new uploads). Built-in sections can't be removed this way.
+ */
+exports.deactivateDocumentSection = async (req, res) => {
+  try {
+    const { key } = req.params;
+
+    if (isBuiltInType(key)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Built-in document sections cannot be removed'
+      });
+    }
+
+    const section = await DocumentSection.findOneAndUpdate(
+      { key },
+      { isActive: false },
+      { new: true }
+    );
+
+    if (!section) {
+      return res.status(404).json({
+        success: false,
+        message: 'Document section not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `"${section.label}" removed from available sections`
+    });
+  } catch (error) {
+    console.error('Deactivate document section error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to remove document section',
       error: error.message
     });
   }
@@ -557,7 +761,7 @@ exports.getEmployees = async (req, res) => {
 
     const isDocumentOnlyUser = !['hr', 'admin', 'ceo'].includes(req.user.role);
     const selectFields = isDocumentOnlyUser
-      ? 'fullName email department position employmentDetails.employeeId employmentDetails.employmentStatus employmentDetails.documents'
+      ? 'fullName email department position employmentDetails.employeeId employmentDetails.employmentStatus employmentDetails.documents employmentDetails.customDocuments'
       : '-password';
 
     const employees = await User.find(query)
@@ -593,7 +797,7 @@ exports.getEmployee = async (req, res) => {
   try {
     const isDocumentOnlyUser = !['hr', 'admin', 'ceo'].includes(req.user.role);
     const selectFields = isDocumentOnlyUser
-      ? 'fullName email department position employmentDetails.employeeId employmentDetails.employmentStatus employmentDetails.documents'
+      ? 'fullName email department position employmentDetails.employeeId employmentDetails.employmentStatus employmentDetails.documents employmentDetails.customDocuments'
       : '-password';
 
     const employee = await User.findById(req.params.id)

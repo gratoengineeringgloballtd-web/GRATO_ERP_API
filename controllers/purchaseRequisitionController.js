@@ -11,6 +11,7 @@ const {
   STORAGE_CATEGORIES 
 } = require('../utils/cloudinaryStorage');
 const cancellationController = require('../controllers/Cancellationcontroller');
+const { getEffectiveApprovalEmails, matchesEffectiveApprover } = require('../utils/delegationHelper');
 
 
 
@@ -820,8 +821,9 @@ const processSupervisorDecision = async (req, res) => {
       });
     }
 
+    const effectiveEmails = await getEffectiveApprovalEmails(req.user.userId, user.email);
     const currentStepIndex = requisition.approvalChain.findIndex(
-      step => step.approver.email === user.email && step.status === 'pending'
+      step => matchesEffectiveApprover(step.approver.email, effectiveEmails) && step.status === 'pending'
     );
 
     if (currentStepIndex === -1) {
@@ -1066,15 +1068,16 @@ const processFinanceDecision = async (req, res) => {
 
     if (!requisition) return res.status(404).json({ success: false, message: 'Requisition not found' });
 
+    const financeEffectiveEmails = await getEffectiveApprovalEmails(req.user.userId, user.email);
     const canProcess = user.role === 'admin' || user.role === 'finance' ||
-      requisition.approvalChain.some(step => step.approver.email === user.email && (step.approver.role === 'Finance Officer' || step.approver.role === 'President'));
+      requisition.approvalChain.some(step => matchesEffectiveApprover(step.approver.email, financeEffectiveEmails) && (step.approver.role === 'Finance Officer' || step.approver.role === 'President'));
 
     if (!canProcess) return res.status(403).json({ success: false, message: 'Access denied' });
 
     requisition.financeReview = { decision, comments, decisionDate: new Date(), decidedBy: req.user.userId };
     requisition.status = decision === 'approve' ? 'approved' : 'rejected';
 
-    const financeStepIndex = requisition.approvalChain.findIndex(step => step.approver.email === user.email && step.status === 'pending');
+    const financeStepIndex = requisition.approvalChain.findIndex(step => matchesEffectiveApprover(step.approver.email, financeEffectiveEmails) && step.status === 'pending');
     if (financeStepIndex !== -1) {
       requisition.approvalChain[financeStepIndex].status = decision;
       requisition.approvalChain[financeStepIndex].comments = comments;

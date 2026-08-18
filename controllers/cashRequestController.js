@@ -4,6 +4,7 @@ const BudgetCode = require('../models/BudgetCode');
 const Project = require('../models/Project');
 const { getCashRequestApprovalChain, getNextApprovalStatus, canUserApproveAtLevel } = require('../config/cashRequestApprovalChain');
 const { sendCashRequestEmail, sendEmail } = require('../services/emailService');
+const { getEffectiveApprovalEmails, matchesEffectiveApprover } = require('../utils/delegationHelper');
 const { 
   saveFile, 
   deleteFile,
@@ -626,9 +627,11 @@ const processFinanceDecision = async (req, res) => {
       });
     }
 
-    // Find finance step
+    // Find finance step (including anyone who has delegated their approvals to the
+    // acting user)
+    const financeEffectiveEmails = await getEffectiveApprovalEmails(req.user.userId, user.email);
     const financeStepIndex = request.approvalChain.findIndex(step => 
-      step.approver.email === user.email && 
+      matchesEffectiveApprover(step.approver.email, financeEffectiveEmails) && 
       step.approver.role === 'Finance Officer' &&
       step.status === 'pending'
     );
@@ -1556,11 +1559,13 @@ const processSupervisorJustificationDecision = async (req, res) => {
       });
     }
 
-    // Verify supervisor has permission to approve
+    // Verify supervisor has permission to approve (including anyone who has delegated
+    // their approvals to the acting user)
+    const supJustEffectiveEmails = await getEffectiveApprovalEmails(req.user.userId, user.email);
     const canApprove = 
       request.status === 'justification_pending_supervisor' &&
       request.approvalChain.some(step => 
-        step.approver.email === user.email && 
+        matchesEffectiveApprover(step.approver.email, supJustEffectiveEmails) && 
         (step.approver.role === 'Supervisor' || step.approver.role === 'Departmental Head')
       );
 
@@ -1784,11 +1789,13 @@ const processFinanceJustificationDecision = async (req, res) => {
       });
     }
 
-    // ✅ FIXED: Check if user has a pending step in justification chain
+    // Check if user has a pending step in justification chain (including anyone who has
+    // delegated their approvals to the acting user)
+    const finJustEffectiveEmails = await getEffectiveApprovalEmails(req.user.userId, user.email);
     const userPendingSteps = request.justificationApprovalChain
       .map((step, index) => ({ step, index }))
       .filter(({ step }) =>
-        step.approver.email.toLowerCase() === user.email.toLowerCase() && 
+        matchesEffectiveApprover(step.approver.email, finJustEffectiveEmails) && 
         step.status === 'pending' &&
         step.approver.role === 'Finance Officer'
       );
@@ -2588,9 +2595,11 @@ const processApprovalDecision = async (req, res) => {
       });
     }
 
-    // Find current user's step in approval chain
+    // Find current user's step in approval chain (including anyone who has delegated
+    // their approvals to the acting user)
+    const effectiveEmails = await getEffectiveApprovalEmails(req.user.userId, user.email);
     const currentStepIndex = request.approvalChain.findIndex(
-      step => step.approver.email === user.email && step.status === 'pending'
+      step => matchesEffectiveApprover(step.approver.email, effectiveEmails) && step.status === 'pending'
     );
 
     if (currentStepIndex === -1) {
@@ -3072,11 +3081,13 @@ const processSupervisorDecision = async (req, res) => {
     console.log(`Total approval levels: ${totalLevels}`);
     console.log(`Current status: ${request.status}`);
 
-    // Find ALL pending steps for this user
+    // Find ALL pending steps for this user (including anyone who has delegated their
+    // approvals to the acting user)
+    const supervisorEffectiveEmails = await getEffectiveApprovalEmails(req.user.userId, user.email);
     const userPendingSteps = request.approvalChain
       .map((step, index) => ({ step, index }))
       .filter(({ step }) => 
-        step.approver.email === user.email && step.status === 'pending'
+        matchesEffectiveApprover(step.approver.email, supervisorEffectiveEmails) && step.status === 'pending'
       );
 
     if (userPendingSteps.length === 0) {
@@ -3926,11 +3937,13 @@ const processJustificationDecision = async (req, res) => {
     const isVersion2 = request.approvalChainVersion === 2;
     console.log(`Version: ${isVersion2 ? 'V2 (with HR)' : 'V1 (no HR)'}`);
 
-    // Find user's pending steps
+    // Find user's pending steps (including anyone who has delegated their approvals to
+    // the acting user)
+    const justEffectiveEmails = await getEffectiveApprovalEmails(req.user.userId, user.email);
     const userPendingSteps = request.justificationApprovalChain
       .map((step, index) => ({ step, index }))
       .filter(({ step }) =>
-        step.approver.email.toLowerCase() === user.email.toLowerCase() && 
+        matchesEffectiveApprover(step.approver.email, justEffectiveEmails) && 
         step.status === 'pending'
       );
 
