@@ -7,6 +7,7 @@ const PettyCashForm = require('../models/PettyCashForm');
 const User = require('../models/User');
 const { sendEmail } = require('../services/emailService');
 const { sendBuyerNotificationEmail } = require('../services/buyerEmailService');
+const { inviteExternalSupplier } = require('./externalQuoteController');
 
 
 const getAssignedRequisitions = async (req, res) => {
@@ -69,12 +70,20 @@ const getAssignedRequisitions = async (req, res) => {
       const sourcingStatusMap = {
         pending_sourcing: ['approved', 'pending_head_approval'],
         in_progress:      ['in_procurement'],
-        quotes_received:  ['quotes_received'],
         completed:        ['procurement_complete', 'delivered', 'completed'],
       };
-      const mapped = sourcingStatusMap[sourcingStatus];
-      if (mapped) query.status = { $in: mapped };
-      // unknown value → no extra filter (returns all)
+      if (sourcingStatus === 'quotes_received') {
+        // Requisitions stay 'in_procurement' at the top level once quotes come in -
+        // the granular progress (quotes evaluated / vendor selected) lives in
+        // procurementDetails.status instead, since 'quotes_received' was never a
+        // valid value for the top-level status field.
+        query.status = 'in_procurement';
+        query['procurementDetails.status'] = { $in: ['quotes_evaluated', 'vendor_selected'] };
+      } else {
+        const mapped = sourcingStatusMap[sourcingStatus];
+        if (mapped) query.status = { $in: mapped };
+        // unknown value → no extra filter (returns all)
+      }
  
     } else if (status) {
       query.status = status;
@@ -86,7 +95,6 @@ const getAssignedRequisitions = async (req, res) => {
           'pending_head_approval',
           'approved',
           'in_procurement',
-          'quotes_received',
           'procurement_complete',
           'delivered',
           'completed',
@@ -428,6 +436,7 @@ const createAndSendRFQ = async (req, res) => {
     const { requisitionId } = req.params;
     const {
       selectedSuppliers,
+      externalSupplierEmails,
       expectedDeliveryDate,
       quotationDeadline,
       paymentTerms,
@@ -438,6 +447,7 @@ const createAndSendRFQ = async (req, res) => {
     console.log('=== CREATE AND SEND RFQ ===');
     console.log('Requisition ID:', requisitionId);
     console.log('Selected Suppliers:', selectedSuppliers);
+    console.log('External Supplier Emails:', externalSupplierEmails);
     console.log('Expected Delivery Date:', expectedDeliveryDate);
     console.log('Quotation Deadline:', quotationDeadline);
     
@@ -449,11 +459,13 @@ const createAndSendRFQ = async (req, res) => {
       });
     }
     
-    // Validation
-    if (!selectedSuppliers || selectedSuppliers.length === 0) {
+    // Validation - at least one supplier, registered or external, is required
+    const hasRegisteredSuppliers = selectedSuppliers && selectedSuppliers.length > 0;
+    const hasExternalSuppliers = externalSupplierEmails && externalSupplierEmails.length > 0;
+    if (!hasRegisteredSuppliers && !hasExternalSuppliers) {
       return res.status(400).json({
         success: false,
-        message: 'At least one supplier must be selected'
+        message: 'At least one supplier (registered or external) must be selected'
       });
     }
 
@@ -559,21 +571,21 @@ const createAndSendRFQ = async (req, res) => {
     }
 
     // FIXED: Validate that all selected suppliers exist
-    const supplierObjectIds = selectedSuppliers.map(id => {
+    const supplierObjectIds = hasRegisteredSuppliers ? selectedSuppliers.map(id => {
       if (!mongoose.Types.ObjectId.isValid(id)) {
         throw new Error(`Invalid supplier ID format: ${id}`);
       }
       return new mongoose.Types.ObjectId(id);
-    });
+    }) : [];
 
     console.log('Converted supplier ObjectIds:', supplierObjectIds);
 
     // Try to find suppliers in User collection first
-    let validSuppliers = await User.find({
+    let validSuppliers = hasRegisteredSuppliers ? await User.find({
       _id: { $in: supplierObjectIds },
       role: 'supplier'
       // Removed isActive check temporarily to debug
-    }).select('_id fullName email supplierDetails isActive status');
+    }).select('_id fullName email supplierDetails isActive status') : [];
 
     console.log('Found suppliers in User collection:', validSuppliers.length);
     console.log('User collection supplier details:', validSuppliers.map(s => ({
@@ -629,7 +641,7 @@ const createAndSendRFQ = async (req, res) => {
 
     console.log('Final valid suppliers count:', validSuppliers.length);
 
-    if (validSuppliers.length === 0) {
+    if (hasRegisteredSuppliers && validSuppliers.length === 0) {
       // Provide more detailed error message
       const allSuppliersInUser = await User.find({
         _id: { $in: supplierObjectIds }
@@ -729,7 +741,7 @@ const createAndSendRFQ = async (req, res) => {
         status: 'sent',
         sentDate: new Date(),
         responseSummary: {
-          totalInvited: supplierObjectIds.length,
+          totalInvited: supplierObjectIds.length + (hasExternalSuppliers ? externalSupplierEmails.length : 0),
           totalResponded: 0,
           totalDeclined: 0,
           averageResponseTime: 0
@@ -739,6 +751,19 @@ const createAndSendRFQ = async (req, res) => {
       const savedRFQ = await rfq.save();
       console.log('RFQ created successfully:', savedRFQ._id);
       console.log('RFQ invited suppliers structure:', savedRFQ.invitedSuppliers);
+
+      // Invite external (unregistered) suppliers - generates a token-based link each
+      // and emails it to them. Pushes onto savedRFQ.externalInvitations and re-saves.
+      if (hasExternalSuppliers) {
+        for (const entry of externalSupplierEmails) {
+          const email = typeof entry === 'string' ? entry : entry.email;
+          const companyName = typeof entry === 'string' ? undefined : entry.companyName;
+          if (!email) continue;
+          await inviteExternalSupplier(savedRFQ, email, companyName, user.fullName);
+        }
+        await savedRFQ.save();
+        console.log(`✅ Invited ${savedRFQ.externalInvitations.length} external supplier(s)`);
+      }
       
       // Update procurement details with RFQ reference
       requisition.procurementDetails.rfqId = savedRFQ._id;
@@ -1858,7 +1883,6 @@ const updateProcurementStatus = async (req, res) => {
 
     // Transform quotes to match frontend expectations
     const transformedQuotes = quotes
-      .filter(quote => quote.supplierId) // Filter out quotes with no supplier found
       .map(quote => {
         console.log('Transforming quote:', {
           id: quote._id,
@@ -1872,7 +1896,7 @@ const updateProcurementStatus = async (req, res) => {
           quoteNumber: quote.quoteNumber,
           rfqId: quote.rfqId,
           requisitionId: quote.requisitionId,
-          supplierId: quote.supplierId._id,
+          supplierId: quote.supplierId?._id || null,
           
           // Supplier details - handle both direct fields and nested supplierDetails
           supplierName: quote.supplierDetails?.name || 
@@ -2023,12 +2047,20 @@ const getRFQDetails = async (req, res) => {
         evaluationCriteria: rfq.evaluationCriteria,
         items: rfq.items,
         invitedSuppliers: rfq.invitedSuppliers.map(inv => ({
-          supplierId: inv.supplierId._id,
-          supplierName: inv.supplierId.supplierDetails?.companyName || inv.supplierId.fullName,
-          supplierEmail: inv.supplierId.email,
+          supplierId: inv.supplierId?._id || null,
+          supplierName: inv.supplierId?.supplierDetails?.companyName || inv.supplierId?.fullName || 'Unknown Supplier',
+          supplierEmail: inv.supplierId?.email,
           invitedDate: inv.invitedDate,
           responseStatus: inv.responseStatus,
           responseDate: inv.responseDate
+        })),
+        externalInvitations: (rfq.externalInvitations || []).map(inv => ({
+          email: inv.email,
+          companyName: inv.companyName,
+          invitedDate: inv.invitedDate,
+          responseStatus: inv.responseStatus,
+          responseDate: inv.responseDate,
+          isExternal: true
         })),
         responseSummary: rfq.responseSummary
       },
@@ -2040,13 +2072,14 @@ const getRFQDetails = async (req, res) => {
         estimatedCost: requisition.estimatedTotalCost,
         deliveryLocation: requisition.deliveryLocation
       },
-      quotes: quotes.filter(quote => quote.supplierId).map(quote => ({
+      quotes: quotes.map(quote => ({
         id: quote._id,
         quoteNumber: quote.quoteNumber,
-        supplierId: quote.supplierId._id,
-        supplierName: quote.supplierId.supplierDetails?.companyName || quote.supplierId.fullName,
-        supplierEmail: quote.supplierId.email,
-        supplierPhone: quote.supplierId.phone,
+        supplierId: quote.supplierId?._id || null,
+        isExternalSupplier: !!quote.isExternal,
+        supplierName: quote.supplierDetails?.name || quote.supplierId?.supplierDetails?.companyName || quote.supplierId?.fullName || 'Unknown Supplier',
+        supplierEmail: quote.supplierDetails?.email || quote.supplierId?.email,
+        supplierPhone: quote.supplierDetails?.phone || quote.supplierId?.phone,
         totalAmount: quote.totalAmount,
         currency: quote.currency || 'XAF',
         submissionDate: quote.submissionDate,
@@ -2140,8 +2173,15 @@ const evaluateQuotes = async (req, res) => {
     const evaluatedCount = allQuotes.filter(q => q.status === 'evaluated').length;
 
     if (evaluatedCount === allQuotes.length && allQuotes.length > 0) {
-      // Update requisition status
-      requisition.status = 'quotes_received';
+      // Granular progress marker for supply-chain visibility - the requisition's own
+      // top-level status stays 'in_procurement' (still accurate; procurement is
+      // ongoing until a PO is created or the item is delivered). 'quotes_received'
+      // was never a valid value for the top-level status field, so this always threw
+      // a ValidationError before - every quote evaluation silently failed to save.
+      if (!requisition.procurementDetails) requisition.procurementDetails = {};
+      requisition.procurementDetails.status = 'quotes_evaluated';
+      requisition.procurementDetails.lastUpdated = new Date();
+      requisition.procurementDetails.lastUpdatedBy = req.user.userId;
       await requisition.save();
     }
 
@@ -2303,7 +2343,7 @@ const evaluateQuotes = async (req, res) => {
             poNumber,
             quoteId: quote._id,
             requisitionId: quote.requisitionId._id,
-            supplierId: quote.supplierId._id,
+            supplierId: quote.supplierId?._id || null,
             buyerId: req.user.userId,
             
             // Order details
@@ -2347,10 +2387,10 @@ const evaluateQuotes = async (req, res) => {
             
             // Supplier details snapshot
             supplierDetails: {
-              name: quote.supplierId.supplierDetails?.companyName || quote.supplierId.fullName,
-              email: quote.supplierId.email,
-              phone: quote.supplierId.phone,
-              address: quote.supplierId.supplierDetails?.address || ''
+              name: quote.supplierDetails?.name || quote.supplierId?.supplierDetails?.companyName || quote.supplierId?.fullName || 'Unknown Supplier',
+              email: quote.supplierDetails?.email || quote.supplierId?.email,
+              phone: quote.supplierDetails?.phone || quote.supplierId?.phone,
+              address: quote.supplierDetails?.address || quote.supplierId?.supplierDetails?.address || ''
             },
             
             createdBy: req.user.userId
@@ -2381,7 +2421,7 @@ const evaluateQuotes = async (req, res) => {
               selectedQuote: {
                 id: quote._id,
                 quoteNumber: quote.quoteNumber,
-                supplierName: quote.supplierId.supplierDetails?.companyName || quote.supplierId.fullName,
+                supplierName: quote.supplierDetails?.name || quote.supplierId?.supplierDetails?.companyName || quote.supplierId?.fullName || 'Unknown Supplier',
                 totalAmount: quote.totalAmount,
                 selectionDate: quote.selectionDate
               }
@@ -2392,16 +2432,25 @@ const evaluateQuotes = async (req, res) => {
   
       console.log('Updating requisition status...');
   
-      // Update requisition status
+      // Update requisition status - 'quotes_received' was never a valid enum value here,
+      // so this always threw a ValidationError on save whenever a quote was selected
+      // without simultaneously creating a PO. Stays 'in_procurement' until a PO actually
+      // exists (still accurate - procurement isn't complete just because a vendor was
+      // picked), with the finer-grained progress recorded in procurementDetails.status.
       requisition.status = createPurchaseOrder && purchaseOrder ? 
-        'procurement_complete' : 'quotes_received';
+        'procurement_complete' : 'in_procurement';
       
       if (!requisition.procurementDetails) {
         requisition.procurementDetails = {};
       }
       
-      requisition.procurementDetails.selectedVendor = quote.supplierId.supplierDetails?.companyName || 
-                                                     quote.supplierId.fullName;
+      requisition.procurementDetails.status = createPurchaseOrder && purchaseOrder
+        ? 'purchase_order_created' : 'vendor_selected';
+      requisition.procurementDetails.lastUpdated = new Date();
+      requisition.procurementDetails.lastUpdatedBy = req.user.userId;
+      requisition.procurementDetails.selectedVendor = quote.supplierDetails?.name || 
+                                                     quote.supplierId?.supplierDetails?.companyName || 
+                                                     quote.supplierId?.fullName || 'Unknown Supplier';
       requisition.procurementDetails.finalCost = quote.totalAmount;
       requisition.procurementDetails.selectionDate = new Date();
       
@@ -2415,10 +2464,10 @@ const evaluateQuotes = async (req, res) => {
       // Send notification to winning supplier
       try {
         console.log('Sending notification to supplier...');
-        const supplierName = quote.supplierId.supplierDetails?.companyName || quote.supplierId.fullName;
+        const supplierName = quote.supplierDetails?.name || quote.supplierId?.supplierDetails?.companyName || quote.supplierId?.fullName || 'Unknown Supplier';
         
         await sendEmail({
-          to: quote.supplierId.email,
+          to: quote.supplierDetails?.email || quote.supplierId?.email,
           subject: `🎉 Congratulations! Your Quote Has Been Selected - ${rfq?.title || 'Purchase Request'}`,
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -2479,7 +2528,7 @@ const evaluateQuotes = async (req, res) => {
                     
                     <div style="background: white; padding: 15px; margin: 15px 0; border-radius: 8px;">
                       <p><strong>Requisition:</strong> ${requisition.title}</p>
-                      <p><strong>Selected Supplier:</strong> ${quote.supplierId.supplierDetails?.companyName || quote.supplierId.fullName}</p>
+                      <p><strong>Selected Supplier:</strong> ${quote.supplierDetails?.name || quote.supplierId?.supplierDetails?.companyName || quote.supplierId?.fullName || 'Unknown Supplier'}</p>
                       <p><strong>Final Cost:</strong> ${quote.currency} ${quote.totalAmount.toLocaleString()}</p>
                       ${purchaseOrder ? `<p><strong>Purchase Order:</strong> ${purchaseOrder.poNumber}</p>` : ''}
                     </div>
@@ -2503,7 +2552,7 @@ const evaluateQuotes = async (req, res) => {
         selectedQuote: {
           id: quote._id,
           quoteNumber: quote.quoteNumber,
-          supplierName: quote.supplierId.supplierDetails?.companyName || quote.supplierId.fullName,
+          supplierName: quote.supplierDetails?.name || quote.supplierId?.supplierDetails?.companyName || quote.supplierId?.fullName || 'Unknown Supplier',
           totalAmount: quote.totalAmount,
           currency: quote.currency,
           selectionDate: quote.selectionDate,
@@ -3356,12 +3405,12 @@ module.exports = {
         const user = await User.findById(req.user.userId);
         try {
           await sendEmail({
-            to: quote.supplierId.email,
+            to: quote.supplierDetails?.email || quote.supplierId?.email,
             subject: `Clarification Request for Your Quote`,
             html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                 <h2 style="color: #faad14;">Clarification Request</h2>
-                <p>Dear ${quote.supplierId.supplierDetails?.companyName || quote.supplierId.fullName},</p>
+                <p>Dear ${quote.supplierDetails?.name || quote.supplierId?.supplierDetails?.companyName || quote.supplierId?.fullName || 'Supplier'},</p>
                 <p>We require clarification on your submitted quote:</p>
                 <div style="background: #fff7e6; padding: 15px; border-radius: 8px; margin: 15px 0;">
                   <p><strong>Questions:</strong></p>

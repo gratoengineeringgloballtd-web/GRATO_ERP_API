@@ -460,22 +460,32 @@ exports.getDocumentSections = async (req, res) => {
   try {
     const customSections = await DocumentSection.find({ isActive: true })
       .populate('createdBy', 'fullName email')
-      .sort({ createdAt: 1 });
+      .sort({ depth: 1, createdAt: 1 });
 
     const custom = customSections.map(s => ({
+      _id: s._id,
       key: s.key,
       label: s.label,
       description: s.description,
       required: s.required,
       multiple: s.multiple,
       isCustom: true,
+      isFolder: s.isFolder,
+      parentFolder: s.parentFolder,
+      ancestors: s.ancestors,
+      depth: s.depth,
       createdBy: s.createdBy?.fullName,
       createdAt: s.createdAt
     }));
 
+    // Built-in sections always sit at the root (depth 0, no parent) - they were never
+    // designed to be nested, and doing so would risk breaking the fixed field names the
+    // rest of the app (uploadDocument, downloadDocument, etc.) reads directly.
+    const builtIn = BUILT_IN_SECTIONS.map(s => ({ ...s, isFolder: false, parentFolder: null, ancestors: [], depth: 0 }));
+
     res.json({
       success: true,
-      data: [...BUILT_IN_SECTIONS, ...custom]
+      data: [...builtIn, ...custom]
     });
   } catch (error) {
     console.error('Get document sections error:', error);
@@ -488,18 +498,31 @@ exports.getDocumentSections = async (req, res) => {
 };
 
 /**
- * Add a new custom document section. Available company-wide immediately - every
- * employee's document manager will show it as soon as it's created.
+ * Add a new custom document section or folder. Available company-wide immediately -
+ * every employee's document manager will show it as soon as it's created. Can be
+ * nested under an existing custom folder via parentFolderId.
  */
 exports.createDocumentSection = async (req, res) => {
   try {
-    const { label, description, required } = req.body;
+    const { label, description, required, isFolder, parentFolderId } = req.body;
 
     if (!label || !label.trim()) {
       return res.status(400).json({
         success: false,
         message: 'A label is required for the new section'
       });
+    }
+
+    // Resolve and validate the parent folder, if one was given.
+    let parent = null;
+    if (parentFolderId) {
+      parent = await DocumentSection.findOne({ _id: parentFolderId, isActive: true });
+      if (!parent) {
+        return res.status(404).json({ success: false, message: 'Parent folder not found' });
+      }
+      if (!parent.isFolder) {
+        return res.status(400).json({ success: false, message: 'The selected parent is not a folder - documents/sections can only nest under a folder' });
+      }
     }
 
     // Derive a stable key from the label (e.g. "Passport Copy" -> "passport_copy").
@@ -519,6 +542,21 @@ exports.createDocumentSection = async (req, res) => {
       });
     }
 
+    // Sibling labels (same parent) must be distinct - enforced by the schema's compound
+    // index too, but checking here gives a clearer error message than a raw duplicate-key
+    // error would.
+    const siblingClash = await DocumentSection.findOne({
+      parentFolder: parent ? parent._id : null,
+      label: label.trim(),
+      isActive: true
+    });
+    if (siblingClash) {
+      return res.status(409).json({
+        success: false,
+        message: `"${label}" already exists ${parent ? `in "${parent.label}"` : 'at the top level'}`
+      });
+    }
+
     let key = baseKey;
     let suffix = 1;
     while (await DocumentSection.findOne({ key })) {
@@ -532,20 +570,29 @@ exports.createDocumentSection = async (req, res) => {
       description: description?.trim(),
       required: !!required,
       multiple: true,
+      isFolder: !!isFolder,
+      parentFolder: parent ? parent._id : null,
+      ancestors: parent ? [...parent.ancestors, parent._id] : [],
+      depth: parent ? parent.depth + 1 : 0,
       createdBy: req.user.userId
     });
 
-    console.log(`✅ Custom document section created: "${section.label}" (${section.key})`);
+    console.log(`✅ Custom document ${section.isFolder ? 'folder' : 'section'} created: "${section.label}" (${section.key})${parent ? ` under "${parent.label}"` : ''}`);
 
     res.status(201).json({
       success: true,
-      message: 'Document section created',
+      message: `${section.isFolder ? 'Folder' : 'Document section'} created`,
       data: {
+        _id: section._id,
         key: section.key,
         label: section.label,
         description: section.description,
         required: section.required,
         multiple: section.multiple,
+        isFolder: section.isFolder,
+        parentFolder: section.parentFolder,
+        ancestors: section.ancestors,
+        depth: section.depth,
         isCustom: true
       }
     });
@@ -575,18 +622,26 @@ exports.deactivateDocumentSection = async (req, res) => {
       });
     }
 
-    const section = await DocumentSection.findOneAndUpdate(
-      { key },
-      { isActive: false },
-      { new: true }
-    );
-
+    const section = await DocumentSection.findOne({ key, isActive: true });
     if (!section) {
       return res.status(404).json({
         success: false,
         message: 'Document section not found'
       });
     }
+
+    if (section.isFolder) {
+      const childCount = await DocumentSection.countDocuments({ parentFolder: section._id, isActive: true });
+      if (childCount > 0) {
+        return res.status(400).json({
+          success: false,
+          message: `"${section.label}" still contains ${childCount} section(s)/folder(s). Remove those first.`
+        });
+      }
+    }
+
+    section.isActive = false;
+    await section.save();
 
     res.json({
       success: true,

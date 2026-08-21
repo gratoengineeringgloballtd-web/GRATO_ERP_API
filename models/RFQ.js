@@ -52,7 +52,7 @@ const RFQSchema = new mongoose.Schema({
   invitedSuppliers: [{
     supplierId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Supplier',
+      ref: 'User',
       required: true
     },
     invitedDate: {
@@ -70,6 +70,42 @@ const RFQSchema = new mongoose.Schema({
       default: 0
     },
     lastReminderDate: Date
+  }],
+
+  // Suppliers invited by email who aren't registered in the system - each gets a unique
+  // token-based link (see ExternalQuoteForm.js on the frontend) to view the RFQ and
+  // submit a quote without needing an account.
+  externalInvitations: [{
+    email: {
+      type: String,
+      required: true,
+      trim: true,
+      lowercase: true
+    },
+    companyName: {
+      type: String,
+      trim: true
+    },
+    token: {
+      type: String,
+      required: true,
+      unique: true
+    },
+    invitedDate: {
+      type: Date,
+      default: Date.now
+    },
+    expiresAt: Date,
+    responseStatus: {
+      type: String,
+      enum: ['pending', 'responded', 'declined', 'expired'],
+      default: 'pending'
+    },
+    responseDate: Date,
+    remindersSent: {
+      type: Number,
+      default: 0
+    }
   }],
   
   // RFQ Details

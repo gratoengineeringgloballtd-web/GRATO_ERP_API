@@ -407,6 +407,14 @@ router.get('/procurement/planning',
   purchaseRequisitionController.getProcurementPlanningData
 );
 
+// Detailed per-requisition tracking of buyer sourcing progress, for supply chain to see
+// exactly where an assigned requisition currently stands (RFQ sent, quotes received,
+// vendor selected, PO created).
+router.get('/procurement/buyer-tracking',
+  authMiddleware,
+  purchaseRequisitionController.getBuyerAssignmentTracking
+);
+
 router.get('/analytics/categories',
   authMiddleware,
   purchaseRequisitionController.getCategoryAnalytics

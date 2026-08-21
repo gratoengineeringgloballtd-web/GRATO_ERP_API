@@ -531,6 +531,13 @@ try {
   console.error('❌ Failed to mount /api/delegation:', e.message);
 }
 
+try {
+  app.use('/api/external-quote', require('./routes/externalQuoteRoutes'));
+  console.log('✅ Mounted: /api/external-quote');
+} catch (e) {
+  console.error('❌ Failed to mount /api/external-quote:', e.message);
+}
+
 console.log('✅ Route mounting complete\n');
 
 // Multer error handling

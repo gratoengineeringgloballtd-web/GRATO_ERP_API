@@ -541,6 +541,53 @@ const PurchaseRequisitionSchema = new mongoose.Schema({
       type: String,
       enum: ['pending', 'in_transit', 'delivered', 'delayed'],
       default: 'pending'
+    },
+
+    // Sourcing/RFQ stage tracking - the buyer-facing procurement lifecycle, and the
+    // fields supply chain needs to see where an assigned buyer currently stands.
+    status: {
+      type: String,
+      trim: true
+      // Free-text rather than a strict enum: values used across the codebase include
+      // 'sourcing_initiated', 'quotes_evaluated', etc., and this is meant as a
+      // human-readable progress marker, not a state machine with its own transitions -
+      // the requisition's own top-level `status` field is the authoritative workflow
+      // state.
+    },
+    rfqId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'RFQ'
+    },
+    purchaseOrderId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'PurchaseOrder'
+    },
+    procurementMethod: String,
+    procurementStartDate: Date,
+    procurementNotes: String,
+    expectedDeliveryDate: Date,
+    estimatedDeliveryDate: Date, // used by updateProcurementStatus - kept alongside
+                                  // expectedDeliveryDate (set by createAndSendRFQ)
+                                  // rather than unifying the two, to avoid silently
+                                  // losing whichever value a caller already relies on
+    deliveryLocation: String,
+    paymentTerms: String,
+    specialRequirements: String,
+    quotationDeadline: Date,
+    selectedSuppliers: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    }],
+    evaluationCriteria: mongoose.Schema.Types.Mixed,
+    selectionDate: Date,
+    completionDate: Date,
+    vendorSelected: mongoose.Schema.Types.Mixed,
+    actualCost: Number,
+    deliveryTracking: mongoose.Schema.Types.Mixed,
+    lastUpdated: Date,
+    lastUpdatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
     }
   },
 

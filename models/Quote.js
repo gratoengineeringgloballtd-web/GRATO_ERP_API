@@ -13,7 +13,15 @@ const QuoteSchema = new mongoose.Schema({
   supplierId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: false // Optional - external (unregistered) suppliers have no User account;
+                     // they're identified entirely by supplierDetails and isExternal below.
+  },
+  isExternal: {
+    type: Boolean,
+    default: false
+  },
+  externalInvitationToken: {
+    type: String
   },
   rfqId: {
     type: mongoose.Schema.Types.ObjectId,

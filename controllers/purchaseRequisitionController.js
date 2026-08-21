@@ -1409,6 +1409,106 @@ const getProcurementPlanningData = async (req, res) => {
 };
 
 /**
+ * Detailed tracking of every requisition supply chain has assigned to a buyer, showing
+ * exactly where each one currently stands in the buyer's sourcing process (RFQ sent,
+ * suppliers invited, quotes received/evaluated, vendor selected, PO created). This is
+ * the per-requisition companion to getProcurementPlanningData's aggregate workload
+ * summary - only possible because procurementDetails.status/rfqId now actually persist.
+ */
+const getBuyerAssignmentTracking = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId);
+    const canView = user.role === 'admin' || user.role === 'supply_chain' || user.role === 'ceo' || user.department === 'Business Development & Supply Chain';
+    if (!canView) return res.status(403).json({ success: false, message: 'Access denied' });
+
+    const { buyerId, stage } = req.query;
+    const { IN_PROCUREMENT } = PurchaseRequisition.STATUS_GROUPS;
+
+    const query = {
+      status: { $in: IN_PROCUREMENT },
+      'supplyChainReview.assignedBuyer': { $exists: true, $ne: null }
+    };
+    if (buyerId) query['supplyChainReview.assignedBuyer'] = buyerId;
+
+    const requisitions = await PurchaseRequisition.find(query)
+      .populate('supplyChainReview.assignedBuyer', 'fullName email')
+      .populate('employee', 'fullName department')
+      .populate('procurementDetails.rfqId', 'rfqNumber status invitedSuppliers externalInvitations responseSummary responseDeadline')
+      .sort({ 'supplyChainReview.buyerAssignmentDate': -1 })
+      .lean();
+
+    // A readable, ordered progress stage for each requisition, derived from the same
+    // fields the buyer's own portal uses - so what supply chain sees always matches
+    // what the buyer sees, rather than a separate parallel interpretation of status.
+    const STAGE_ORDER = ['assigned', 'sourcing_initiated', 'quotes_evaluated', 'vendor_selected', 'purchase_order_created', 'procurement_complete'];
+    const resolveStage = (req) => {
+      if (req.status === 'procurement_complete' || req.status === 'delivered' || req.status === 'completed') return 'procurement_complete';
+      const pdStatus = req.procurementDetails?.status;
+      if (pdStatus && STAGE_ORDER.includes(pdStatus)) return pdStatus;
+      if (req.procurementDetails?.rfqId) return 'sourcing_initiated';
+      return 'assigned';
+    };
+
+    let data = requisitions.map(req => {
+      const rfq = req.procurementDetails?.rfqId;
+      const suppliersInvited = (rfq?.invitedSuppliers?.length || 0) + (rfq?.externalInvitations?.length || 0);
+      const quotesReceived = rfq?.responseSummary?.totalResponded || 0;
+
+      return {
+        requisitionId: req._id,
+        requisitionNumber: req.requisitionNumber,
+        title: req.title,
+        employee: req.employee ? { name: req.employee.fullName, department: req.employee.department } : null,
+        budgetXAF: req.budgetXAF,
+        assignedBuyer: req.supplyChainReview.assignedBuyer
+          ? { id: req.supplyChainReview.assignedBuyer._id, name: req.supplyChainReview.assignedBuyer.fullName, email: req.supplyChainReview.assignedBuyer.email }
+          : null,
+        buyerAssignmentDate: req.supplyChainReview.buyerAssignmentDate,
+        stage: resolveStage(req),
+        stageLabel: {
+          assigned: 'Assigned - not yet sourced',
+          sourcing_initiated: 'RFQ sent - awaiting quotes',
+          quotes_evaluated: 'Quotes evaluated',
+          vendor_selected: 'Vendor selected',
+          purchase_order_created: 'Purchase order created',
+          procurement_complete: 'Complete'
+        }[resolveStage(req)],
+        rfq: rfq ? {
+          rfqNumber: rfq.rfqNumber,
+          status: rfq.status,
+          suppliersInvited,
+          quotesReceived,
+          responseDeadline: rfq.responseDeadline
+        } : null,
+        selectedVendor: req.procurementDetails?.selectedVendor,
+        finalCost: req.procurementDetails?.finalCost,
+        lastUpdated: req.procurementDetails?.lastUpdated || req.updatedAt,
+        daysSinceAssignment: req.supplyChainReview.buyerAssignmentDate
+          ? Math.floor((Date.now() - new Date(req.supplyChainReview.buyerAssignmentDate).getTime()) / (1000 * 60 * 60 * 24))
+          : null
+      };
+    });
+
+    if (stage) {
+      data = data.filter(r => r.stage === stage);
+    }
+
+    res.json({
+      success: true,
+      count: data.length,
+      data,
+      stageCounts: STAGE_ORDER.reduce((acc, s) => {
+        acc[s] = data.filter(r => r.stage === s).length;
+        return acc;
+      }, {})
+    });
+  } catch (error) {
+    console.error('Get buyer assignment tracking error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch buyer assignment tracking', error: error.message });
+  }
+};
+
+/**
  * Download an on-demand Excel export of requisition data.
  * GET /api/purchase-requisitions/reports/export?type=requisition_summary|requisition_spend|requisition_pending_approvals
  * Reuses the same report generators that back the scheduled report system, so ad-hoc
@@ -2971,6 +3071,7 @@ module.exports = {
   getVendorPerformance,
   getRequisitionStats,
   getProcurementPlanningData,
+  getBuyerAssignmentTracking,
   exportRequisitionReport,
   processFinanceVerification,
   assignBuyer,
