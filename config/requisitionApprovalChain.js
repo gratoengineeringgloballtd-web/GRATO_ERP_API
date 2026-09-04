@@ -72,15 +72,8 @@ const DEPARTMENT_STRUCTURE = {
         canSupervise: ['NOC Operator'],
         approvalAuthority: 'coordinator'
       },
-      'Site Supervisor - Joseph': {
-        email: 'joseph.tayou@gratoglobal.com',
-        name: 'Mr. Joseph TAYOU',
-        position: 'Site Supervisor',
-        reportsTo: 'pascal.rodrique@gratoglobal.com',
-        hierarchyLevel: 2,
-        canSupervise: ['Field Technician'],
-        approvalAuthority: 'supervisor'
-      },
+      // 'Site Supervisor - Joseph' removed - Joseph Tayou left the company; his former
+      // direct reports now report directly to Pascal Assam (see departmentStructure.js).
       'Site Supervisor - Felix': {
         email: 'felix.tientcheu@gratoglobal.com',
         name: 'Mr. Felix Tientcheu',

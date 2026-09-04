@@ -51,6 +51,11 @@
   "scripts": {
     "start": "node app.js",
     "dev": "nodemon app.js",
+    "fix:remove-joseph": "node scripts/removeJosephFromApprovalChains.js",
+    "seed:document-folders": "node scripts/seedDocumentFolders.js",
+    "create:chinyere": "node scripts/createChinyereUser.js",
+    "seed:document-folders:dry": "node scripts/seedDocumentFolders.js --dry-run",
+    "fix:remove-joseph:dry": "node scripts/removeJosephFromApprovalChains.js --dry-run",
     "backfill:accounting-audit": "node scripts/backfillAccountingAudit.js",
     "seed:accounting-bootstrap": "node scripts/seedAccountingBootstraps.js",
     "accounting:rollover-period": "node scripts/rolloverAccountingPeriod.js",

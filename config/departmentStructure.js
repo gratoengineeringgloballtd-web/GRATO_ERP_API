@@ -11,19 +11,6 @@ const DEPARTMENT_STRUCTURE = {
     positions: {}
   },
 
-  'IT': {
-    name: 'IT',
-    head: {
-      email: 'marcel.ngong@gratoglobal.com',
-      name: 'Mr. Marcel Ngong',
-      position: 'IT Manager',
-      reportsTo: null,
-      hierarchyLevel: 4
-    },
-    positions: {
-      // Add IT-specific positions here if needed
-    }
-  },
   'Technical': {
     name: 'Technical',
     head: {
@@ -99,16 +86,8 @@ const DEPARTMENT_STRUCTURE = {
       },
 
       // Site Supervisors (Multiple Instances)
-      'Site Supervisor - Joseph': {
-        email: 'joseph.tayou@gratoglobal.com',
-        name: 'Mr. Joseph TAYOU',
-        position: 'Site Supervisor',
-        reportsTo: 'pascal.rodrique@gratoglobal.com',
-        hierarchyLevel: 2,
-        canSupervise: ['Field Technician'],
-        approvalAuthority: 'supervisor',
-        allowMultipleInstances: false
-      },
+      // 'Site Supervisor - Joseph' removed - Joseph Tayou left the company; his direct
+      // reports (the Field Technicians below) now report directly to Pascal Assam.
       'Site Supervisor - Felix': {
         email: 'felix.tientcheu@gratoglobal.com',
         name: 'Mr. Felix Tientcheu',
@@ -165,13 +144,14 @@ const DEPARTMENT_STRUCTURE = {
       },
 
       // ========================================
-      // LEVEL 1 - Field Technicians (Joseph's Team)
+      // LEVEL 1 - Field Technicians (formerly Joseph's Team - now report directly to Pascal;
+      // Joseph Tayou left the company)
       // ========================================
-      'Field Technician - Boris': {
+      'Field Technician - Jules': {
         email: 'jules.mouna@gratoglobal.com',
         name: 'Mr. Jules Mouna',
         position: 'Field Technician',
-        reportsTo: 'joseph.tayou@gratoglobal.com',
+        reportsTo: 'pascal.rodrique@gratoglobal.com',
         hierarchyLevel: 1,
         canSupervise: [],
         approvalAuthority: 'staff',
@@ -181,7 +161,7 @@ const DEPARTMENT_STRUCTURE = {
         email: 'kamgang.junior@gratoglobal.com',
         name: 'Mr. Boris Kamgang',
         position: 'Field Technician',
-        reportsTo: 'joseph.tayou@gratoglobal.com',
+        reportsTo: 'pascal.rodrique@gratoglobal.com',
         hierarchyLevel: 1,
         canSupervise: [],
         approvalAuthority: 'staff',
@@ -191,7 +171,7 @@ const DEPARTMENT_STRUCTURE = {
         email: 'sunday@gratoglobal.com',
         name: 'Mr. Sunday',
         position: 'Field Technician',
-        reportsTo: 'joseph.tayou@gratoglobal.com',
+        reportsTo: 'pascal.rodrique@gratoglobal.com',
         hierarchyLevel: 1,
         canSupervise: [],
         approvalAuthority: 'staff',
@@ -201,7 +181,7 @@ const DEPARTMENT_STRUCTURE = {
         email: 'ulrich.vitrand@gratoglobal.com',
         name: 'Mr. Ulrich MOUMI',
         position: 'Field Technician',
-        reportsTo: 'joseph.tayou@gratoglobal.com',
+        reportsTo: 'pascal.rodrique@gratoglobal.com',
         hierarchyLevel: 1,
         canSupervise: [],
         approvalAuthority: 'staff',
@@ -211,7 +191,7 @@ const DEPARTMENT_STRUCTURE = {
         email: 'abeeb@gratoglobal.com',
         name: 'Mr. Abeeb',
         position: 'Field Technician',
-        reportsTo: 'joseph.tayou@gratoglobal.com',
+        reportsTo: 'pascal.rodrique@gratoglobal.com',
         hierarchyLevel: 1,
         canSupervise: [],
         approvalAuthority: 'staff',
@@ -221,7 +201,7 @@ const DEPARTMENT_STRUCTURE = {
         email: 'paul.nyomb@gratoglobal.com',
         name: 'Mr. Paul EM Nyomb',
         position: 'Field Technician',
-        reportsTo: 'joseph.tayou@gratoglobal.com',
+        reportsTo: 'pascal.rodrique@gratoglobal.com',
         hierarchyLevel: 1,
         canSupervise: [],
         approvalAuthority: 'staff',
@@ -231,7 +211,7 @@ const DEPARTMENT_STRUCTURE = {
         email: 'edidie.francois@gratoglobal.com',
         name: 'Mr. EDIDIE François',
         position: 'Field Technician',
-        reportsTo: 'joseph.tayou@gratoglobal.com',
+        reportsTo: 'pascal.rodrique@gratoglobal.com',
         hierarchyLevel: 1,
         canSupervise: [],
         approvalAuthority: 'staff',
@@ -241,7 +221,7 @@ const DEPARTMENT_STRUCTURE = {
         email: 'mba.berthin@gratoglobal.com',
         name: 'Mr. Berthin DEFFO',
         position: 'Field Technician',
-        reportsTo: 'joseph.tayou@gratoglobal.com',
+        reportsTo: 'pascal.rodrique@gratoglobal.com',
         hierarchyLevel: 1,
         canSupervise: [],
         approvalAuthority: 'staff',
@@ -251,7 +231,7 @@ const DEPARTMENT_STRUCTURE = {
         email: 'allassane@gratoglobal.com',
         name: 'Mr. Allassane',
         position: 'Field Technician',
-        reportsTo: 'joseph.tayou@gratoglobal.com',
+        reportsTo: 'pascal.rodrique@gratoglobal.com',
         hierarchyLevel: 1,
         canSupervise: [],
         approvalAuthority: 'staff',
@@ -261,7 +241,7 @@ const DEPARTMENT_STRUCTURE = {
         email: 'alioum.moussa@gratoglobal.com',
         name: 'Mr. Alioum Moussa',
         position: 'Field Technician',
-        reportsTo: 'joseph.tayou@gratoglobal.com',
+        reportsTo: 'pascal.rodrique@gratoglobal.com',
         hierarchyLevel: 1,
         canSupervise: [],
         approvalAuthority: 'staff',
@@ -385,14 +365,6 @@ const DEPARTMENT_STRUCTURE = {
         canSupervise: [],
         approvalAuthority: 'finance',
         specialRole: 'finance'
-      },
-      'Fleet Coordinator': {
-        email: 'flora.kidzeven@gratoglobal.com',
-        name: 'Ms Flora Kidzeven',
-        reportsTo: 'lukong.lambert@gratoglobal.com',
-        hierarchyLevel: 3,
-        canSupervise: [],
-        approvalAuthority: 'staff'
       }
     }
   },
@@ -461,6 +433,15 @@ const DEPARTMENT_STRUCTURE = {
         name: 'Marcel Ngong',
         reportsTo: 'kelvin.eyong@gratoglobal.com', 
         hierarchyLevel: 3, 
+        canSupervise: ['Marketing Intern'],
+        approvalAuthority: 'staff'
+      },
+      'Marketing Intern': {
+        email: 'tamaia.chinyere@gratoglobal.com',
+        name: 'Chinyere Tamaia',
+        position: 'Marketing Intern',
+        reportsTo: 'marcel.ngong@gratoglobal.com',
+        hierarchyLevel: 1,
         canSupervise: [],
         approvalAuthority: 'staff'
       }

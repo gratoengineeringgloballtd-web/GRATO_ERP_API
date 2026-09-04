@@ -50,15 +50,20 @@ exports.uploadDocument = async (req, res) => {
 
     console.log(`Employee found: ${employee.fullName}`);
 
-    // If this isn't one of the built-in types, it must be a real, active custom section -
-    // otherwise a typo in the type param would silently create an orphaned document nobody
-    // can ever find again through the normal section list.
+    // If this isn't one of the built-in types, it must be a real, active section this
+    // employee can actually see (global, or personal to them specifically) - otherwise
+    // a typo in the type param, or an attempt to upload into another employee's
+    // personal section, would silently succeed into an orphaned/wrong document.
     if (!isBuiltInType(type)) {
-      const section = await DocumentSection.findOne({ key: type, isActive: true });
+      const section = await DocumentSection.findOne({
+        key: type,
+        isActive: true,
+        $or: [{ scope: 'global' }, { scope: 'personal', employeeId: id }]
+      });
       if (!section) {
         return res.status(400).json({
           success: false,
-          message: `"${type}" is not a recognized document section`
+          message: `"${type}" is not a recognized document section for this employee`
         });
       }
     }
@@ -438,18 +443,10 @@ exports.getDocumentInfo = async (req, res) => {
 
 // The 10 sections that ship with the app, in a shape matching DocumentSection documents,
 // so the frontend can get one merged list instead of hardcoding built-ins separately.
-const BUILT_IN_SECTIONS = [
-  { key: 'nationalId', label: 'National ID (Certified Copy)', required: true, multiple: true, isCustom: false },
-  { key: 'birthCertificate', label: 'Birth Certificate', required: true, multiple: true, isCustom: false },
-  { key: 'bankAttestation', label: 'Bank Attestation', required: true, multiple: true, isCustom: false },
-  { key: 'locationPlan', label: 'Detailed Location Plan', required: true, multiple: true, isCustom: false },
-  { key: 'medicalCertificate', label: 'Medical Certificate', required: true, multiple: true, isCustom: false },
-  { key: 'criminalRecord', label: 'Criminal Record', required: true, multiple: true, isCustom: false },
-  { key: 'references', label: 'References (3)', required: true, multiple: true, isCustom: false },
-  { key: 'academicDiplomas', label: 'Highest Academic Diplomas', required: true, multiple: true, isCustom: false },
-  { key: 'workCertificates', label: 'Work Certificates (Previous Employers)', required: false, multiple: true, isCustom: false },
-  { key: 'employmentContract', label: 'Employment Contract', required: true, multiple: true, isCustom: false }
-];
+// The 10 built-in section keys/labels/required-flags are now defined in
+// config/builtInDocumentSections.js (used by scripts/seedDocumentFolders.js to create
+// them as real, nested DocumentSection records) - see BUILT_IN_DOCUMENT_TYPES above for
+// the storage-routing check.
 
 /**
  * List every document section available - the 10 built-in ones plus any custom
@@ -458,11 +455,20 @@ const BUILT_IN_SECTIONS = [
  */
 exports.getDocumentSections = async (req, res) => {
   try {
-    const customSections = await DocumentSection.find({ isActive: true })
+    const { employeeId } = req.query;
+
+    // Global sections are visible to everyone; personal ones only to the specific
+    // employee they belong to. Without an employeeId, only global sections are shown -
+    // used by screens (like the employee list) that aren't scoped to one person.
+    const query = employeeId
+      ? { isActive: true, $or: [{ scope: 'global' }, { scope: 'personal', employeeId }] }
+      : { isActive: true, scope: 'global' };
+
+    const sections = await DocumentSection.find(query)
       .populate('createdBy', 'fullName email')
       .sort({ depth: 1, createdAt: 1 });
 
-    const custom = customSections.map(s => ({
+    const data = sections.map(s => ({
       _id: s._id,
       key: s.key,
       label: s.label,
@@ -470,6 +476,8 @@ exports.getDocumentSections = async (req, res) => {
       required: s.required,
       multiple: s.multiple,
       isCustom: true,
+      scope: s.scope,
+      employeeId: s.employeeId,
       isFolder: s.isFolder,
       parentFolder: s.parentFolder,
       ancestors: s.ancestors,
@@ -478,15 +486,7 @@ exports.getDocumentSections = async (req, res) => {
       createdAt: s.createdAt
     }));
 
-    // Built-in sections always sit at the root (depth 0, no parent) - they were never
-    // designed to be nested, and doing so would risk breaking the fixed field names the
-    // rest of the app (uploadDocument, downloadDocument, etc.) reads directly.
-    const builtIn = BUILT_IN_SECTIONS.map(s => ({ ...s, isFolder: false, parentFolder: null, ancestors: [], depth: 0 }));
-
-    res.json({
-      success: true,
-      data: [...builtIn, ...custom]
-    });
+    res.json({ success: true, data });
   } catch (error) {
     console.error('Get document sections error:', error);
     res.status(500).json({
@@ -498,13 +498,15 @@ exports.getDocumentSections = async (req, res) => {
 };
 
 /**
- * Add a new custom document section or folder. Available company-wide immediately -
- * every employee's document manager will show it as soon as it's created. Can be
- * nested under an existing custom folder via parentFolderId.
+ * Add a new document section or folder. Global by default (visible to every employee)
+ * unless an employeeId is provided, in which case it's personal - visible only in that
+ * one employee's document manager, nobody else's. Can be nested under an existing
+ * folder (global or personal) via parentFolderId.
  */
 exports.createDocumentSection = async (req, res) => {
   try {
-    const { label, description, required, isFolder, parentFolderId } = req.body;
+    const { label, description, required, isFolder, parentFolderId, employeeId } = req.body;
+    const isPersonal = !!employeeId;
 
     if (!label || !label.trim()) {
       return res.status(400).json({
@@ -513,7 +515,9 @@ exports.createDocumentSection = async (req, res) => {
       });
     }
 
-    // Resolve and validate the parent folder, if one was given.
+    // Resolve and validate the parent folder, if one was given. A personal section may
+    // nest under a global folder or one of that same employee's own personal folders -
+    // never under a different employee's personal folder.
     let parent = null;
     if (parentFolderId) {
       parent = await DocumentSection.findOne({ _id: parentFolderId, isActive: true });
@@ -522,6 +526,9 @@ exports.createDocumentSection = async (req, res) => {
       }
       if (!parent.isFolder) {
         return res.status(400).json({ success: false, message: 'The selected parent is not a folder - documents/sections can only nest under a folder' });
+      }
+      if (parent.scope === 'personal' && String(parent.employeeId) !== String(employeeId)) {
+        return res.status(403).json({ success: false, message: 'Cannot create a section under another employee\'s personal folder' });
       }
     }
 
@@ -535,19 +542,21 @@ exports.createDocumentSection = async (req, res) => {
       });
     }
 
-    if (BUILT_IN_SECTIONS.some(s => s.key === baseKey)) {
+    if (BUILT_IN_DOCUMENT_TYPES.includes(baseKey)) {
       return res.status(409).json({
         success: false,
         message: `"${label}" is too close to an existing built-in section name. Please choose a different label.`
       });
     }
 
-    // Sibling labels (same parent) must be distinct - enforced by the schema's compound
-    // index too, but checking here gives a clearer error message than a raw duplicate-key
-    // error would.
+    // Sibling labels (same parent, same scope) must be distinct - enforced by the
+    // schema's compound index too, but checking here gives a clearer error message
+    // than a raw duplicate-key error would. Two different employees' personal sections
+    // never clash with each other even with the same label under the same parent.
     const siblingClash = await DocumentSection.findOne({
       parentFolder: parent ? parent._id : null,
       label: label.trim(),
+      employeeId: isPersonal ? employeeId : null,
       isActive: true
     });
     if (siblingClash) {
@@ -557,9 +566,11 @@ exports.createDocumentSection = async (req, res) => {
       });
     }
 
+    // Key collisions are scoped the same way - only checked against sections in the
+    // same scope (this employee's own personal sections, or all global ones).
     let key = baseKey;
     let suffix = 1;
-    while (await DocumentSection.findOne({ key })) {
+    while (await DocumentSection.findOne({ key, employeeId: isPersonal ? employeeId : null })) {
       suffix += 1;
       key = `${baseKey}_${suffix}`;
     }
@@ -570,6 +581,8 @@ exports.createDocumentSection = async (req, res) => {
       description: description?.trim(),
       required: !!required,
       multiple: true,
+      scope: isPersonal ? 'personal' : 'global',
+      employeeId: isPersonal ? employeeId : null,
       isFolder: !!isFolder,
       parentFolder: parent ? parent._id : null,
       ancestors: parent ? [...parent.ancestors, parent._id] : [],
@@ -577,7 +590,7 @@ exports.createDocumentSection = async (req, res) => {
       createdBy: req.user.userId
     });
 
-    console.log(`✅ Custom document ${section.isFolder ? 'folder' : 'section'} created: "${section.label}" (${section.key})${parent ? ` under "${parent.label}"` : ''}`);
+    console.log(`✅ ${isPersonal ? 'Personal' : 'Global'} document ${section.isFolder ? 'folder' : 'section'} created: "${section.label}" (${section.key})${parent ? ` under "${parent.label}"` : ''}${isPersonal ? ` for employee ${employeeId}` : ''}`);
 
     res.status(201).json({
       success: true,
@@ -589,6 +602,8 @@ exports.createDocumentSection = async (req, res) => {
         description: section.description,
         required: section.required,
         multiple: section.multiple,
+        scope: section.scope,
+        employeeId: section.employeeId,
         isFolder: section.isFolder,
         parentFolder: section.parentFolder,
         ancestors: section.ancestors,
@@ -614,6 +629,7 @@ exports.createDocumentSection = async (req, res) => {
 exports.deactivateDocumentSection = async (req, res) => {
   try {
     const { key } = req.params;
+    const { employeeId } = req.query;
 
     if (isBuiltInType(key)) {
       return res.status(400).json({
@@ -622,7 +638,15 @@ exports.deactivateDocumentSection = async (req, res) => {
       });
     }
 
-    const section = await DocumentSection.findOne({ key, isActive: true });
+    // Key is only unique per employeeId now (personal sections), so this must be
+    // disambiguated: either the global section with this key, or - if an employeeId is
+    // given - that specific employee's personal section with this key. Never matches
+    // a different employee's personal section by accident.
+    const section = await DocumentSection.findOne({
+      key,
+      isActive: true,
+      employeeId: employeeId || null
+    });
     if (!section) {
       return res.status(404).json({
         success: false,

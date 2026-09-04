@@ -146,8 +146,8 @@ if (filenameArg && emailArg) {
 } else {
   // Default: the specific case requested
   attachSignatureToUser(
-    'marcelngong50-removebg-preview',
-    'marcelngong50@gmail.com'
+    'Chinyere-removebg-preview',
+    'tamaia.chinyere@gratoglobal.com'
   );
 }
 
@@ -157,4 +157,4 @@ module.exports = { attachSignatureToUser };
 
 
 
-// node attach-signature-by-email.js "Minka-removebg-preview" "minka.kevin@gratoglobal.com"
+// node attach-signature-by-email.js "Chinyere-removebg-preview" "tamaia.chinyere@gratoglobal.com"
