@@ -1692,9 +1692,26 @@ const getDepartmentBudgetDashboard = async (req, res) => {
 
     console.log(`Fetching budget dashboard for department: ${userDepartment}`);
 
+    // Some departments have budget codes tagged with older/alternate names that don't
+    // match the real User.department string exactly - either because they're clearly
+    // sub-categories (Technical's Operations/Roll Out/QHSE/Refurbishment variants), or
+    // because the naming itself drifted over time (old codes tagged 'HR' or
+    // 'Supply Chain' before the department-name mismatch was fixed, while the real
+    // department strings are 'HR & Admin' and 'Business Development & Supply Chain').
+    // Rolling these up means a department head sees every code that's really theirs,
+    // regardless of which historical naming it was created under.
+    const DEPARTMENT_ALIASES = {
+      'Technical': ['Technical', 'Technical Operations', 'Technical Roll Out', 'Technical QHSE', 'Technical Refurbishment'],
+      'HR & Admin': ['HR & Admin', 'HR'],
+      'Business Development & Supply Chain': ['Business Development & Supply Chain', 'Supply Chain']
+    };
+    const departmentQuery = DEPARTMENT_ALIASES[userDepartment]
+      ? { $in: DEPARTMENT_ALIASES[userDepartment] }
+      : userDepartment;
+
     // Get all active budget codes for this department
     const budgetCodes = await BudgetCode.find({ 
-      department: userDepartment,
+      department: departmentQuery,
       active: true 
     })
       .populate('budgetOwner', 'fullName email department')

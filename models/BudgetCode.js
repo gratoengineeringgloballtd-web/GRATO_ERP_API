@@ -38,7 +38,12 @@ const budgetCodeSchema = new mongoose.Schema({
   department: {
     type: String,
     required: true,
-    enum: ['Roll Out', 'Technical Roll Out', 'Operations', 'IT', 'Technical', 'Technical Operations', 'Technical Refurbishment', 'Technical QHSE', 'Finance', 'HR', 'Marketing', 'Supply Chain', 'Facilities', 'Business', 'CEO Office' ]
+    enum: [
+      'Roll Out', 'Technical Roll Out', 'Operations', 'IT', 'Technical',
+      'Technical Operations', 'Technical Refurbishment', 'Technical QHSE',
+      'Finance', 'HR', 'HR & Admin', 'Marketing', 'Supply Chain',
+      'Business Development & Supply Chain', 'Facilities', 'Business', 'CEO Office'
+    ]
   },
   
   budgetType: {
