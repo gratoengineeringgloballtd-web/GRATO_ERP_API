@@ -559,13 +559,14 @@ supplierInvoiceSchema.statics.getPendingSupplyChainAssignment = function() {
 };
 
 // Static method to get pending invoices for approver
-supplierInvoiceSchema.statics.getPendingForApprover = function(approverEmail) {
+supplierInvoiceSchema.statics.getPendingForApprover = function(approverEmailOrEmails) {
+  const emails = Array.isArray(approverEmailOrEmails) ? approverEmailOrEmails : [approverEmailOrEmails];
   // Simplified query: Find invoices where:
   // 1. The approver is in the approval chain with pending status
   // 2. The approval chain at currentApprovalLevel matches this approver
   return this.find({
-    // Must have the approver in chain
-    'approvalChain.approver.email': approverEmail,
+    // Must have the approver (or a delegator's) email in chain
+    'approvalChain.approver.email': { $in: emails },
     // Must have a pending step in the chain
     'approvalChain.status': 'pending',
     // Must be in an approval status

@@ -573,7 +573,8 @@ invoiceSchema.methods.getPendingSteps = function() {
 };
 
 // UPDATED: Static method to get pending invoices for specific approver
-invoiceSchema.statics.getPendingForApprover = function(approverEmail) {
+invoiceSchema.statics.getPendingForApprover = function(approverEmailOrEmails) {
+  const emails = Array.isArray(approverEmailOrEmails) ? approverEmailOrEmails : [approverEmailOrEmails];
   return this.aggregate([
     {
       $match: {
@@ -597,7 +598,7 @@ invoiceSchema.statics.getPendingForApprover = function(approverEmail) {
     },
     {
       $match: {
-        'currentStep.approver.email': approverEmail,
+        'currentStep.approver.email': { $in: emails },
         'currentStep.status': 'pending'
       }
     },
@@ -631,9 +632,10 @@ invoiceSchema.statics.getPendingForApprover = function(approverEmail) {
 };
 
 // Static method to get all invoices for a department supervisor (including upcoming ones)
-invoiceSchema.statics.getForSupervisor = function(supervisorEmail) {
+invoiceSchema.statics.getForSupervisor = function(supervisorEmailOrEmails) {
+  const emails = Array.isArray(supervisorEmailOrEmails) ? supervisorEmailOrEmails : [supervisorEmailOrEmails];
   return this.find({
-    'approvalChain.approver.email': supervisorEmail,
+    'approvalChain.approver.email': { $in: emails },
     approvalStatus: { $in: ['pending_department_approval', 'approved', 'rejected'] }
   }).populate('employee', 'fullName email department')
     .sort({ assignmentDate: -1 });

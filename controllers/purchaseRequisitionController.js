@@ -682,10 +682,11 @@ const getEmployeeRequisition = async (req, res) => {
     }
 
     const user = await User.findById(req.user.userId);
+    const empReqViewEmails = await getEffectiveApprovalEmails(req.user.userId, user.email);
     const canView = 
       requisition.employee._id.equals(req.user.userId) ||
       user.role === 'admin' ||
-      requisition.approvalChain.some(step => step.approver.email === user.email);
+      requisition.approvalChain.some(step => matchesEffectiveApprover(step.approver.email, empReqViewEmails));
 
     if (!canView) {
       return res.status(403).json({ success: false, message: 'Access denied' });
@@ -769,18 +770,22 @@ const getSupervisorRequisitions = async (req, res) => {
     // CEO sees requisitions at the pending_ceo step
     const isCEO = user.role === 'ceo' || user.email === 'tom@gratoengineering.com';
 
+    // Effective emails = the user's own, plus anyone who has delegated their approvals
+    // to them - so a delegate's queue shows delegated items, not just their own.
+    const effectiveEmails = await getEffectiveApprovalEmails(req.user.userId, user.email);
+
     const query = isCEO
       ? {
           $or: [
             { status: 'pending_ceo' },
-            { status: 'pending_cancellation', 'cancellationRequest.approvalChain': { $elemMatch: { 'approver.email': user.email, status: 'pending' } } }
+            { status: 'pending_cancellation', 'cancellationRequest.approvalChain': { $elemMatch: { 'approver.email': { $in: effectiveEmails }, status: 'pending' } } }
           ]
         }
       : {
           $or: [
-            { 'approvalChain': { $elemMatch: { 'approver.email': user.email, status: 'pending' } }, status: { $in: ['pending_supervisor'] } },
-            { 'approvalChain': { $elemMatch: { 'approver.email': user.email } }, status: { $in: ['justification_pending_supervisor'] } },
-            { status: 'pending_cancellation', 'cancellationRequest.approvalChain': { $elemMatch: { 'approver.email': user.email, status: 'pending' } } }
+            { 'approvalChain': { $elemMatch: { 'approver.email': { $in: effectiveEmails }, status: 'pending' } }, status: { $in: ['pending_supervisor'] } },
+            { 'approvalChain': { $elemMatch: { 'approver.email': { $in: effectiveEmails } } }, status: { $in: ['justification_pending_supervisor'] } },
+            { status: 'pending_cancellation', 'cancellationRequest.approvalChain': { $elemMatch: { 'approver.email': { $in: effectiveEmails }, status: 'pending' } } }
           ]
         };
 
@@ -925,11 +930,12 @@ const getSupplyChainRequisitions = async (req, res) => {
     let query = {};
 
     if (user.role === 'supply_chain' || user.department === 'Business Development & Supply Chain') {
+      const supplyChainEffectiveEmails = await getEffectiveApprovalEmails(req.user.userId, user.email);
       query = {
         $or: [
           { status: 'pending_supply_chain_review' },
           { status: 'justification_pending_supply_chain' },
-          { 'approvalChain': { $elemMatch: { 'approver.email': user.email, 'status': 'pending' } } }
+          { 'approvalChain': { $elemMatch: { 'approver.email': { $in: supplyChainEffectiveEmails }, 'status': 'pending' } } }
         ]
       };
     } else if (user.role === 'admin') {
@@ -963,9 +969,10 @@ const processSupplyChainDecision = async (req, res) => {
 
     if (!requisition) return res.status(404).json({ success: false, message: 'Requisition not found' });
 
+    const supplyChainDecisionEffectiveEmails = await getEffectiveApprovalEmails(req.user.userId, user.email);
     const canProcess = user.role === 'admin' || user.role === 'supply_chain' ||
       user.department === 'Business Development & Supply Chain' ||
-      requisition.approvalChain.some(step => step.approver.email === user.email && step.approver.role.includes('Supply Chain'));
+      requisition.approvalChain.some(step => matchesEffectiveApprover(step.approver.email, supplyChainDecisionEffectiveEmails) && step.approver.role.includes('Supply Chain'));
 
     if (!canProcess) return res.status(403).json({ success: false, message: 'Access denied' });
 
@@ -1008,7 +1015,7 @@ const processSupplyChainDecision = async (req, res) => {
     if (purchaseType) requisition.purchaseType = purchaseType;
     requisition.status = decision === 'approve' ? 'pending_buyer_assignment' : 'supply_chain_rejected';
 
-    const supplyChainStepIndex = requisition.approvalChain.findIndex(step => step.approver.email === user.email && step.status === 'pending');
+    const supplyChainStepIndex = requisition.approvalChain.findIndex(step => matchesEffectiveApprover(step.approver.email, supplyChainDecisionEffectiveEmails) && step.status === 'pending');
     if (supplyChainStepIndex !== -1) {
       requisition.approvalChain[supplyChainStepIndex].status = decision;
       requisition.approvalChain[supplyChainStepIndex].comments = comments;
@@ -1158,7 +1165,8 @@ const getSupervisorRequisition = async (req, res) => {
 
     if (!requisition) return res.status(404).json({ success: false, message: 'Requisition not found' });
 
-    const canView = user.role === 'admin' || requisition.approvalChain.some(step => step.approver.email === user.email);
+    const supReqViewEmails = await getEffectiveApprovalEmails(req.user.userId, user.email);
+    const canView = user.role === 'admin' || requisition.approvalChain.some(step => matchesEffectiveApprover(step.approver.email, supReqViewEmails));
     if (!canView) return res.status(403).json({ success: false, message: 'Access denied' });
 
     res.json({ success: true, data: requisition });
@@ -1645,10 +1653,11 @@ const getRequisitionsByRole = async (req, res) => {
     const { status, page = 1, limit = 20 } = req.query;
     let query = {};
     const baseFilter = status ? { status } : {};
+    const roleEffectiveEmails = await getEffectiveApprovalEmails(req.user.userId, user.email);
 
     switch (user.role) {
       case 'employee': query = { ...baseFilter, employee: req.user.userId }; break;
-      case 'supervisor': query = { ...baseFilter, 'approvalChain': { $elemMatch: { 'approver.email': user.email, 'status': 'pending' } } }; break;
+      case 'supervisor': query = { ...baseFilter, 'approvalChain': { $elemMatch: { 'approver.email': { $in: roleEffectiveEmails }, 'status': 'pending' } } }; break;
       case 'supply_chain': query = { ...baseFilter, $or: [{ status: 'pending_supply_chain_review' }, { status: 'supply_chain_approved' }, { status: 'in_procurement' }] }; break;
       case 'finance': query = { ...baseFilter, $or: [{ status: 'pending_finance_verification' }, { status: { $in: PurchaseRequisition.STATUS_GROUPS.APPROVED } }] }; break;
       case 'admin': query = baseFilter; break;
@@ -2539,7 +2548,8 @@ const getPurchaseRequisitionDashboardStats = async (req, res) => {
     let query = {};
     if (userRole === 'employee') query.employee = userId;
     else if (userRole === 'supervisor' || userRole === 'technical') {
-      query.$or = [{ employee: userId }, { 'approvalChain.approver.email': user.email, 'approvalChain.status': 'pending' }];
+      const statsEffectiveEmails = await getEffectiveApprovalEmails(userId, user.email);
+      query.$or = [{ employee: userId }, { 'approvalChain.approver.email': { $in: statsEffectiveEmails }, 'approvalChain.status': 'pending' }];
     } else if (userRole === 'buyer') {
       query.$or = [{ employee: userId }, { 'supplyChainReview.assignedBuyer': userId }];
     } else if (!['admin', 'finance', 'supply_chain', 'hr', 'it', 'hse', 'ceo'].includes(userRole)) {
@@ -2746,7 +2756,8 @@ const getPurchaseRequisitionJustification = async (req, res) => {
     if (!requisition) return res.status(404).json({ success: false, message: 'Purchase requisition not found' });
 
     const user = await User.findById(req.user.userId);
-    const canView = requisition.employee._id.equals(req.user.userId) || user.role === 'admin' || user.role === 'finance' || requisition.approvalChain.some(step => step.approver.email === user.email);
+    const justViewEmails2 = await getEffectiveApprovalEmails(req.user.userId, user.email);
+    const canView = requisition.employee._id.equals(req.user.userId) || user.role === 'admin' || user.role === 'finance' || requisition.approvalChain.some(step => matchesEffectiveApprover(step.approver.email, justViewEmails2));
     if (!canView) return res.status(403).json({ success: false, message: 'Access denied' });
 
     res.json({ success: true, data: { requisition, justification: requisition.justification } });

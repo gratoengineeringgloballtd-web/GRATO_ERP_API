@@ -21,9 +21,7 @@ const CEO_THRESHOLDS = {
 
   // ── CASH / PETTY CASH ────────────────────────────────────────────────────
   cash_request: {
-    // minAmountForCEO: 100_000,       // Below 100k → stops at Kelvin
-    minAmountForCEO: 100_000, 
-    minAmountForCEO: 2_000, 
+    minAmountForCEO: 500_000,        // Below 500k → stops at Kelvin
     currency: 'XAF',
     description: 'Cash / petty cash requests',
     escalationField: 'amount',       // field on the request object to check
@@ -31,7 +29,7 @@ const CEO_THRESHOLDS = {
 
   // ── PURCHASE REQUISITIONS ────────────────────────────────────────────────
   purchase_requisition: {
-    minAmountForCEO: 100_000,        // Below 500k → stops at Supply Chain + Kelvin
+    minAmountForCEO: 500_000,        // Below 500k → stops at Supply Chain + Kelvin
     currency: 'XAF',
     description: 'Purchase requisition requests',
     escalationField: 'totalBudget',  // or estimatedCost / budgetXAF

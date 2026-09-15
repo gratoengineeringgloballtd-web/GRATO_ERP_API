@@ -345,10 +345,11 @@ const getEmployeeRequest = async (req, res) => {
 
     // Check if user has permission to view this request
     const user = await User.findById(req.user.userId);
+    const viewEffectiveEmails = await getEffectiveApprovalEmails(req.user.userId, user.email);
     const canView = 
       request.employee._id.equals(req.user.userId) || // Owner
       user.role === 'admin' || // Admin
-      request.approvalChain.some(step => step.approver.email === user.email); // Approver
+      request.approvalChain.some(step => matchesEffectiveApprover(step.approver.email, viewEffectiveEmails)); // Approver (or their delegate)
 
     if (!canView) {
       return res.status(403).json({
@@ -422,6 +423,11 @@ const getFinanceRequests = async (req, res) => {
     console.log('=== FETCHING FINANCE REQUESTS ===');
     console.log(`User: ${user.fullName} (${user.email})`);
     console.log(`Role: ${user.role}`);
+
+    // Effective emails = the user's own, plus anyone who has delegated their approvals
+    // to them - computed once here since it's needed both when building the query and
+    // when re-validating results below.
+    const financeEffectiveEmails = await getEffectiveApprovalEmails(req.user.userId, user.email);
     
     let query = {};
     
@@ -436,10 +442,11 @@ const getFinanceRequests = async (req, res) => {
       query = {
         $or: [
           { 
-            // Requests waiting for this finance officer's approval (ANY level)
+            // Requests waiting for this finance officer's approval (ANY level) -
+            // including anyone who has delegated their approvals to them
             'approvalChain': {
               $elemMatch: {
-                'approver.email': user.email,
+                'approver.email': { $in: financeEffectiveEmails },
                 'approver.role': 'Finance Officer',
                 'status': 'pending'
               }
@@ -524,7 +531,7 @@ const getFinanceRequests = async (req, res) => {
     // Filter requests to ensure proper approval hierarchy
     const validRequests = requests.filter(req => {
       const financeStep = req.approvalChain.find(s => 
-        s.approver.email === user.email && s.approver.role === 'Finance Officer'
+        matchesEffectiveApprover(s.approver.email, financeEffectiveEmails) && s.approver.role === 'Finance Officer'
       );
       
       console.log(`\n🔍 Checking request ${req._id}:`);
@@ -1082,12 +1089,16 @@ const getSupervisorJustifications = async (req, res) => {
     console.log('=== GET SUPERVISOR JUSTIFICATIONS ===');
     console.log(`User: ${user.fullName} (${user.email})`);
 
-    // Find all justifications where this user is in approval chain
+    // Effective emails = the user's own, plus anyone who has delegated their approvals
+    // to them - so a delegate's queue shows delegated items too.
+    const justEffectiveEmails = await getEffectiveApprovalEmails(req.user.userId, user.email);
+
+    // Find all justifications where this user (or a delegator) is in approval chain
     const requests = await CashRequest.find({
       status: { $regex: /^justification_/ },
       'approvalChain': {
         $elemMatch: {
-          'approver.email': user.email
+          'approver.email': { $in: justEffectiveEmails }
         }
       }
     })
@@ -1099,7 +1110,7 @@ const getSupervisorJustifications = async (req, res) => {
     // Filter to show only those pending for this user
     const pendingForUser = requests.filter(req => {
       const userStep = req.approvalChain.find(s =>
-        s.approver.email === user.email && s.status === 'pending'
+        matchesEffectiveApprover(s.approver.email, justEffectiveEmails) && s.status === 'pending'
       );
 
       if (!userStep) return false;
@@ -2106,9 +2117,10 @@ const getSupervisorRequest = async (req, res) => {
     }
 
     // Check if user can view this request
+    const viewEffectiveEmails = await getEffectiveApprovalEmails(req.user.userId, user.email);
     const canView = 
       user.role === 'admin' ||
-      request.approvalChain.some(step => step.approver.email === user.email);
+      request.approvalChain.some(step => matchesEffectiveApprover(step.approver.email, viewEffectiveEmails));
 
     if (!canView) {
       return res.status(403).json({
@@ -2153,9 +2165,10 @@ const getSupervisorJustification = async (req, res) => {
     }
 
     // Verify supervisor has access to this justification
+    const justViewEffectiveEmails = await getEffectiveApprovalEmails(req.user.userId, user.email);
     const canApprove = 
       request.status === 'justification_pending_supervisor' &&
-      (request.approvalChain.some(step => step.approver.email === user.email) ||
+      (request.approvalChain.some(step => matchesEffectiveApprover(step.approver.email, justViewEffectiveEmails)) ||
        user.role === 'admin');
 
     if (!canApprove) {
@@ -2768,11 +2781,16 @@ const getPendingApprovals = async (req, res) => {
 
     console.log('Getting pending approvals for user:', user.email, 'role:', user.role);
 
-    // Find requests where current user is in the approval chain with pending status
+    // Effective emails = the user's own, plus anyone who has delegated their approvals
+    // to them - so a delegate's queue shows delegated items, not just their own.
+    const effectiveEmails = await getEffectiveApprovalEmails(req.user.userId, user.email);
+
+    // Find requests where current user (or anyone who delegated to them) is in the
+    // approval chain with pending status
     const requests = await CashRequest.find({
       'approvalChain': {
         $elemMatch: {
-          'approver.email': user.email,
+          'approver.email': { $in: effectiveEmails },
           'status': 'pending'
         }
       }
@@ -2785,7 +2803,7 @@ const getPendingApprovals = async (req, res) => {
     // Filter requests based on current status to ensure proper level access
     const filteredRequests = requests.filter(request => {
       const userStep = request.approvalChain.find(
-        step => step.approver.email === user.email && step.status === 'pending'
+        step => matchesEffectiveApprover(step.approver.email, effectiveEmails) && step.status === 'pending'
       );
       
       if (!userStep) {
@@ -2839,7 +2857,9 @@ const getAdminApprovals = async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    // Admin can see both departmental head and head of business approvals
+    // Admin can see both departmental head and head of business approvals (including
+    // anyone who has delegated their approvals to them)
+    const adminEffectiveEmails = await getEffectiveApprovalEmails(req.user.userId, user.email);
     const requests = await CashRequest.find({
       $or: [
         { status: 'pending_departmental_head' },
@@ -2847,7 +2867,7 @@ const getAdminApprovals = async (req, res) => {
       ],
       'approvalChain': {
         $elemMatch: {
-          'approver.email': user.email,
+          'approver.email': { $in: adminEffectiveEmails },
           'status': 'pending'
         }
       }
@@ -2886,12 +2906,19 @@ const getSupervisorRequests = async (req, res) => {
     
     // Get query parameters for filtering
     const { status, department, showAll = 'false' } = req.query;
+
+    // Effective emails = the user's own, plus anyone who has delegated their approvals
+    // to them - relevant for "show me everything I'm involved in" and pending views;
+    // approved/denied history below stays queried by the user's own exact email, since
+    // that's genuinely who made that decision.
+    const teamEffectiveEmails = await getEffectiveApprovalEmails(req.user.userId, user.email);
     
     let baseQuery = {
-      // Show all requests where current user is in the approval chain (regardless of status)
+      // Show all requests where current user (or a delegator) is in the approval
+      // chain (regardless of status)
       'approvalChain': {
         $elemMatch: {
-          'approver.email': user.email
+          'approver.email': { $in: teamEffectiveEmails }
         }
       }
     };
@@ -2953,7 +2980,7 @@ const getSupervisorRequests = async (req, res) => {
     // Filter requests to ensure proper approval hierarchy
     const validRequests = requests.filter(req => {
       const userSteps = req.approvalChain.filter(step => 
-        step.approver.email === user.email
+        matchesEffectiveApprover(step.approver.email, teamEffectiveEmails)
       );
       
       // If user has no steps in this request, they shouldn't see it unless it's for general visibility
@@ -2980,7 +3007,7 @@ const getSupervisorRequests = async (req, res) => {
     // Add additional metadata for each request
     const enrichedRequests = validRequests.map(request => {
       const userSteps = request.approvalChain.filter(step => 
-        step.approver.email === user.email
+        matchesEffectiveApprover(step.approver.email, teamEffectiveEmails)
       );
       
       const currentUserPendingSteps = userSteps.filter(step => step.status === 'pending');
@@ -3846,17 +3873,22 @@ const getDashboardStats = async (req, res) => {
       stats.approved = financeRequests.filter(req => APPROVED.includes(req.status)).length;
       stats.disbursed = financeRequests.filter(req => ['partially_disbursed', 'fully_disbursed'].includes(req.status)).length;
       stats.completed = financeRequests.filter(req => req.status === 'completed').length;
+      const financeStatsEffectiveEmails = await getEffectiveApprovalEmails(req.user.userId, user.email);
       stats.pendingMyApproval = financeRequests.filter(req => 
         req.status === 'pending_finance' &&
         req.approvalChain?.some(step => 
-          step.approver?.email === user.email && step.status === 'pending'
+          matchesEffectiveApprover(step.approver?.email, financeStatsEffectiveEmails) && step.status === 'pending'
         )
       ).length;
 
-    } else if (user.role === 'supervisor') {
-      // Supervisor sees requests in their approval chain
+    } else if (['supervisor', 'technical', 'hr', 'it', 'supply_chain', 'buyer', 'hse', 'project', 'admin', 'ceo'].includes(user.role)) {
+      // Any real approver role sees requests in their approval chain (or delegated to
+      // them) - 'supervisor' itself is never a real user's literal role (kept for
+      // backward compatibility in case anything else still checks it), the actual
+      // approver roles are the rest of this list.
+      const teamStatsEffectiveEmails = await getEffectiveApprovalEmails(req.user.userId, user.email);
       const supervisorRequests = await CashRequest.find({
-        'approvalChain.approver.email': user.email
+        'approvalChain.approver.email': { $in: teamStatsEffectiveEmails }
       });
       
       stats.total = supervisorRequests.length;
@@ -3865,7 +3897,7 @@ const getDashboardStats = async (req, res) => {
       stats.rejected = supervisorRequests.filter(req => req.status === 'denied').length;
       stats.pendingMyApproval = supervisorRequests.filter(req => 
         req.approvalChain?.some(step => 
-          step.approver?.email === user.email && step.status === 'pending'
+          matchesEffectiveApprover(step.approver?.email, teamStatsEffectiveEmails) && step.status === 'pending'
         )
       ).length;
 
@@ -4172,9 +4204,10 @@ const generateCashRequestPDF = async (req, res) => {
     }
 
     // Verify user has access
+    const pdfEffectiveEmails = await getEffectiveApprovalEmails(req.user.userId, user.email);
     const hasAccess = 
       request.employee._id.equals(req.user.userId) ||
-      request.approvalChain.some(step => step.approver.email === user.email) ||
+      request.approvalChain.some(step => matchesEffectiveApprover(step.approver.email, pdfEffectiveEmails)) ||
       user.role === 'admin' ||
       user.role === 'finance';
 
@@ -4430,7 +4463,7 @@ const createReimbursementRequest = async (req, res) => {
     console.log(`✅ Successfully processed ${receiptDocuments.length} receipt(s)`);
 
     // Generate approval chain
-    const approvalChain = getCashRequestApprovalChain(employee.email);
+    const approvalChain = getCashRequestApprovalChain(employee.email, requestType, amount);
     if (!approvalChain || approvalChain.length === 0) {
       return res.status(400).json({
         success: false,
@@ -4978,9 +5011,11 @@ const editCashRequest = async (req, res) => {
     request.itemizedBreakdown = parsedBreakdown || [];
     request.attachments = newAttachments;
 
-    // Regenerate approval chain (fresh start)
+    // Regenerate the chain using the corrected amount/type, so the CEO threshold and
+    // overall chain shape (e.g. HR only for mission-type requests) stay accurate for
+    // what's actually being resubmitted - not what was originally submitted.
     const employee = await User.findById(req.user.userId);
-    const newApprovalChain = getCashRequestApprovalChain(employee.email);
+    const newApprovalChain = getCashRequestApprovalChain(employee.email, request.requestType, request.amountRequested);
     
     if (!newApprovalChain || newApprovalChain.length === 0) {
       return res.status(400).json({
@@ -4990,11 +5025,59 @@ const editCashRequest = async (req, res) => {
     }
 
     const mappedApprovalChain = mapApprovalChainForCashRequest(newApprovalChain);
+
+    // Resume from the level it was rejected at: any approver who already approved in
+    // the OLD chain (before the rejection) gets that approval carried forward onto the
+    // matching step in the NEW chain (matched by email, not level number, so this stays
+    // correct even if the chain's shape changed - e.g. a step was added/removed). The
+    // rejected step (and anything after it, which was never reached) starts fresh as
+    // 'pending', so it becomes the current step again for review.
+    const previouslyApprovedByEmail = new Map();
+    (request.approvalChain || []).forEach(step => {
+      if (step.status === 'approved' && step.approver?.email) {
+        previouslyApprovedByEmail.set(step.approver.email.toLowerCase(), {
+          comments: step.comments,
+          actionDate: step.actionDate,
+          actionTime: step.actionTime,
+          decidedBy: step.decidedBy,
+          assignedDate: step.assignedDate
+        });
+      }
+    });
+
+    let carriedForwardCount = 0;
+    mappedApprovalChain.forEach(step => {
+      const priorApproval = previouslyApprovedByEmail.get(step.approver.email?.toLowerCase());
+      if (priorApproval) {
+        step.status = 'approved';
+        step.comments = priorApproval.comments;
+        step.actionDate = priorApproval.actionDate;
+        step.actionTime = priorApproval.actionTime;
+        step.decidedBy = priorApproval.decidedBy;
+        step.assignedDate = priorApproval.assignedDate;
+        carriedForwardCount++;
+      }
+    });
+    console.log(`✓ Resubmission: carried forward ${carriedForwardCount} already-approved step(s); resuming from the rejected level`);
+
     request.approvalChain = mappedApprovalChain;
 
-    // Reset status to pending_supervisor
+    // Status corresponds to whichever step is now the first still-pending one in the
+    // merged chain - i.e. the level it was rejected at (or level 1 if nothing had been
+    // approved yet).
+    const ROLE_TO_STATUS = {
+      'Supervisor': 'pending_supervisor',
+      'Departmental Head': 'pending_departmental_head',
+      'HR Head': 'pending_hr',
+      'Finance Officer': 'pending_finance',
+      'Head of Business': 'pending_head_of_business',
+      'CEO - Final Authority': 'pending_ceo'
+    };
+    const firstPendingStep = mappedApprovalChain.find(step => step.status === 'pending');
     const previousStatus = request.status;
-    request.status = 'pending_supervisor';
+    request.status = firstPendingStep
+      ? (ROLE_TO_STATUS[firstPendingStep.approver.role] || 'pending_supervisor')
+      : 'approved'; // every step was already approved before correction - nothing left pending
 
     // Add to edit history
     request.totalEdits = (request.totalEdits || 0) + 1;

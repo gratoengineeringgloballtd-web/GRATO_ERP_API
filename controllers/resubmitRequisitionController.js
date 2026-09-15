@@ -217,27 +217,80 @@ const resubmitRequisition = async (req, res) => {
       console.log('Budget code changed to:', newBudgetCode.code);
     }
 
-    // Reset approval chain with fresh approvers
+    // Regenerate the chain using the corrected amount, so the CEO threshold stays
+    // accurate for what's actually being resubmitted - not what was originally submitted.
     const employee = await User.findById(req.user.userId);
-    const newApprovalChain = getApprovalChainForRequisition(employee.email);
-    
-    requisition.approvalChain = newApprovalChain.map(step => ({
-      level: step.level,
-      approver: {
-        name: step.approver.name,
-        email: step.approver.email,
-        role: step.approver.role,
-        department: step.approver.department
-      },
-      status: step.status || 'pending',
-      assignedDate: new Date()
-    }));
+    const newApprovalChain = getApprovalChainForRequisition(employee.email, requisition.estimatedCost);
 
-    // Reset status and decisions
-    requisition.status = 'pending_supervisor';
-    requisition.financeVerification = undefined;
-    requisition.supplyChainReview = undefined;
-    requisition.headApproval = undefined;
+    // Resume from the level it was rejected at: any approver who already approved in
+    // the OLD chain (before the rejection) gets that approval carried forward onto the
+    // matching step in the NEW chain (matched by email, robust to the chain shape
+    // changing if the corrected amount crosses a threshold). The rejected step (and
+    // anything after it) starts fresh as 'pending', becoming the current step again.
+    const previouslyApprovedByEmail = new Map();
+    (requisition.approvalChain || []).forEach(step => {
+      if (step.status === 'approved' && step.approver?.email) {
+        previouslyApprovedByEmail.set(step.approver.email.toLowerCase(), {
+          comments: step.comments,
+          actionDate: step.actionDate,
+          actionTime: step.actionTime,
+          decidedBy: step.decidedBy
+        });
+      }
+    });
+
+    let carriedForwardCount = 0;
+    const mergedApprovalChain = newApprovalChain.map(step => {
+      const mapped = {
+        level: step.level,
+        approver: {
+          name: step.approver.name,
+          email: step.approver.email,
+          role: step.approver.role,
+          department: step.approver.department
+        },
+        status: 'pending',
+        assignedDate: new Date()
+      };
+      const priorApproval = previouslyApprovedByEmail.get(step.approver.email?.toLowerCase());
+      if (priorApproval) {
+        mapped.status = 'approved';
+        mapped.comments = priorApproval.comments;
+        mapped.actionDate = priorApproval.actionDate;
+        mapped.actionTime = priorApproval.actionTime;
+        mapped.decidedBy = priorApproval.decidedBy;
+        carriedForwardCount++;
+      }
+      return mapped;
+    });
+    console.log(`✓ Resubmission: carried forward ${carriedForwardCount} already-approved step(s); resuming from the rejected level`);
+
+    requisition.approvalChain = mergedApprovalChain;
+
+    // Status corresponds to whichever step is now the first still-pending one - i.e.
+    // the level it was rejected at (matched by keyword, since the level-1 role title
+    // is department-specific rather than a fixed 'Supervisor' string).
+    const firstPendingStep = mergedApprovalChain.find(step => step.status === 'pending');
+    const roleToStatus = (role) => {
+      if (!role) return 'pending_supervisor';
+      if (role.includes('Finance')) return 'pending_finance_verification';
+      if (role.includes('Supply Chain')) return 'pending_supply_chain_review';
+      if (role.includes('Head of Business') || role.includes('Head of')) return 'pending_head_approval';
+      if (role.includes('CEO')) return 'pending_ceo_approval';
+      return 'pending_supervisor';
+    };
+    requisition.status = firstPendingStep ? roleToStatus(firstPendingStep.approver.role) : 'approved';
+
+    // Only clear the stage record(s) for steps that are actually being reset to
+    // pending - a step that's still carried-forward-approved keeps its record intact.
+    if (firstPendingStep) {
+      const pendingRole = firstPendingStep.approver.role || '';
+      if (pendingRole.includes('Finance')) requisition.financeVerification = undefined;
+      if (pendingRole.includes('Supply Chain')) requisition.supplyChainReview = undefined;
+      if (pendingRole.includes('Head of')) requisition.headApproval = undefined;
+      // If resuming above Finance/Supply Chain/Head (i.e. back at the first level),
+      // none of those stages were reached yet, so nothing to clear there either.
+    }
 
     // Update resubmission tracking
     requisition.isResubmission = true;

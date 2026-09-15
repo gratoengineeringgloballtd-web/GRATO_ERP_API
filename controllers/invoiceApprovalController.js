@@ -596,7 +596,8 @@ exports.getPendingApprovalsForUser = async (req, res) => {
   try {
     console.log('Fetching pending approvals for:', req.user.email);
 
-    const invoices = await Invoice.getPendingForApprover(req.user.email);
+    const effectiveEmails = await getEffectiveApprovalEmails(req.user.userId, req.user.email);
+    const invoices = await Invoice.getPendingForApprover(effectiveEmails);
 
     console.log(`Found ${invoices.length} pending invoices for approval`);
 
@@ -651,7 +652,8 @@ exports.getInvoiceDetails = async (req, res) => {
 // Get all invoices for supervisor (including upcoming ones)
 exports.getSupervisorInvoices = async (req, res) => {
   try {
-    const invoices = await Invoice.getForSupervisor(req.user.email);
+    const supervisorEffectiveEmails = await getEffectiveApprovalEmails(req.user.userId, req.user.email);
+    const invoices = await Invoice.getForSupervisor(supervisorEffectiveEmails);
 
     res.json({
       success: true,
@@ -1242,10 +1244,12 @@ exports.downloadPOFile = async (req, res) => {
       });
     }
 
-    // Authorization check
+    // Authorization check (including anyone who has delegated their approvals to
+    // the acting user - a delegate can access delegated invoices' files too)
     const isEmployee = invoice.employee._id.toString() === req.user.userId;
+    const fileEffectiveEmails = await getEffectiveApprovalEmails(req.user.userId, req.user.email);
     const isApprover = invoice.approvalChain.some(
-      step => step.approver.email === req.user.email
+      step => matchesEffectiveApprover(step.approver.email, fileEffectiveEmails)
     );
     const isFinance = req.user.role === 'finance' || req.user.role === 'admin';
 
@@ -1356,10 +1360,12 @@ exports.downloadInvoiceFile = async (req, res) => {
       });
     }
 
-    // Authorization check
+    // Authorization check (including anyone who has delegated their approvals to
+    // the acting user - a delegate can access delegated invoices' files too)
     const isEmployee = invoice.employee._id.toString() === req.user.userId;
+    const fileEffectiveEmails = await getEffectiveApprovalEmails(req.user.userId, req.user.email);
     const isApprover = invoice.approvalChain.some(
-      step => step.approver.email === req.user.email
+      step => matchesEffectiveApprover(step.approver.email, fileEffectiveEmails)
     );
     const isFinance = req.user.role === 'finance' || req.user.role === 'admin';
 
@@ -1464,10 +1470,12 @@ exports.previewFile = async (req, res) => {
       });
     }
 
-    // Authorization check
+    // Authorization check (including anyone who has delegated their approvals to
+    // the acting user - a delegate can access delegated invoices' files too)
     const isEmployee = invoice.employee._id.toString() === req.user.userId;
+    const fileEffectiveEmails = await getEffectiveApprovalEmails(req.user.userId, req.user.email);
     const isApprover = invoice.approvalChain.some(
-      step => step.approver.email === req.user.email
+      step => matchesEffectiveApprover(step.approver.email, fileEffectiveEmails)
     );
     const isFinance = req.user.role === 'finance' || req.user.role === 'admin';
 

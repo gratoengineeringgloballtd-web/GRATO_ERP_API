@@ -628,7 +628,8 @@ exports.downloadInvoiceForSigning = async (req, res) => {
     // Mark as downloaded for current step
     if (invoice.currentApprovalLevel > 0) {
       const currentStep = invoice.getCurrentApprover();
-      if (currentStep && currentStep.approver.email === req.user.email) {
+      const downloadEffectiveEmails = await getEffectiveApprovalEmails(req.user.userId, req.user.email);
+      if (currentStep && matchesEffectiveApprover(currentStep.approver.email, downloadEffectiveEmails)) {
         currentStep.documentDownloaded = true;
         currentStep.downloadedAt = new Date();
         await invoice.save();
@@ -950,8 +951,15 @@ exports.getSupplierInvoiceDetails = async (req, res) => {
       canView = true; // Supplier can view their own invoices
     } else if (req.user && ['admin', 'finance'].includes(req.user.role)) {
       canView = true; // Admin and finance can view all
-    } else if (req.user && invoice.approvalChain.some(step => step.approver.email === req.user.email)) {
-      canView = true; // Approvers can view invoices in their chain
+    }
+
+    // Approvers (or anyone who has delegated their approvals to the acting user) can
+    // view invoices in their chain
+    if (!canView && req.user) {
+      const detailsViewEmails = await getEffectiveApprovalEmails(req.user.userId, req.user.email);
+      if (invoice.approvalChain.some(step => matchesEffectiveApprover(step.approver.email, detailsViewEmails))) {
+        canView = true;
+      }
     }
     
     if (!canView) {
@@ -1474,13 +1482,19 @@ exports.getPendingSupplierApprovalsForUser = async (req, res) => {
     }
     
     console.log('Fetching pending supplier approvals for:', user.email);
+
+    // Effective emails = the user's own, plus anyone who has delegated their approvals
+    // to them - so a delegate's queue shows delegated supplier invoices too.
+    const supplierPendingEffectiveEmails = await getEffectiveApprovalEmails(req.user.userId, user.email);
     
-    // Get supplier invoices where this user appears in the pending approval chain
-    let pendingInvoices = await SupplierInvoice.getPendingForApprover(user.email);
+    // Get supplier invoices where this user (or a delegator) appears in the pending
+    // approval chain
+    let pendingInvoices = await SupplierInvoice.getPendingForApprover(supplierPendingEffectiveEmails);
     
     console.log(`Found ${pendingInvoices.length} total invoices with ${user.email} in approval chain`);
     
-    // Filter to only invoices where user is the CURRENT approver at currentApprovalLevel
+    // Filter to only invoices where user (or a delegator) is the CURRENT approver at
+    // currentApprovalLevel
     pendingInvoices = pendingInvoices.filter(invoice => {
       if (!invoice.approvalChain || !Array.isArray(invoice.approvalChain)) {
         return false;
@@ -1489,8 +1503,8 @@ exports.getPendingSupplierApprovalsForUser = async (req, res) => {
       // Find the current approval step
       const currentStep = invoice.approvalChain.find(step => step.level === invoice.currentApprovalLevel);
       
-      // Check if user is the current approver
-      return currentStep && currentStep.approver && currentStep.approver.email === user.email;
+      // Check if user (or a delegator) is the current approver
+      return currentStep && currentStep.approver && matchesEffectiveApprover(currentStep.approver.email, supplierPendingEffectiveEmails);
     });
     
     console.log(`Filtered to ${pendingInvoices.length} invoices where ${user.email} is current approver`);
