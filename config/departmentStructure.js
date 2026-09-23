@@ -8,7 +8,16 @@ const DEPARTMENT_STRUCTURE = {
       reportsTo: null, 
       hierarchyLevel: 6  
     },
-    positions: {}
+    positions: {
+      'Logistic Assistant': {
+        email: 'che.ernest@gratoglobal.com',
+        name: 'Che Neba Ernest',
+        reportsTo: 'tom@gratoengineering.com',
+        hierarchyLevel: 1,
+        canSupervise: [],
+        approvalAuthority: 'staff'
+      }
+    }
   },
 
   'Technical': {
@@ -32,6 +41,14 @@ const DEPARTMENT_STRUCTURE = {
         canSupervise: [],
         approvalAuthority: 'coordinator'
       },
+      'Driver - Ndessop': {
+        email: 'ndessop.boris@gratoglobal.com',
+        name: 'Ndessop Kouo Boris',
+        reportsTo: 'bechem.mbu@gratoglobal.com',
+        hierarchyLevel: 1,
+        canSupervise: [],
+        approvalAuthority: 'staff'
+      },
       'Head of Refurbishment': {
         email: 'verla.ivo@gratoengineering.com',
         name: 'Mr. Verla Ivo',
@@ -39,6 +56,22 @@ const DEPARTMENT_STRUCTURE = {
         hierarchyLevel: 3,
         canSupervise: [],
         approvalAuthority: 'head'
+      },
+      'Welder': {
+        email: 'rasaki.sakarlyah@gratoglobal.com',
+        name: 'Rasaki Abdoul Sakarlyah',
+        reportsTo: 'verla.ivo@gratoengineering.com',
+        hierarchyLevel: 1,
+        canSupervise: [],
+        approvalAuthority: 'staff'
+      },
+      'Machine Operator / Driver': {
+        email: 'akum.john@gratoglobal.com',
+        name: 'Akum John Ngwo',
+        reportsTo: 'verla.ivo@gratoengineering.com',
+        hierarchyLevel: 1,
+        canSupervise: [],
+        approvalAuthority: 'staff'
       },
       'Project Manager': {
         email: 'joel@gratoengineering.com',
@@ -313,7 +346,7 @@ const DEPARTMENT_STRUCTURE = {
         name: 'Ms Flora Kidzeven',
         reportsTo: 'lukong.lambert@gratoglobal.com',
         hierarchyLevel: 3,
-        canSupervise: ['Warehouse Coordinator/Buyer'], 
+        canSupervise: ['Warehouse Coordinator/Buyer', 'Driver'], 
         approvalAuthority: 'coordinator',
         specialRole: 'employee',
         buyerConfig: {
@@ -321,6 +354,30 @@ const DEPARTMENT_STRUCTURE = {
           maxOrderValue: 10000000,
           canSelfBuy: true
         }
+      },
+      'Driver - Bongkiyung': {
+        email: 'bongkiyung.bello@gratoglobal.com',
+        name: 'Bongkiyung Bello Armand',
+        reportsTo: 'flora.kidzeven@gratoglobal.com',
+        hierarchyLevel: 1,
+        canSupervise: [],
+        approvalAuthority: 'staff'
+      },
+      'Driver - Anuh': {
+        email: 'anuh.gabila@gratoglobal.com',
+        name: 'Anuh Gabila Johnas',
+        reportsTo: 'flora.kidzeven@gratoglobal.com',
+        hierarchyLevel: 1,
+        canSupervise: [],
+        approvalAuthority: 'staff'
+      },
+      'Driver - Ngandjeu': {
+        email: 'ngandjeu.cedric@gratoglobal.com',
+        name: 'Ngandjeu Nouke Cedric',
+        reportsTo: 'flora.kidzeven@gratoglobal.com',
+        hierarchyLevel: 1,
+        canSupervise: [],
+        approvalAuthority: 'staff'
       },
       // UPDATED - Christabel now reports to Kelvin
       'Order Management Assistant/Buyer': {
@@ -390,8 +447,8 @@ const DEPARTMENT_STRUCTURE = {
         approvalAuthority: 'staff'
       },
       'House Maid': {
-        email: 'ndi.belther@gratoengineering.com',
-        name: 'Ms. Ndi Belther',
+        email: 'nih.belther@gratoglobal.com',
+        name: 'Nih Belther Azwe',
         reportsTo: 'bruiline.tsitoh@gratoglobal.com',
         hierarchyLevel: 2,
         canSupervise: [],

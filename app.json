@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "93dce141-039c-446a-a0fc-49765841a30f"
+      }
+    },
+    "android": {
+      "package": "com.marcelyiosimbom.generatormanagementbackend"
+    }
+  }
+}
