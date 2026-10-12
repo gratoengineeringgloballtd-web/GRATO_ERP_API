@@ -40,6 +40,37 @@ router.get(
 );
 
 /**
+ * @route   GET /api/budget-codes/stats
+ * @desc    Counts for the main dashboard's budget card. Must be declared
+ *          before "/:id", otherwise "stats" is treated as a budget code id
+ *          and the request fails with a cast error (500).
+ * @access  Private (Finance, Admin, CEO)
+ */
+router.get(
+  '/stats',
+  authMiddleware,
+  requireRoles('finance', 'admin', 'ceo'),
+  async (req, res) => {
+    try {
+      const BudgetCode = require('../models/BudgetCode');
+      const BudgetTransfer = require('../models/BudgetTransfer');
+
+      const [pending, total, revisions, transfers] = await Promise.all([
+        BudgetCode.countDocuments({ status: { $nin: ['active', 'rejected'] } }),
+        BudgetCode.countDocuments({ status: 'active' }),
+        BudgetCode.countDocuments({ 'budgetRevisions.status': 'pending' }),
+        BudgetTransfer.countDocuments({ status: 'pending' })
+      ]);
+
+      res.json({ success: true, data: { pending, total, revisions, transfers } });
+    } catch (error) {
+      console.error('Budget code stats error:', error);
+      res.status(500).json({ success: false, message: 'Failed to fetch budget code stats' });
+    }
+  }
+);
+
+/**
  * @route   GET /api/budget-codes/department/dashboard
  * @desc    Get department-specific budget dashboard for department heads
  * @access  Private (All authenticated users - filtered by department)

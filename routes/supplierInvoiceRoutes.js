@@ -172,7 +172,7 @@ router.post('/supply-chain/invoices/bulk-assign',
 // Get Supply Chain dashboard statistics
 router.get('/supply-chain/dashboard/stats',
   authMiddleware,
-  requireRoles('admin', 'supply_chain', 'ceo'),
+  requireRoles('admin', 'supply_chain', 'ceo', 'it'),
   supplierInvoiceController.getSupplyChainDashboardStats
 );
 

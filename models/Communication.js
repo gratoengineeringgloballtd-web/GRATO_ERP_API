@@ -160,6 +160,19 @@ const communicationSchema = new mongoose.Schema({
     }
   },
   
+  // Per-recipient email delivery log (who got it, who failed and why)
+  emailLog: [{
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    email: String,
+    fullName: String,
+    status: { type: String, enum: ['sent', 'failed'], required: true },
+    attempts: { type: Number, default: 0 },
+    error: String,
+    errorCode: String,
+    sentAt: Date,
+    lastAttemptAt: Date
+  }],
+  
   // Template Configuration
   isTemplate: {
     type: Boolean,

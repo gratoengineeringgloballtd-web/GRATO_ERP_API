@@ -240,6 +240,9 @@ cron.schedule('0 9 * * *', async () => {
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
+// Records every 5xx response so IT can review failures from the IT console.
+app.use(require('./middlewares/errorCapture'));
+
 // app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
 //   setHeaders: (res, filePath) => {
 //     if (filePath.endsWith('.pdf')) {
@@ -350,6 +353,20 @@ try {
 if (budgetCodeRoutes) {
   app.use('/api/budget-codes', budgetCodeRoutes);
   console.log('✅ Mounted: /api/budget-codes');
+}
+
+try {
+  app.use('/api/disbursements', require('./routes/disbursementRoutes'));
+  console.log('✅ Mounted: /api/disbursements');
+} catch (e) {
+  console.error('❌ Failed to mount /api/disbursements:', e.message);
+}
+
+try {
+  app.use('/api/it-admin', require('./routes/itAdminRoutes'));
+  console.log('✅ Mounted: /api/it-admin');
+} catch (e) {
+  console.error('❌ Failed to mount /api/it-admin:', e.message);
 }
 
 if (buyerRoutes) {

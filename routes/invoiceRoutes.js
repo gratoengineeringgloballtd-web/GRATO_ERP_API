@@ -137,13 +137,6 @@ router.put('/finance/process/:invoiceId',
   invoiceApprovalController.markInvoiceAsProcessed
 );
 
-// Record payment received from the client against an approved invoice
-router.put('/finance/payment/:invoiceId',
-  authMiddleware,
-  requireRoles('finance', 'admin', 'ceo'),
-  invoiceApprovalController.recordInvoicePayment
-);
-
 // ==================== UPLOAD ROUTE ====================
 router.post('/upload',
   authMiddleware,
@@ -230,18 +223,6 @@ router.get(
 );
 
 /**
- * @route   GET /api/invoices/finance/po/:poId/history
- * @desc    Get full invoice history for a specific PO, for accountability (Finance only)
- * @access  Private (Finance, Admin)
- */
-router.get(
-  '/finance/po/:poId/history',
-  authMiddleware,
-  requireRoles('finance', 'admin', 'ceo'),
-  financeInvoiceController.getInvoiceHistoryForPO
-);
-
-/**
  * @route   GET /api/invoices/finance/prepared
  * @desc    Get invoices prepared by Finance user
  * @access  Private (Finance, Admin)
@@ -262,6 +243,19 @@ router.get(
 );
 
 /**
+ * @route   GET /api/invoices/finance/by-po/:customerPOId
+ * @desc    List every invoice raised against a customer PO, plus its
+ *          current invoiced/remaining balance (partial invoicing history)
+ * @access  Private (Finance, Admin)
+ */
+router.get(
+  '/finance/by-po/:customerPOId',
+  authMiddleware,
+  requireRoles('finance', 'admin', 'ceo'),
+  financeInvoiceController.getInvoicesForCustomerPO
+);
+
+/**
  * @route   POST /api/invoices/finance/prepare
  * @desc    Create/prepare invoice from PO (Finance only)
  * @access  Private (Finance, Admin)
@@ -270,7 +264,10 @@ router.post(
   '/finance/prepare',
   authMiddleware,
   requireRoles('finance', 'admin', 'ceo'),
-  upload.single('invoiceFile'),
+  upload.fields([
+    { name: 'invoiceFile', maxCount: 1 }, // the invoice document itself (optional)
+    { name: 'poFile', maxCount: 1 }       // the client's PO document to invoice from (optional)
+  ]),
   financeInvoiceController.prepareInvoiceFromPO
 );
 

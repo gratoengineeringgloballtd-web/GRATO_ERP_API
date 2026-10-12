@@ -260,7 +260,7 @@ router.get('/wellness/employee/:employeeId',
       const wellnessData = await Leave.aggregate([
         {
           $match: {
-            employee: mongoose.Types.ObjectId(employeeId),
+            employee: new mongoose.Types.ObjectId(employeeId),
             createdAt: { $gte: startDate }
           }
         },

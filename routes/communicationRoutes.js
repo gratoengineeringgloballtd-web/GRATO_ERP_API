@@ -19,7 +19,7 @@ const { authMiddleware, requireRoles } = require('../middlewares/authMiddleware'
 router.post(
   '/',
   authMiddleware,
-  requireRoles('admin', 'hr', 'ceo'),
+  requireRoles('admin', 'hr', 'it', 'ceo'),
   upload.array('attachments', 10),
   communicationController.createCommunication
 );
@@ -32,7 +32,7 @@ router.post(
 router.get(
   '/',
   authMiddleware,
-  requireRoles('admin', 'hr', 'ceo'),
+  requireRoles('admin', 'hr', 'it', 'ceo'),
   communicationController.getCommunications
 );
 
@@ -44,7 +44,7 @@ router.get(
 router.get(
   '/:id',
   authMiddleware,
-  requireRoles('admin', 'hr', 'ceo'),
+  requireRoles('admin', 'hr', 'it', 'ceo'),
   communicationController.getCommunication
 );
 
@@ -56,7 +56,7 @@ router.get(
 router.put(
   '/:id',
   authMiddleware,
-  requireRoles('admin', 'hr', 'ceo'),
+  requireRoles('admin', 'hr', 'it', 'ceo'),
   upload.array('attachments', 10),
   communicationController.updateCommunication
 );
@@ -69,7 +69,7 @@ router.put(
 router.delete(
   '/:id',
   authMiddleware,
-  requireRoles('admin', 'hr', 'ceo'),
+  requireRoles('admin', 'hr', 'it', 'ceo'),
   communicationController.deleteCommunication
 );
 
@@ -85,8 +85,20 @@ router.delete(
 router.post(
   '/:id/send',
   authMiddleware,
-  requireRoles('admin', 'hr', 'ceo'),
+  requireRoles('admin', 'hr', 'it', 'ceo'),
   communicationController.sendCommunication
+);
+
+/**
+ * @route   POST /api/communications/:id/resend-failed
+ * @desc    Re-send email to recipients whose delivery failed
+ * @access  Admin, HR, IT, CEO
+ */
+router.post(
+  '/:id/resend-failed',
+  authMiddleware,
+  requireRoles('admin', 'hr', 'it', 'ceo'),
+  communicationController.resendFailed
 );
 
 /**
@@ -97,7 +109,7 @@ router.post(
 router.post(
   '/preview-recipients',
   authMiddleware,
-  requireRoles('admin', 'hr', 'ceo'),
+  requireRoles('admin', 'hr', 'it', 'ceo'),
   communicationController.previewRecipients
 );
 
@@ -113,7 +125,7 @@ router.post(
 router.delete(
   '/:id/attachments/:attachmentId',
   authMiddleware,
-  requireRoles('admin', 'hr', 'ceo'),
+  requireRoles('admin', 'hr', 'it', 'ceo'),
   communicationController.deleteAttachment
 );
 
@@ -172,7 +184,7 @@ router.get(
 router.get(
   '/stats/dashboard',
   authMiddleware,
-  requireRoles('admin', 'hr', 'ceo'),
+  requireRoles('admin', 'hr', 'it', 'ceo'),
   communicationController.getDashboardStats
 );
 
@@ -184,7 +196,7 @@ router.get(
 router.get(
   '/stats/analytics',
   authMiddleware,
-  requireRoles('admin', 'hr', 'ceo'),
+  requireRoles('admin', 'hr', 'it', 'ceo'),
   communicationController.getAnalytics
 );
 
@@ -200,7 +212,7 @@ router.get(
 router.get(
   '/templates/list',
   authMiddleware,
-  requireRoles('admin', 'hr', 'ceo'),
+  requireRoles('admin', 'hr', 'it', 'ceo'),
   communicationController.getTemplates
 );
 
@@ -212,7 +224,7 @@ router.get(
 router.post(
   '/:id/save-template',
   authMiddleware,
-  requireRoles('admin', 'hr', 'ceo'),
+  requireRoles('admin', 'hr', 'it', 'ceo'),
   communicationController.saveAsTemplate
 );
 
@@ -236,20 +248,21 @@ router.get(
         const CommunicationReadReceipt = require('../models/CommunicationReadReceipt');
         const Communication = require('../models/Communication');
         
-        // Create or update read receipt
-        await CommunicationReadReceipt.findOneAndUpdate(
+        // Create or update read receipt; count each recipient only once
+        const previous = await CommunicationReadReceipt.findOneAndUpdate(
           { communication: id, user },
           {
             emailOpened: true,
             emailOpenedAt: new Date()
           },
-          { upsert: true, new: true }
+          { upsert: true, new: false }
         );
         
-        // Update communication stats
-        await Communication.findByIdAndUpdate(id, {
-          $inc: { 'deliveryStats.readCount': 1 }
-        });
+        if (!previous) {
+          await Communication.findByIdAndUpdate(id, {
+            $inc: { 'deliveryStats.readCount': 1 }
+          });
+        }
       }
       
       // Return 1x1 transparent pixel
@@ -333,21 +346,22 @@ router.post(
       const CommunicationReadReceipt = require('../models/CommunicationReadReceipt');
       const Communication = require('../models/Communication');
       
-      // Create or update read receipt
-      await CommunicationReadReceipt.findOneAndUpdate(
+      // Create or update read receipt; count each recipient only once
+      const previous = await CommunicationReadReceipt.findOneAndUpdate(
         { communication: id, user: req.user._id },
         {
           readAt: new Date(),
           userAgent: req.headers['user-agent'],
           ipAddress: req.ip
         },
-        { upsert: true, new: true }
+        { upsert: true, new: false }
       );
       
-      // Update communication stats
-      await Communication.findByIdAndUpdate(id, {
-        $inc: { 'deliveryStats.readCount': 1 }
-      });
+      if (!previous) {
+        await Communication.findByIdAndUpdate(id, {
+          $inc: { 'deliveryStats.readCount': 1 }
+        });
+      }
       
       res.json({
         success: true,
@@ -369,6 +383,23 @@ router.post(
 // ============================================
 
 /**
+ * Query matching communications that were sent to this user in-app.
+ * Mirrors Communication.getRecipientList(): targetType decides who is included,
+ * and excluded users never see the message.
+ */
+const inboxQueryFor = (user) => ({
+  status: 'sent',
+  'deliveryMethod.inApp': true,
+  'recipients.excludedUsers': { $ne: user._id },
+  $or: [
+    { 'recipients.targetType': 'all' },
+    { 'recipients.targetType': 'department', 'recipients.departments': user.department },
+    { 'recipients.targetType': 'role', 'recipients.roles': user.role },
+    { 'recipients.targetType': 'custom', 'recipients.users': user._id }
+  ]
+});
+
+/**
  * @route   GET /api/communications/employee/view/:id
  * @desc    View communication (employee perspective)
  * @access  Authenticated users
@@ -383,8 +414,10 @@ router.get(
       
       const communication = await Communication.findOne({
         _id: id,
-        status: 'sent'
-      }).populate('sender', 'fullName role');
+        ...inboxQueryFor(req.user)
+      })
+        .select('-emailLog')
+        .populate('sender', 'fullName role');
       
       if (!communication) {
         return res.status(404).json({
@@ -410,7 +443,7 @@ router.get(
 
 /**
  * @route   GET /api/communications/employee/list
- * @desc    Get communications for current user
+ * @desc    Get communications for current user (in-app inbox) with read state
  * @access  Authenticated users
  */
 router.get(
@@ -419,34 +452,39 @@ router.get(
   async (req, res) => {
     try {
       const Communication = require('../models/Communication');
+      const CommunicationReadReceipt = require('../models/CommunicationReadReceipt');
       const { page = 1, limit = 20 } = req.query;
       
-      // Find communications where user is a recipient
-      const query = {
-        status: 'sent',
-        $or: [
-          { 'recipients.targetType': 'all' },
-          { 'recipients.departments': req.user.department },
-          { 'recipients.roles': req.user.role },
-          { 'recipients.users': req.user._id }
-        ]
-      };
-      
+      const query = inboxQueryFor(req.user);
       const skip = (parseInt(page) - 1) * parseInt(limit);
       
-      const [communications, total] = await Promise.all([
+      const [communications, total, allIds] = await Promise.all([
         Communication.find(query)
           .populate('sender', 'fullName role')
           .sort({ sentAt: -1 })
           .skip(skip)
           .limit(parseInt(limit))
           .select('title messageType priority sentAt content'),
-        Communication.countDocuments(query)
+        Communication.countDocuments(query),
+        Communication.find(query).distinct('_id')
       ]);
+      
+      const readIds = new Set(
+        (await CommunicationReadReceipt.find({
+          user: req.user._id,
+          communication: { $in: allIds }
+        }).select('communication')).map(r => String(r.communication))
+      );
+      
+      const data = communications.map(c => ({
+        ...c.toObject(),
+        isRead: readIds.has(String(c._id))
+      }));
       
       res.json({
         success: true,
-        data: communications,
+        data,
+        unreadCount: allIds.length - readIds.size,
         pagination: {
           total,
           page: parseInt(page),

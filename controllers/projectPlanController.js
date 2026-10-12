@@ -537,7 +537,7 @@ exports.getStatistics = async (req, res) => {
     const [myStats, approvalStats] = await Promise.all([
       // My project plans stats
       ProjectPlan.aggregate([
-        { $match: { createdBy: mongoose.Types.ObjectId(userId) } },
+        { $match: { createdBy: new mongoose.Types.ObjectId(userId) } },
         {
           $group: {
             _id: '$status',

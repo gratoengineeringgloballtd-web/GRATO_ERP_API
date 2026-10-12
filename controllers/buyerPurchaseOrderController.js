@@ -23,6 +23,26 @@ if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
 
 // ─────────────────────────────────────────────────────────────────────────────
+// PO approval-chain level lookup tables — mirrors config/poApprovalChain.js
+// (Level 1: Department Head, 2: Head of Business, 3: Finance Officer,
+// 4: CEO — conditional). Used to resume a rejected PO at the exact level
+// it was rejected at, instead of restarting its whole approval chain.
+// ─────────────────────────────────────────────────────────────────────────────
+const PO_LEVEL_STATUS = {
+  1: 'pending_department_approval',
+  2: 'pending_head_of_business_approval',
+  3: 'pending_finance_approval',
+  4: 'pending_ceo_approval'
+};
+const PO_LEVEL_PROGRESS = { 1: 15, 2: 20, 3: 25, 4: 28 };
+const PO_LEVEL_ROLE = {
+  1: 'Department Head',
+  2: 'Head of Business',
+  3: 'Finance Officer',
+  4: 'CEO'
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // HELPER — uploads a PDF buffer directly to Cloudinary (no local filesystem)
 // ─────────────────────────────────────────────────────────────────────────────
 const uploadPDFToCloudinary = (buffer, folder, publicId) => {
@@ -169,63 +189,37 @@ const getSuppliers = async (req, res) => {
     const { search, category, page = 1, limit = 50 } = req.query;
 
     let query = {
-      role: 'supplier',
-      isActive: true,
-      'supplierStatus.accountStatus': 'approved'
+      status: 'approved',
+      'approvalStatus.status': 'approved'
     };
 
     if (search) {
       query.$or = [
-        { fullName: { $regex: search, $options: 'i' } },
-        { 'supplierDetails.companyName': { $regex: search, $options: 'i' } },
+        { name: { $regex: search, $options: 'i' } },
         { email: { $regex: search, $options: 'i' } },
-        { 'supplierDetails.address.city': { $regex: search, $options: 'i' } }
+        { 'address.city': { $regex: search, $options: 'i' } }
       ];
     }
 
-    // itemCategory (requisition categories like 'IT Accessories', 'Office Supplies') and
-    // supplierType (supplier categories like 'IT', 'HR/Admin', 'General') are largely
-    // different vocabularies - only apply the filter when it's actually a recognized
-    // supplierType value, otherwise ignore it rather than returning an empty list for
-    // every category that doesn't happen to share a name.
-    const VALID_SUPPLIER_TYPES = [
-      'General', 'Supply Chain', 'HR/Admin', 'Operations', 'HSE', 'Refurbishment',
-      'Civil Works', 'Rollout', 'Security', 'IT', 'Generator Maintenance'
-    ];
-    if (category && category !== 'all' && VALID_SUPPLIER_TYPES.includes(category)) {
-      query['supplierDetails.supplierType'] = category;
+    if (category && category !== 'all') {
+      query.categories = category;
     }
 
-    const suppliers = await User.find(query)
-      .select('fullName email supplierDetails')
-      .sort({ 'supplierDetails.companyName': 1, fullName: 1 })
+    const suppliers = await Supplier.find(query)
+      .select('name email phone address businessType categories performance bankDetails')
+      .sort({ name: 1, 'performance.overallRating': -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
 
-    const total = await User.countDocuments(query);
-
-    const data = suppliers.map(s => ({
-      _id: s._id,
-      id: s._id,
-      name: s.supplierDetails?.companyName || s.fullName,
-      contactName: s.supplierDetails?.contactName || s.fullName,
-      email: s.email,
-      phone: s.supplierDetails?.phoneNumber,
-      address: s.supplierDetails?.address,
-      businessType: s.supplierDetails?.businessType,
-      categories: s.supplierDetails?.supplierType ? [s.supplierDetails.supplierType] : [],
-      specialization: s.supplierDetails?.supplierType ? [s.supplierDetails.supplierType] : [],
-      servicesOffered: s.supplierDetails?.servicesOffered || [],
-      bankDetails: s.supplierDetails?.bankDetails
-    }));
+    const total = await Supplier.countDocuments(query);
 
     res.json({
       success: true,
-      data,
+      data: suppliers,
       pagination: {
         current: parseInt(page),
         total: Math.ceil(total / limit),
-        count: data.length,
+        count: suppliers.length,
         totalRecords: total
       }
     });
@@ -752,6 +746,15 @@ const updatePurchaseOrder = async (req, res) => {
       }
     }
 
+    // Was this PO rejected? If so, editing it is a revision-for-resubmission —
+    // it must come back out of 'rejected' or it stays stuck there forever
+    // (nothing else in the flow moves it off that status). Rather than
+    // restarting the whole approval chain from scratch, we send it back to
+    // the exact stage it was rejected at (re-opening just that approver's
+    // step), so levels that already approved it are left untouched and it
+    // simply continues from where it stopped.
+    const wasRejected = purchaseOrder.status === 'rejected';
+
     // Handle send-to-supply-chain status transition
     if (updates.status === 'pending_supply_chain_assignment' && purchaseOrder.status === 'draft') {
       purchaseOrder.status = 'pending_supply_chain_assignment';
@@ -811,6 +814,76 @@ const updatePurchaseOrder = async (req, res) => {
       }
     }
 
+    let resubmitMessage = null;
+
+    if (wasRejected) {
+      const priorReason = purchaseOrder.rejectionDetails?.reason;
+      const reasonSuffix = priorReason ? ` (was rejected: "${priorReason}")` : '';
+      const stage = purchaseOrder.rejectionDetails?.stage;
+      const levelMatch = typeof stage === 'string' ? stage.match(/^level_(\d+)$/) : null;
+
+      if (stage === 'supply_chain') {
+        // Rejected during Supply Chain's initial triage, before an approval
+        // chain even existed — resume right there.
+        purchaseOrder.status = 'pending_supply_chain_assignment';
+        purchaseOrder.progress = 8;
+        purchaseOrder.activities.push({
+          type: 'updated',
+          description: `Revised after rejection${reasonSuffix} and resubmitted to Supply Chain for review — no need to restart`,
+          user: req.user.fullName || 'Buyer',
+          timestamp: new Date()
+        });
+        resubmitMessage = 'Purchase order revised and sent straight back to Supply Chain for review';
+      } else if (levelMatch) {
+        const level = parseInt(levelMatch[1], 10);
+        const step = purchaseOrder.approvalChain?.find(s => s.level === level);
+        if (step) {
+          // Re-open just this approver's step. Levels below it that already
+          // approved are left exactly as they were.
+          step.status = 'pending';
+          step.actionDate = null;
+          step.actionTime = null;
+          step.comments = '';
+          purchaseOrder.currentApprovalLevel = level;
+          purchaseOrder.status = PO_LEVEL_STATUS[level] || purchaseOrder.status;
+          purchaseOrder.progress = PO_LEVEL_PROGRESS[level] ?? purchaseOrder.progress;
+          const roleLabel = PO_LEVEL_ROLE[level] || step.approver?.role || `Level ${level}`;
+          purchaseOrder.activities.push({
+            type: 'updated',
+            description: `Revised after rejection${reasonSuffix} and resubmitted for approval at Level ${level} (${roleLabel}) — earlier approvals are unaffected`,
+            user: req.user.fullName || 'Buyer',
+            timestamp: new Date()
+          });
+          resubmitMessage = `Purchase order revised and resubmitted for approval at Level ${level} (${roleLabel}) — it picks up right where it left off`;
+        } else {
+          // No matching step on the approval chain (stale/legacy data) —
+          // fall back to Draft rather than leaving it in limbo.
+          purchaseOrder.status = 'draft';
+          purchaseOrder.progress = 5;
+          purchaseOrder.currentStage = 'created';
+          purchaseOrder.activities.push({
+            type: 'updated',
+            description: `Revised after rejection${reasonSuffix} — its original approval stage could not be found, so it was returned to Draft. Use "Send to Supply Chain" to resubmit.`,
+            user: req.user.fullName || 'Buyer',
+            timestamp: new Date()
+          });
+          resubmitMessage = 'Purchase order revised, but its original approval stage could not be found — it was moved back to Draft. Send it to Supply Chain to resubmit.';
+        }
+      } else {
+        // Unknown/legacy rejection (no recorded stage) — safest fallback.
+        purchaseOrder.status = 'draft';
+        purchaseOrder.progress = 5;
+        purchaseOrder.currentStage = 'created';
+        purchaseOrder.activities.push({
+          type: 'updated',
+          description: `Revised after rejection${reasonSuffix} and returned to Draft — use "Send to Supply Chain" to resubmit`,
+          user: req.user.fullName || 'Buyer',
+          timestamp: new Date()
+        });
+        resubmitMessage = 'Purchase order revised and moved back to Draft — send it to Supply Chain to resubmit for approval';
+      }
+    }
+
     purchaseOrder.lastModifiedBy = req.user.userId;
     purchaseOrder.lastModifiedDate = new Date();
     purchaseOrder.activities.push({
@@ -824,7 +897,7 @@ const updatePurchaseOrder = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Purchase order updated successfully',
+      message: resubmitMessage || 'Purchase order updated successfully',
       data: {
         purchaseOrder: {
           id: purchaseOrder._id,

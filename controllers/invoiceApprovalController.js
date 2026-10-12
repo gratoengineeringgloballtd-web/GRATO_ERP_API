@@ -1,12 +1,62 @@
 const Invoice = require('../models/Invoice');
 const User = require('../models/User');
-const { getEffectiveApprovalEmails, matchesEffectiveApprover } = require('../utils/delegationHelper');
+const Customer = require('../models/Customer');
 const { sendEmail } = require('../services/emailService');
 const { getInvoiceApprovalChain } = require('../config/invoiceApprovalChain');
 const WorkflowService = require('../services/workflowService');
-const path = require('path');  
-const fs = require('fs').promises; 
+const path = require('path');
+const fs = require('fs').promises;
 const accountingService = require('../services/accountingService');
+
+/**
+ * Enrich one invoice or a list of invoices with `poBalance` — the tracked
+ * customer PO's total/invoiced-so-far/remaining — whenever the invoice was
+ * drawn against a partially-invoiceable PO (see Customer.purchaseOrders in
+ * models/Customer.js). Approvers otherwise have no way to tell a partial
+ * draw from the PO's full value when they're deciding whether to approve.
+ *
+ * Deliberately non-invasive: it takes whatever invoices an existing query
+ * already returned (delegation-aware or not) and adds one field, rather
+ * than changing how those invoices are fetched.
+ */
+async function withPOBalances(invoiceOrInvoices) {
+  const isArray = Array.isArray(invoiceOrInvoices);
+  const list = (isArray ? invoiceOrInvoices : [invoiceOrInvoices])
+    .map(inv => (inv && typeof inv.toObject === 'function') ? inv.toObject() : inv);
+
+  const customerIds = [...new Set(
+    list
+      .filter(inv => inv && inv.customerPOId && inv.customer)
+      .map(inv => (inv.customer._id || inv.customer).toString())
+  )];
+
+  if (customerIds.length > 0) {
+    try {
+      const customers = await Customer.find({ _id: { $in: customerIds } }).select('purchaseOrders');
+      const customerMap = new Map(customers.map(c => [c._id.toString(), c]));
+
+      list.forEach(inv => {
+        if (!inv || !inv.customerPOId || !inv.customer) return;
+        const custId = (inv.customer._id || inv.customer).toString();
+        const cust = customerMap.get(custId);
+        const po = cust?.purchaseOrders?.id(inv.customerPOId);
+        if (po) {
+          inv.poBalance = {
+            poNumber: po.poNumber,
+            poTotal: po.amount,
+            invoicedSoFar: po.invoicedAmount || 0,
+            remaining: Math.round(((po.amount || 0) - (po.invoicedAmount || 0)) * 100) / 100,
+            invoicingStatus: po.invoicingStatus || 'not_invoiced'
+          };
+        }
+      });
+    } catch (err) {
+      console.warn('withPOBalances: failed to enrich invoices with PO balance:', err.message);
+    }
+  }
+
+  return isArray ? list : list[0];
+}
 
 const safePostCustomerInvoiceEntry = async (invoiceId, userId, context = '') => {
   try {
@@ -500,23 +550,17 @@ exports.processApprovalStep = async (req, res) => {
       });
     }
 
-    // Check if user can approve at current level (including anyone who has delegated
-    // their approvals to the acting user)
-    const currentStep = invoice.getCurrentApprover();
-    const effectiveEmails = await getEffectiveApprovalEmails(req.user.userId, req.user.email);
-    if (!currentStep || !matchesEffectiveApprover(currentStep.approver?.email, effectiveEmails)) {
+    // Check if user can approve at current level
+    if (!invoice.canUserApprove(req.user.email)) {
       return res.status(403).json({
         success: false,
         message: 'You are not authorized to approve this invoice at this level'
       });
     }
 
-    // Process the approval step. processApprovalStep matches on the step's own approver
-    // email internally, so we pass that (not req.user.email) to find the step correctly -
-    // userId is what actually gets recorded as who acted, which is always the real person
-    // (the delegate, if one is acting), never the original approver by mistake.
+    // Process the approval step
     const processedStep = invoice.processApprovalStep(
-      currentStep.approver.email,
+      req.user.email,
       decision,
       comments,
       req.user.userId
@@ -528,44 +572,41 @@ exports.processApprovalStep = async (req, res) => {
       await safePostCustomerInvoiceEntry(invoice._id, req.user.userId, 'final approval');
     }
 
-    // Send notification to employee (skipped for finance-prepared invoices, which have no
-    // associated employee by design - see the schema's 'employee' field comment)
+    // Send notification to employee
     const statusText = decision === 'approved' ? 'approved' : 'rejected';
-    if (invoice.employee?.email) {
-      await sendEmail({
-        to: invoice.employee.email,
-        subject: `Invoice ${statusText.charAt(0).toUpperCase() + statusText.slice(1)} - ${invoice.poNumber}`,
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <div style="background-color: ${decision === 'approved' ? '#f6ffed' : '#fff2f0'}; padding: 20px; border-radius: 8px; border-left: 4px solid ${decision === 'approved' ? '#52c41a' : '#ff4d4f'};">
-              <h3>Invoice ${decision === 'approved' ? 'Approved' : 'Rejected'}</h3>
-              <p>Dear ${invoice.employee.fullName},</p>
-              
-              <p>Your invoice has been ${statusText} by ${processedStep.approver.name} (${processedStep.approver.role}).</p>
-              
-              <div style="background-color: white; padding: 15px; border-radius: 5px; margin: 15px 0;">
-                <ul>
-                  <li><strong>PO Number:</strong> ${invoice.poNumber}</li>
-                  <li><strong>Invoice Number:</strong> ${invoice.invoiceNumber}</li>
-                  <li><strong>Status:</strong> ${invoice.approvalStatus}</li>
-                  ${comments ? `<li><strong>Comments:</strong> ${comments}</li>` : ''}
-                </ul>
-              </div>
-              
-              ${decision === 'approved' && invoice.currentApprovalLevel > 0 ? `
-              <div style="background-color: #e6f7ff; padding: 15px; border-radius: 5px;">
-                <p><strong>Next Step:</strong> Awaiting approval from ${invoice.getCurrentApprover().approver.name} (${invoice.getCurrentApprover().approver.role})</p>
-              </div>
-              ` : ''}
-              
-              <p>Thank you!</p>
+    await sendEmail({
+      to: invoice.employee.email,
+      subject: `Invoice ${statusText.charAt(0).toUpperCase() + statusText.slice(1)} - ${invoice.poNumber}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background-color: ${decision === 'approved' ? '#f6ffed' : '#fff2f0'}; padding: 20px; border-radius: 8px; border-left: 4px solid ${decision === 'approved' ? '#52c41a' : '#ff4d4f'};">
+            <h3>Invoice ${decision === 'approved' ? 'Approved' : 'Rejected'}</h3>
+            <p>Dear ${invoice.employee.fullName},</p>
+            
+            <p>Your invoice has been ${statusText} by ${processedStep.approver.name} (${processedStep.approver.role}).</p>
+            
+            <div style="background-color: white; padding: 15px; border-radius: 5px; margin: 15px 0;">
+              <ul>
+                <li><strong>PO Number:</strong> ${invoice.poNumber}</li>
+                <li><strong>Invoice Number:</strong> ${invoice.invoiceNumber}</li>
+                <li><strong>Status:</strong> ${invoice.approvalStatus}</li>
+                ${comments ? `<li><strong>Comments:</strong> ${comments}</li>` : ''}
+              </ul>
             </div>
+            
+            ${decision === 'approved' && invoice.currentApprovalLevel > 0 ? `
+            <div style="background-color: #e6f7ff; padding: 15px; border-radius: 5px;">
+              <p><strong>Next Step:</strong> Awaiting approval from ${invoice.getCurrentApprover().approver.name} (${invoice.getCurrentApprover().approver.role})</p>
+            </div>
+            ` : ''}
+            
+            <p>Thank you!</p>
           </div>
-        `
-      }).catch(error => {
-        console.error('Failed to send employee notification:', error);
-      });
-    }
+        </div>
+      `
+    }).catch(error => {
+      console.error('Failed to send employee notification:', error);
+    });
 
     // If approved and there's a next approver, send notification
     if (decision === 'approved' && invoice.currentApprovalLevel > 0) {
@@ -596,15 +637,16 @@ exports.getPendingApprovalsForUser = async (req, res) => {
   try {
     console.log('Fetching pending approvals for:', req.user.email);
 
-    const effectiveEmails = await getEffectiveApprovalEmails(req.user.userId, req.user.email);
-    const invoices = await Invoice.getPendingForApprover(effectiveEmails);
+    const invoices = await Invoice.getPendingForApprover(req.user.email);
 
     console.log(`Found ${invoices.length} pending invoices for approval`);
+
+    const data = await withPOBalances(invoices);
 
     res.json({
       success: true,
       count: invoices.length,
-      data: invoices
+      data
     });
   } catch (error) {
     console.error('Error fetching pending approvals:', error);
@@ -629,6 +671,9 @@ exports.getInvoiceDetails = async (req, res) => {
       });
     }
 
+    const enrichedInvoice = await withPOBalances(invoice);
+    const poBalance = enrichedInvoice?.poBalance || null;
+
     res.json({
       success: true,
       data: {
@@ -637,7 +682,8 @@ exports.getInvoiceDetails = async (req, res) => {
         approvalProgress: invoice.approvalProgress,
         currentApprover: invoice.getCurrentApprover(),
         formattedUploadDateTime: invoice.formattedUploadDateTime,
-        approvalChainStatus: invoice.getApprovalChainStatus()
+        approvalChainStatus: invoice.getApprovalChainStatus(),
+        poBalance
       }
     });
   } catch (error) {
@@ -652,13 +698,13 @@ exports.getInvoiceDetails = async (req, res) => {
 // Get all invoices for supervisor (including upcoming ones)
 exports.getSupervisorInvoices = async (req, res) => {
   try {
-    const supervisorEffectiveEmails = await getEffectiveApprovalEmails(req.user.userId, req.user.email);
-    const invoices = await Invoice.getForSupervisor(supervisorEffectiveEmails);
+    const invoices = await Invoice.getForSupervisor(req.user.email);
+    const data = await withPOBalances(invoices);
 
     res.json({
       success: true,
       count: invoices.length,
-      data: invoices
+      data
     });
   } catch (error) {
     console.error('Error fetching supervisor invoices:', error);
@@ -864,9 +910,8 @@ exports.markInvoiceAsProcessed = async (req, res) => {
     
     await invoice.save();
     
-    // Notify employee (skipped for finance-prepared invoices, which have no associated
-    // employee by design - see the schema's 'employee' field comment)
-    if (invoice.employee?.email) {
+    // Notify employee
+    if (invoice.employee.email) {
       await sendEmail({
         to: invoice.employee.email,
         subject: `✅ Invoice Processed - ${invoice.poNumber}`,
@@ -874,7 +919,7 @@ exports.markInvoiceAsProcessed = async (req, res) => {
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
             <div style="background-color: #d4edda; padding: 20px; border-radius: 8px;">
               <h2>✅ Invoice Successfully Processed</h2>
-              <p>Dear ${invoice.employeeDetails?.name || invoice.employee.fullName || 'colleague'},</p>
+              <p>Dear ${invoice.employeeDetails.name},</p>
               <p>Your invoice has been successfully processed by the finance team.</p>
               
               <div style="background-color: white; padding: 20px; border-radius: 8px;">
@@ -911,110 +956,6 @@ exports.markInvoiceAsProcessed = async (req, res) => {
     res.status(400).json({
       success: false,
       message: error.message || 'Failed to mark invoice as processed'
-    });
-  }
-};
-
-// Record payment received from the client against an approved invoice. This is the real
-// accountability record - separate from markInvoiceAsProcessed, which is just finance's
-// internal sign-off and never recorded an actual payment amount, date, or reference.
-exports.recordInvoicePayment = async (req, res) => {
-  try {
-    console.log('=== RECORDING INVOICE PAYMENT ===');
-    const { invoiceId } = req.params;
-    const {
-      paymentAmount,
-      paymentMethod,
-      transactionReference,
-      bankReference,
-      paymentDate,
-      comments
-    } = req.body;
-
-    const invoice = await Invoice.findById(invoiceId)
-      .populate('employee', 'fullName email')
-      .populate('customer', 'companyName tradingName name primaryEmail email');
-
-    if (!invoice) {
-      return res.status(404).json({
-        success: false,
-        message: 'Invoice not found'
-      });
-    }
-
-    if (!['approved', 'processed'].includes(invoice.approvalStatus)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invoice must be approved before payment can be recorded',
-        currentStatus: invoice.approvalStatus
-      });
-    }
-
-    if (invoice.status === 'paid') {
-      return res.status(400).json({
-        success: false,
-        message: 'Payment has already been recorded for this invoice',
-        existingPayment: invoice.paymentDetails
-      });
-    }
-
-    const amount = paymentAmount ? parseFloat(paymentAmount) : invoice.totalAmount;
-    if (!amount || amount <= 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'A valid payment amount is required'
-      });
-    }
-
-    // Flag (don't block) an amount that doesn't match the invoice total, since partial
-    // client payments are a real possibility finance needs visibility into, not an error.
-    const isPartialPayment = amount < invoice.totalAmount - 0.01;
-
-    invoice.paymentDetails = {
-      amountPaid: amount,
-      paymentDate: paymentDate ? new Date(paymentDate) : new Date(),
-      paymentMethod: paymentMethod || 'Bank Transfer',
-      transactionReference,
-      bankReference,
-      recordedBy: req.user.userId,
-      comments
-    };
-    invoice.status = isPartialPayment ? 'approved' : 'paid';
-
-    await invoice.save();
-
-    console.log(`✓ Payment recorded for invoice ${invoice.invoiceNumber}: ${amount} (${isPartialPayment ? 'partial' : 'full'})`);
-
-    // Notify whoever created the invoice (finance-prepared invoices have no 'employee' -
-    // that's expected, not an error, so this is guarded rather than assumed present)
-    if (invoice.employee?.email) {
-      await sendEmail({
-        to: invoice.employee.email,
-        subject: `Payment Received - Invoice ${invoice.invoiceNumber}`,
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <div style="background-color: #d4edda; padding: 20px; border-radius: 8px;">
-              <h2>Payment Recorded</h2>
-              <p>A payment of ${amount.toLocaleString()} has been recorded against invoice ${invoice.invoiceNumber}${isPartialPayment ? ' (partial payment - balance remains outstanding)' : ' (paid in full)'}.</p>
-            </div>
-          </div>
-        `
-      }).catch(error => console.error('Failed to send payment notification:', error));
-    }
-
-    res.json({
-      success: true,
-      message: isPartialPayment
-        ? 'Partial payment recorded successfully'
-        : 'Invoice marked as paid in full',
-      data: invoice
-    });
-
-  } catch (error) {
-    console.error('=== FAILED TO RECORD INVOICE PAYMENT ===', error);
-    res.status(400).json({
-      success: false,
-      message: error.message || 'Failed to record invoice payment'
     });
   }
 };
@@ -1244,12 +1185,10 @@ exports.downloadPOFile = async (req, res) => {
       });
     }
 
-    // Authorization check (including anyone who has delegated their approvals to
-    // the acting user - a delegate can access delegated invoices' files too)
+    // Authorization check
     const isEmployee = invoice.employee._id.toString() === req.user.userId;
-    const fileEffectiveEmails = await getEffectiveApprovalEmails(req.user.userId, req.user.email);
     const isApprover = invoice.approvalChain.some(
-      step => matchesEffectiveApprover(step.approver.email, fileEffectiveEmails)
+      step => step.approver.email === req.user.email
     );
     const isFinance = req.user.role === 'finance' || req.user.role === 'admin';
 
@@ -1360,12 +1299,10 @@ exports.downloadInvoiceFile = async (req, res) => {
       });
     }
 
-    // Authorization check (including anyone who has delegated their approvals to
-    // the acting user - a delegate can access delegated invoices' files too)
+    // Authorization check
     const isEmployee = invoice.employee._id.toString() === req.user.userId;
-    const fileEffectiveEmails = await getEffectiveApprovalEmails(req.user.userId, req.user.email);
     const isApprover = invoice.approvalChain.some(
-      step => matchesEffectiveApprover(step.approver.email, fileEffectiveEmails)
+      step => step.approver.email === req.user.email
     );
     const isFinance = req.user.role === 'finance' || req.user.role === 'admin';
 
@@ -1470,12 +1407,10 @@ exports.previewFile = async (req, res) => {
       });
     }
 
-    // Authorization check (including anyone who has delegated their approvals to
-    // the acting user - a delegate can access delegated invoices' files too)
+    // Authorization check
     const isEmployee = invoice.employee._id.toString() === req.user.userId;
-    const fileEffectiveEmails = await getEffectiveApprovalEmails(req.user.userId, req.user.email);
     const isApprover = invoice.approvalChain.some(
-      step => matchesEffectiveApprover(step.approver.email, fileEffectiveEmails)
+      step => step.approver.email === req.user.email
     );
     const isFinance = req.user.role === 'finance' || req.user.role === 'admin';
 

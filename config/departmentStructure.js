@@ -469,6 +469,14 @@ const DEPARTMENT_STRUCTURE = {
         hierarchyLevel: 2,
         canSupervise: [],
         approvalAuthority: 'staff'
+      },
+      'Office Janitor': {
+        email: 'ngouningv@gmail.com',
+        name: 'Ngouning Zoning Vanel',
+        reportsTo: 'bruiline.tsitoh@gratoglobal.com',
+        hierarchyLevel: 2,
+        canSupervise: [],
+        approvalAuthority: 'staff'
       }
     }
   },

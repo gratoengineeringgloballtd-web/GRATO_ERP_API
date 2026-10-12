@@ -1,119 +1,134 @@
 /**
- * scripts/attach-file-to-requisition.js
+ * attach-file-to-requisition.js
  *
- * Uploads a local file to Cloudinary (via utils/cloudinaryStorage.js) and
- * attaches it to a specific Purchase Requisition's attachments[] array.
+ * Attaches a local file directly to a purchase requisition's `attachments`
+ * array, uploading it to Cloudinary the same way the app's own attachment
+ * code does (utils/cloudinaryStorage.js's saveFile). No API/auth token
+ * needed — this connects straight to MongoDB, same as
+ * resume-po-at-rejected-level.js / restart-po-approval-chain.js.
  *
- * Usage:
- *   node scripts/attach-file-to-requisition.js
+ * ─── SETUP ────────────────────────────────────────────────────────────
+ * Run this FROM YOUR BACKEND ROOT (same folder as package.json / .env):
  *
- * Adjust FILE_PATH / REQUISITION_NUMBER below if reused for a different file/request.
+ *   node scripts/attach-file-to-requisition.js <requisitionId-or-number> <filePath>
+ *
+ * Example:
+ *   node scripts/attach-file-to-requisition.js REQ202610050726 "C:\Users\user\Downloads\20261005-GRATO_ENG-ELECTRICITY_BILL_AND_CAMWATER-SEPTEMBER_2026.pdf"
+ *
+ * It reads your DB connection from MONGO_URI, and your Cloudinary creds
+ * (CLOUDINARY_CLOUD_NAME / CLOUDINARY_API_KEY / CLOUDINARY_API_SECRET) from
+ * your .env — same as the running server.
  */
 
-require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
+const dotenv = require('dotenv');
+
+const envCandidates = [
+  path.join(process.cwd(), '.env'),
+  path.join(__dirname, '.env')
+];
+const envPath = envCandidates.find(p => fs.existsSync(p));
+dotenv.config(envPath ? { path: envPath } : undefined);
+
 const mongoose = require('mongoose');
-const fs       = require('fs');
-const path     = require('path');
 
-const User                = require('../models/User'); // must be required before PurchaseRequisition (populate refs)
-const PurchaseRequisition = require('../models/PurchaseRequisition');
-const { saveFile, STORAGE_CATEGORIES } = require('../utils/cloudinaryStorage');
-
-// ── Config ──────────────────────────────────────────────────────────────────
-const REQUISITION_NUMBER = 'REQ202607073768';
-const FILE_PATH = path.resolve(__dirname, '../public/2026707-GRATO ENG-ENEO-JUNE 2026.pdf');
-const DISPLAY_NAME = '2026707-GRATO ENG-ENEO-JUNE 2026'; // shown to users as attachment name
-
-// ── Magic-byte mimetype/extension detection (file has no extension on disk) ─
-const detectFileType = (buffer) => {
-  const magic = {
-    pdf:  { sig: [0x25, 0x50, 0x44, 0x46], ext: '.pdf',  mimetype: 'application/pdf' },
-    png:  { sig: [0x89, 0x50, 0x4e, 0x47], ext: '.png',  mimetype: 'image/png' },
-    jpg:  { sig: [0xff, 0xd8, 0xff],       ext: '.jpg',  mimetype: 'image/jpeg' },
-    gif:  { sig: [0x47, 0x49, 0x46, 0x38], ext: '.gif',  mimetype: 'image/gif' },
-  };
-
-  for (const { sig, ext, mimetype } of Object.values(magic)) {
-    if (sig.every((byte, i) => buffer[i] === byte)) {
-      return { ext, mimetype };
-    }
-  }
-
-  // Fallback: assume PDF, since utility bills are almost always scanned/exported as PDF.
-  console.warn('⚠️  Could not detect file signature — defaulting to application/pdf. Verify this is correct.');
-  return { ext: '.pdf', mimetype: 'application/pdf' };
+const MIME_BY_EXT = {
+  '.pdf': 'application/pdf',
+  '.doc': 'application/msword',
+  '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  '.xls': 'application/vnd.ms-excel',
+  '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.gif': 'image/gif',
+  '.txt': 'text/plain'
 };
 
 async function main() {
-  console.log('='.repeat(65));
-  console.log(' ATTACH FILE TO PURCHASE REQUISITION');
-  console.log('='.repeat(65));
+  const [, , requisitionArg, filePath] = process.argv;
 
-  // ── Validate file exists ───────────────────────────────────────────────────
-  if (!fs.existsSync(FILE_PATH)) {
-    console.error(`❌ File not found at: ${FILE_PATH}`);
+  if (!requisitionArg || !filePath) {
+    console.error('Usage: node scripts/attach-file-to-requisition.js <requisitionId-or-number> <filePath>');
     process.exit(1);
   }
 
-  const buffer = fs.readFileSync(FILE_PATH);
-  const { ext, mimetype } = detectFileType(buffer);
-  console.log(`📄 Source file : ${FILE_PATH}`);
-  console.log(`   Size        : ${(buffer.length / 1024).toFixed(2)} KB`);
-  console.log(`   Detected    : ${mimetype} (${ext})`);
+  if (!fs.existsSync(filePath)) {
+    console.error(`❌ File not found: ${filePath}`);
+    process.exit(1);
+  }
 
-  // ── Connect to DB ───────────────────────────────────────────────────────────
-  await mongoose.connect(process.env.MONGODB_URI || process.env.MONGO_URI);
-  console.log('✅ Connected to MongoDB');
+  if (!process.env.MONGO_URI) {
+    console.error('❌ MONGO_URI not found. Run this from your backend root (same folder as your .env).');
+    process.exit(1);
+  }
 
-  // ── Find the requisition ────────────────────────────────────────────────────
-  const requisition = await PurchaseRequisition.findOne({ requisitionNumber: REQUISITION_NUMBER });
+  await mongoose.connect(process.env.MONGO_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+  });
+  console.log('✅ Connected to MongoDB\n');
+
+  const PurchaseRequisition = require('../models/PurchaseRequisition');
+  const { saveFile, STORAGE_CATEGORIES } = require('../utils/cloudinaryStorage');
+
+  let requisition = await PurchaseRequisition.findOne({ requisitionNumber: requisitionArg });
+  if (!requisition && mongoose.isValidObjectId(requisitionArg)) {
+    requisition = await PurchaseRequisition.findById(requisitionArg);
+  }
+
   if (!requisition) {
-    console.error(`❌ Requisition ${REQUISITION_NUMBER} not found`);
+    console.error(`❌ No requisition found matching "${requisitionArg}"`);
     await mongoose.disconnect();
     process.exit(1);
   }
-  console.log(`📋 Found requisition: ${requisition.requisitionNumber} — ${requisition.title}`);
 
-  // ── Upload to Cloudinary ─────────────────────────────────────────────────────
-  const fileForUpload = {
-    buffer,
-    originalname: `${DISPLAY_NAME}${ext}`,
-    mimetype,
+  console.log(`Found requisition ${requisition.requisitionNumber} (${requisition._id})`);
+  console.log(`  status: ${requisition.status}`);
+  console.log(`  existing attachments: ${requisition.attachments?.length || 0}`);
+
+  const originalname = path.basename(filePath);
+  const ext = path.extname(originalname).toLowerCase();
+  const buffer = fs.readFileSync(filePath);
+  const file = {
+    originalname,
+    mimetype: MIME_BY_EXT[ext] || 'application/octet-stream',
     size: buffer.length,
+    buffer
   };
 
-  console.log('\n☁️  Uploading to Cloudinary...');
-  const uploadResult = await saveFile(
-    fileForUpload,
-    STORAGE_CATEGORIES.PURCHASE_REQUISITIONS,
-    requisition.requisitionNumber
-  );
+  console.log(`\n📎 Uploading ${originalname} (${(file.size / 1024).toFixed(1)} KB, ${file.mimetype})...`);
 
-  // ── Build attachment entry matching the schema ───────────────────────────────
-  const attachment = {
-    name:       `${DISPLAY_NAME}${ext}`,
-    url:        uploadResult.url,
-    publicId:   uploadResult.publicId,
-    localPath:  uploadResult.localPath, // cloudinaryStorage sets this to the secure_url
-    size:       uploadResult.bytes || buffer.length,
-    mimetype:   uploadResult.mimetype,
-    uploadedAt: new Date(),
-  };
+  try {
+    const fileMetadata = await saveFile(file, STORAGE_CATEGORIES.PURCHASE_REQUISITIONS, 'attachments', null);
 
-  requisition.attachments.push(attachment);
-  await requisition.save();
+    requisition.attachments = requisition.attachments || [];
+    requisition.attachments.push({
+      name: file.originalname,
+      publicId: fileMetadata.publicId,
+      url: fileMetadata.url,
+      localPath: fileMetadata.localPath,
+      size: file.size,
+      mimetype: file.mimetype,
+      uploadedAt: new Date()
+    });
 
-  console.log('\n✅ Attachment saved to requisition:');
-  console.log(`   Name : ${attachment.name}`);
-  console.log(`   URL  : ${attachment.url}`);
-  console.log(`   Size : ${(attachment.size / 1024).toFixed(2)} KB`);
-  console.log(`\n   Requisition attachments count: ${requisition.attachments.length}`);
+    await requisition.save();
+
+    console.log(`\n✅ Uploaded and attached successfully.`);
+    console.log(`   URL: ${fileMetadata.url}`);
+    console.log(`\n${requisition.requisitionNumber} now has ${requisition.attachments.length} attachment(s).`);
+  } catch (uploadError) {
+    console.error(`\n❌ Upload failed: ${uploadError.message}`);
+    await mongoose.disconnect();
+    process.exit(1);
+  }
 
   await mongoose.disconnect();
-  console.log('\n' + '='.repeat(65));
 }
 
-main().catch((err) => {
-  console.error('Fatal error:', err);
+main().catch(err => {
+  console.error('❌ Script failed:', err);
   process.exit(1);
 });

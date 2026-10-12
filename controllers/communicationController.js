@@ -1,7 +1,7 @@
 const Communication = require('../models/Communication');
 const CommunicationReadReceipt = require('../models/CommunicationReadReceipt');
 const User = require('../models/User');
-const { batchSendEmails } = require('../services/communicationEmailService');
+const { deliverCommunication } = require('../services/communicationDeliveryService');
 const path = require('path');
 const fs = require('fs').promises;
 
@@ -24,7 +24,7 @@ exports.createCommunication = async (req, res) => {
     } = req.body;
 
     // Validate user permissions
-    if (!['admin', 'hr'].includes(req.user.role)) {
+    if (!['admin', 'hr', 'it'].includes(req.user.role)) {
       return res.status(403).json({
         success: false,
         message: 'Only Admin and HR can create communications'
@@ -100,7 +100,7 @@ exports.sendCommunication = async (req, res) => {
   try {
     const { id } = req.params;
 
-    if (!['admin', 'hr'].includes(req.user.role)) {
+    if (!['admin', 'hr', 'it'].includes(req.user.role)) {
       return res.status(403).json({
         success: false,
         message: 'Unauthorized'
@@ -153,60 +153,69 @@ exports.sendCommunication = async (req, res) => {
 /**
  * Async function to send communication in background
  */
-const sendCommunicationAsync = async (communicationId) => {
+const sendCommunicationAsync = async (communicationId, options = {}) => {
   try {
-    const communication = await Communication.findById(communicationId)
-      .populate('sender', 'fullName email');
-
-    if (!communication) {
-      console.error('Communication not found:', communicationId);
-      return;
-    }
-
-    // Get recipient list
-    const recipients = await communication.getRecipientList();
-
-    if (recipients.length === 0) {
-      communication.status = 'failed';
-      await communication.save();
-      console.error('No recipients found for communication:', communicationId);
-      return;
-    }
-
-    // Send emails
-    if (communication.deliveryMethod.email) {
-      const emailResults = await batchSendEmails(communication, recipients);
-      
-      communication.deliveryStats.emailsSent = emailResults.sent;
-      communication.deliveryStats.emailsFailed = emailResults.failed;
-    }
-
-    // Create in-app notifications (if enabled)
-    if (communication.deliveryMethod.inApp) {
-      // Implementation depends on your notification system
-      // For now, we'll just increment the counter
-      communication.deliveryStats.inAppDelivered = recipients.length;
-    }
-
-    // Update status
-    communication.status = 'sent';
-    communication.sentAt = new Date();
-    communication.deliveryStats.lastUpdated = new Date();
-    await communication.save();
-
-    console.log(`✅ Communication ${communicationId} sent successfully to ${recipients.length} recipients`);
-
+    await deliverCommunication(communicationId, options);
   } catch (error) {
     console.error('Error in sendCommunicationAsync:', error);
-    
-    // Update communication status to failed
+
+    // Update communication status to failed (resend keeps previous 'sent' state)
     try {
       await Communication.findByIdAndUpdate(communicationId, {
-        status: 'failed'
+        status: options.onlyFailed ? 'sent' : 'failed'
       });
     } catch (updateError) {
       console.error('Failed to update communication status:', updateError);
     }
+  }
+};
+
+/**
+ * Re-send the email to recipients whose delivery failed
+ */
+exports.resendFailed = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!['admin', 'hr', 'it'].includes(req.user.role)) {
+      return res.status(403).json({ success: false, message: 'Unauthorized' });
+    }
+
+    const communication = await Communication.findById(id);
+    if (!communication) {
+      return res.status(404).json({ success: false, message: 'Communication not found' });
+    }
+
+    if (['hr', 'it'].includes(req.user.role) && communication.sender.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: 'You can only resend your own communications' });
+    }
+
+    if (communication.status === 'sending') {
+      return res.status(409).json({ success: false, message: 'This communication is already being sent' });
+    }
+
+    if (!['sent', 'failed'].includes(communication.status)) {
+      return res.status(400).json({ success: false, message: 'Only sent communications can be resent' });
+    }
+
+    const failedCount = communication.emailLog.filter(l => l.status === 'failed').length;
+    if (failedCount === 0) {
+      return res.status(400).json({ success: false, message: 'There are no failed email deliveries to resend' });
+    }
+
+    communication.status = 'sending';
+    await communication.save();
+
+    sendCommunicationAsync(communication._id, { onlyFailed: true });
+
+    res.json({
+      success: true,
+      message: `Resending to ${failedCount} recipient(s) in the background`,
+      data: { id: communication._id, status: 'sending', failedCount }
+    });
+  } catch (error) {
+    console.error('Error resending communication:', error);
+    res.status(500).json({ success: false, message: error.message || 'Failed to resend communication' });
   }
 };
 
@@ -226,7 +235,7 @@ exports.getCommunications = async (req, res) => {
       sortOrder = 'desc'
     } = req.query;
 
-    if (!['admin', 'hr'].includes(req.user.role)) {
+    if (!['admin', 'hr', 'it'].includes(req.user.role)) {
       return res.status(403).json({
         success: false,
         message: 'Unauthorized'
@@ -248,7 +257,7 @@ exports.getCommunications = async (req, res) => {
     }
 
     // HR can only see their own communications unless admin
-    if (req.user.role === 'hr') {
+    if (['hr', 'it'].includes(req.user.role)) {
       query.sender = req.user._id;
     }
 
@@ -257,6 +266,7 @@ exports.getCommunications = async (req, res) => {
 
     const [communications, total] = await Promise.all([
       Communication.find(query)
+        .select('-emailLog')
         .populate('sender', 'fullName email role')
         .sort(sort)
         .skip(skip)
@@ -291,7 +301,7 @@ exports.getCommunication = async (req, res) => {
   try {
     const { id } = req.params;
 
-    if (!['admin', 'hr'].includes(req.user.role)) {
+    if (!['admin', 'hr', 'it'].includes(req.user.role)) {
       return res.status(403).json({
         success: false,
         message: 'Unauthorized'
@@ -310,7 +320,7 @@ exports.getCommunication = async (req, res) => {
     }
 
     // HR can only view their own communications
-    if (req.user.role === 'hr' && communication.sender._id.toString() !== req.user._id.toString()) {
+    if (['hr', 'it'].includes(req.user.role) && communication.sender._id.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         success: false,
         message: 'You can only view your own communications'
@@ -344,7 +354,7 @@ exports.updateCommunication = async (req, res) => {
   try {
     const { id } = req.params;
 
-    if (!['admin', 'hr'].includes(req.user.role)) {
+    if (!['admin', 'hr', 'it'].includes(req.user.role)) {
       return res.status(403).json({
         success: false,
         message: 'Unauthorized'
@@ -369,7 +379,7 @@ exports.updateCommunication = async (req, res) => {
     }
 
     // HR can only update their own communications
-    if (req.user.role === 'hr' && communication.sender.toString() !== req.user._id.toString()) {
+    if (['hr', 'it'].includes(req.user.role) && communication.sender.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         success: false,
         message: 'You can only update your own communications'
@@ -459,7 +469,7 @@ exports.deleteCommunication = async (req, res) => {
   try {
     const { id } = req.params;
 
-    if (!['admin', 'hr'].includes(req.user.role)) {
+    if (!['admin', 'hr', 'it'].includes(req.user.role)) {
       return res.status(403).json({
         success: false,
         message: 'Unauthorized'
@@ -484,7 +494,7 @@ exports.deleteCommunication = async (req, res) => {
     }
 
     // HR can only delete their own communications
-    if (req.user.role === 'hr' && communication.sender.toString() !== req.user._id.toString()) {
+    if (['hr', 'it'].includes(req.user.role) && communication.sender.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         success: false,
         message: 'You can only delete your own communications'
@@ -528,7 +538,7 @@ exports.deleteAttachment = async (req, res) => {
   try {
     const { id, attachmentId } = req.params;
 
-    if (!['admin', 'hr'].includes(req.user.role)) {
+    if (!['admin', 'hr', 'it'].includes(req.user.role)) {
       return res.status(403).json({
         success: false,
         message: 'Unauthorized'
@@ -592,7 +602,7 @@ exports.previewRecipients = async (req, res) => {
   try {
     const { recipients } = req.body;
 
-    if (!['admin', 'hr'].includes(req.user.role)) {
+    if (!['admin', 'hr', 'it'].includes(req.user.role)) {
       return res.status(403).json({
         success: false,
         message: 'Unauthorized'
@@ -637,14 +647,14 @@ exports.previewRecipients = async (req, res) => {
  */
 exports.getDashboardStats = async (req, res) => {
   try {
-    if (!['admin', 'hr'].includes(req.user.role)) {
+    if (!['admin', 'hr', 'it'].includes(req.user.role)) {
       return res.status(403).json({
         success: false,
         message: 'Unauthorized'
       });
     }
 
-    const filter = req.user.role === 'hr' ? { sender: req.user._id } : {};
+    const filter = ['hr', 'it'].includes(req.user.role) ? { sender: req.user._id } : {};
 
     const stats = await Communication.getDashboardStats(filter);
 
@@ -793,7 +803,7 @@ exports.getAnalytics = async (req, res) => {
  */
 exports.getTemplates = async (req, res) => {
   try {
-    if (!['admin', 'hr'].includes(req.user.role)) {
+    if (!['admin', 'hr', 'it'].includes(req.user.role)) {
       return res.status(403).json({
         success: false,
         message: 'Unauthorized'
@@ -803,7 +813,7 @@ exports.getTemplates = async (req, res) => {
     const filter = { isTemplate: true };
     
     // HR can only see their own templates
-    if (req.user.role === 'hr') {
+    if (['hr', 'it'].includes(req.user.role)) {
       filter.sender = req.user._id;
     }
 
@@ -833,7 +843,7 @@ exports.saveAsTemplate = async (req, res) => {
     const { id } = req.params;
     const { templateName } = req.body;
 
-    if (!['admin', 'hr'].includes(req.user.role)) {
+    if (!['admin', 'hr', 'it'].includes(req.user.role)) {
       return res.status(403).json({
         success: false,
         message: 'Unauthorized'

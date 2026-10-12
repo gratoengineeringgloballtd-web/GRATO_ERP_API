@@ -7,7 +7,6 @@ const pdfService = require('../services/pdfService');
 const { sendEmail } = require('../services/emailService');
 const { cloudinary } = require('../config/cloudinary');
 const { saveFile, STORAGE_CATEGORIES } = require('../utils/cloudinaryStorage');
-const fs = require('fs').promises;
 
 /**
  * Finance-specific function to prepare invoices from approved POs
@@ -34,10 +33,30 @@ exports.prepareInvoiceFromPO = async (req, res) => {
       description,
       paymentTerms = 'net-30',
       status = 'draft',
-      items = [],
-      paymentTermsBreakdown = [],
-      paymentTermsInvoiced = []
+      // Only used the first time a client PO is invoiced from an uploaded
+      // file with no existing PO record: the PO's full value, so a tracked
+      // record can be created and partial invoices raised against it later.
+      poTotalAmount
     } = req.body;
+
+    // items / paymentTermsBreakdown / paymentTermsInvoiced arrive as real
+    // arrays on a plain JSON request, but as JSON *strings* when this request
+    // is multipart/form-data (which it now is, since a PO/invoice file can be
+    // attached). Handle both shapes.
+    const parseJsonField = (raw, fallback) => {
+      if (raw === undefined || raw === null || raw === '') return fallback;
+      if (typeof raw !== 'string') return raw;
+      try {
+        return JSON.parse(raw);
+      } catch (e) {
+        console.warn('Failed to parse JSON field, using fallback:', e.message);
+        return fallback;
+      }
+    };
+
+    const items = parseJsonField(req.body.items, []);
+    const paymentTermsBreakdown = parseJsonField(req.body.paymentTermsBreakdown, []);
+    const paymentTermsInvoiced = parseJsonField(req.body.paymentTermsInvoiced, []);
 
     // Validate required fields
     if (!invoiceNumber) {
@@ -94,30 +113,34 @@ exports.prepareInvoiceFromPO = async (req, res) => {
       purchaseOrder = await PurchaseOrder.findById(poId);
     }
 
-    // Upload file if provided
+    // Files come in via upload.fields([{name:'invoiceFile'},{name:'poFile'}]),
+    // so multer puts them on req.files (memoryStorage — buffer, no disk path).
+    const invoiceFileUpload = req.files?.invoiceFile?.[0] || null;
+    const poFileUpload = req.files?.poFile?.[0] || null;
+
+    // Upload the invoice document itself, if provided
     let invoiceFileData = null;
-    if (req.file) {
+    if (invoiceFileUpload) {
       try {
         console.log('📤 Uploading invoice file to Cloudinary...');
-        const result = await saveFile(
-          req.file,
-          STORAGE_CATEGORIES.FINANCE_INVOICES,
-          normalizedPoNumber || 'unassigned',
-          `${normalizedPoNumber || 'INV'}-${invoiceNumber}-${Date.now()}`
+        const uploadResult = await saveFile(
+          invoiceFileUpload,
+          STORAGE_CATEGORIES.EMPLOYEE_INVOICES,
+          `${normalizedPoNumber || 'NOPO'}-${invoiceNumber}-invoice`
         );
 
         invoiceFileData = {
-          publicId: result.publicId,
-          url: result.url,
-          format: result.mimetype,
-          resourceType: 'auto',
-          bytes: result.bytes,
-          originalName: req.file.originalname
+          publicId: uploadResult.publicId,
+          url: uploadResult.url,
+          format: uploadResult.format,
+          resourceType: uploadResult.resourceType,
+          bytes: uploadResult.bytes,
+          originalName: uploadResult.originalName
         };
 
         console.log('✅ Invoice file uploaded:', invoiceFileData.url);
       } catch (error) {
-        console.error('❌ File upload error:', error);
+        console.error('❌ Invoice file upload error:', error);
         return res.status(500).json({
           success: false,
           message: 'Failed to upload invoice file'
@@ -125,30 +148,102 @@ exports.prepareInvoiceFromPO = async (req, res) => {
       }
     }
 
-    // ── Partial invoicing validation ─────────────────────────────────────────
-    // A PO can be invoiced multiple times (partial invoices) as long as the running
-    // total never exceeds the PO's actual value.
-    let poInvoicingContext = { poTotalAmount: null, poInvoicedAmountBefore: 0, isPartialInvoice: false };
-    if (purchaseOrder) {
-      const alreadyInvoiced = purchaseOrder.invoicedAmount || 0;
-      const remaining = purchaseOrder.totalAmount - alreadyInvoiced;
-      const requestedAmount = parseFloat(totalAmount) || 0;
+    // Upload the client's PO document — this is the file the client sent,
+    // used as the basis for this invoice. Optional, but this is the whole
+    // point of this endpoint when there's no system PO record to link to.
+    let poFileData = null;
+    if (poFileUpload) {
+      try {
+        console.log('📤 Uploading client PO file to Cloudinary...');
+        const uploadResult = await saveFile(
+          poFileUpload,
+          STORAGE_CATEGORIES.EMPLOYEE_INVOICES,
+          `${normalizedPoNumber || 'NOPO'}-${invoiceNumber}-clientPO`
+        );
 
-      if (requestedAmount > remaining + 0.01) { // small epsilon for float rounding
+        poFileData = {
+          publicId: uploadResult.publicId,
+          url: uploadResult.url,
+          format: uploadResult.format,
+          resourceType: uploadResult.resourceType,
+          bytes: uploadResult.bytes,
+          originalName: uploadResult.originalName
+        };
+
+        console.log('✅ Client PO file uploaded:', poFileData.url);
+      } catch (error) {
+        console.error('❌ Client PO file upload error:', error);
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to upload client PO file'
+        });
+      }
+    }
+
+    // ── Partial invoicing: resolve/validate the tracked Customer PO ─────────
+    // `poRecord` is the Customer.purchaseOrders subdocument this invoice is
+    // drawn against, if any. Two ways to end up with one:
+    //   1. Finance picked an existing (possibly already-partially-invoiced)
+    //      customer PO — customerPOId is provided directly.
+    //   2. Finance just uploaded a brand-new client PO file and also gave its
+    //      total value (poTotalAmount) — we create the tracked record now,
+    //      on the fly, so future partial invoices have something to track
+    //      against. If poTotalAmount isn't given, we skip tracking entirely
+    //      and just attach the file to this one invoice (old behaviour).
+    let poRecord = null;
+    let resolvedCustomerPOId = customerPOId || undefined;
+
+    if (customer && customerPOId) {
+      poRecord = customer.purchaseOrders.id(customerPOId);
+      if (!poRecord) {
+        return res.status(404).json({
+          success: false,
+          message: 'Selected customer PO was not found'
+        });
+      }
+    } else if (customer && poTotalAmount) {
+      const newPoNumber = normalizedPoNumber || (poReference ? poReference.toUpperCase() : `CPO-${Date.now()}`);
+      poRecord = await customer.addPurchaseOrder({
+        poNumber: newPoNumber,
+        description: description || `Uploaded while preparing invoice ${invoiceNumber}`,
+        amount: parseFloat(poTotalAmount),
+        currency: 'XAF',
+        poDate: invoiceDate ? new Date(invoiceDate) : new Date(),
+        document: poFileData ? {
+          name: poFileData.originalName,
+          url: poFileData.url,
+          publicId: poFileData.publicId,
+          size: poFileData.bytes
+        } : undefined,
+        notes: 'Created automatically by Finance while preparing an invoice from an uploaded client PO.'
+      }, req.user.userId);
+      resolvedCustomerPOId = poRecord._id;
+    }
+
+    // If we have a tracked PO, make sure this invoice doesn't push its
+    // invoiced total past what the PO is actually worth, and that the PO
+    // hasn't been closed to further invoicing.
+    if (poRecord) {
+      if (poRecord.invoicingClosed) {
         return res.status(400).json({
           success: false,
-          message: `Invoice amount (${requestedAmount.toLocaleString()}) exceeds the remaining uninvoiced balance on this PO (${remaining.toLocaleString()} of ${purchaseOrder.totalAmount.toLocaleString()} remaining). Already invoiced: ${alreadyInvoiced.toLocaleString()}.`,
-          poTotalAmount: purchaseOrder.totalAmount,
-          alreadyInvoiced,
-          remaining
+          message: `PO ${poRecord.poNumber} has been closed to further invoicing` +
+            (poRecord.closedReason ? ` (${poRecord.closedReason})` : '') + '.'
         });
       }
 
-      poInvoicingContext = {
-        poTotalAmount: purchaseOrder.totalAmount,
-        poInvoicedAmountBefore: alreadyInvoiced,
-        isPartialInvoice: alreadyInvoiced > 0 || requestedAmount < remaining - 0.01
-      };
+      const alreadyInvoiced = poRecord.invoicedAmount || 0;
+      const remaining = Math.round(((poRecord.amount || 0) - alreadyInvoiced) * 100) / 100;
+      const requested = parseFloat(totalAmount) || 0;
+
+      if (requested - remaining > 0.5) {
+        return res.status(400).json({
+          success: false,
+          message: `This amount exceeds the remaining balance on PO ${poRecord.poNumber}. ` +
+            `PO total: ${(poRecord.amount || 0).toLocaleString()} XAF, already invoiced: ` +
+            `${alreadyInvoiced.toLocaleString()} XAF, remaining: ${remaining.toLocaleString()} XAF.`
+        });
+      }
     }
 
     // Create invoice record
@@ -162,7 +257,7 @@ exports.prepareInvoiceFromPO = async (req, res) => {
         email: customer.primaryEmail || customer.email,
         phone: customer.primaryPhone || customer.phone
       } : undefined,
-      customerPOId: customerPOId,
+      customerPOId: resolvedCustomerPOId,
       poReference: poReference,
       employee: req.user.userId, // Set employee to the finance user creating the invoice
       supplier: supplierId,
@@ -183,6 +278,7 @@ exports.prepareInvoiceFromPO = async (req, res) => {
       paymentTermsBreakdown,
       paymentTermsInvoiced,
       invoiceFile: invoiceFileData,
+      poFile: poFileData,
       createdBy: req.user.userId,
       createdByDetails: {
         name: financeUser.fullName,
@@ -191,37 +287,40 @@ exports.prepareInvoiceFromPO = async (req, res) => {
         role: 'finance'
       },
       approvalChain: buildFinanceApprovalChain(financeUser.department),
-      approvalStatus: 'pending_finance_review',
-      poTotalAmount: poInvoicingContext.poTotalAmount,
-      poInvoicedAmountBefore: poInvoicingContext.poInvoicedAmountBefore,
-      isPartialInvoice: poInvoicingContext.isPartialInvoice
+      approvalStatus: 'pending_finance_review'
     };
 
     console.log('Creating invoice with data:', invoiceData);
     const invoice = await Invoice.create(invoiceData);
     console.log('✅ Invoice created:', invoice._id);
 
-    // Update PO's cumulative invoicing tracking (if poId provided)
+    // Update PO to mark as invoiced (if poId provided)
     if (poId && purchaseOrder) {
-      const newInvoicedAmount = (purchaseOrder.invoicedAmount || 0) + parseFloat(totalAmount);
-      const newStatus = newInvoicedAmount >= purchaseOrder.totalAmount - 0.01
-        ? 'fully_invoiced'
-        : 'partially_invoiced';
-
       await PurchaseOrder.findByIdAndUpdate(poId, {
-        $inc: { invoicedAmount: parseFloat(totalAmount) },
-        $set: { invoicingStatus: newStatus },
-        $push: {
-          invoices: {
-            invoiceId: invoice._id,
-            invoiceNumber: invoiceNumber,
-            amount: parseFloat(totalAmount),
-            createdBy: req.user.userId,
-            createdAt: new Date()
-          }
-        }
+        hasInvoice: true,
+        invoiceId: invoice._id,
+        invoiceNumber: invoiceNumber
       });
-      console.log(`✅ PO ${poNumber} invoicing updated: ${newInvoicedAmount.toLocaleString()} / ${purchaseOrder.totalAmount.toLocaleString()} (${newStatus})`);
+    }
+
+    // Update the tracked customer PO's running invoiced total, now that the
+    // invoice itself has actually been saved successfully.
+    let poBalance = null;
+    if (poRecord && customer) {
+      try {
+        await customer.recordInvoicing(resolvedCustomerPOId, parseFloat(totalAmount) || 0);
+        const updatedPo = customer.purchaseOrders.id(resolvedCustomerPOId);
+        poBalance = {
+          poTotal: updatedPo.amount,
+          invoicedSoFar: updatedPo.invoicedAmount,
+          remaining: Math.round(((updatedPo.amount || 0) - (updatedPo.invoicedAmount || 0)) * 100) / 100,
+          invoicingStatus: updatedPo.invoicingStatus
+        };
+      } catch (trackingError) {
+        // The invoice already saved successfully — don't fail the request
+        // over a tracking update, just surface it loudly in the logs.
+        console.error('⚠️  Invoice saved, but failed to update PO invoiced total:', trackingError.message);
+      }
     }
 
     res.status(201).json({
@@ -231,15 +330,11 @@ exports.prepareInvoiceFromPO = async (req, res) => {
         invoiceId: invoice._id,
         invoiceNumber: invoice.invoiceNumber,
         poNumber: invoice.poNumber,
+        customerPOId: resolvedCustomerPOId,
         status: invoice.status,
         totalAmount: invoice.totalAmount,
         createdDate: invoice.createdAt,
-        isPartialInvoice: invoice.isPartialInvoice,
-        poInvoicing: purchaseOrder ? {
-          poTotalAmount: purchaseOrder.totalAmount,
-          totalInvoicedSoFar: (purchaseOrder.invoicedAmount || 0) + parseFloat(totalAmount),
-          remainingAmount: Math.max(0, purchaseOrder.totalAmount - ((purchaseOrder.invoicedAmount || 0) + parseFloat(totalAmount)))
-        } : null
+        poBalance
       }
     });
 
@@ -253,70 +348,22 @@ exports.prepareInvoiceFromPO = async (req, res) => {
 };
 
 /**
- * Get the full invoice history for a specific PO - every invoice ever raised against
- * it (partial or full), with each invoice's current status, for accountability.
- */
-exports.getInvoiceHistoryForPO = async (req, res) => {
-  try {
-    const { poId } = req.params;
-
-    const purchaseOrder = await PurchaseOrder.findById(poId)
-      .select('poNumber totalAmount invoicedAmount invoicingStatus invoices')
-      .populate('invoices.createdBy', 'fullName email');
-
-    if (!purchaseOrder) {
-      return res.status(404).json({ success: false, message: 'Purchase order not found' });
-    }
-
-    // Pull the actual current invoice documents (status may have changed since creation)
-    const invoiceIds = (purchaseOrder.invoices || []).map(i => i.invoiceId).filter(Boolean);
-    const invoices = await Invoice.find({ _id: { $in: invoiceIds } })
-      .select('invoiceNumber totalAmount status approvalStatus createdAt createdByDetails isPartialInvoice')
-      .sort({ createdAt: 1 });
-
-    res.json({
-      success: true,
-      data: {
-        poNumber: purchaseOrder.poNumber,
-        poTotalAmount: purchaseOrder.totalAmount,
-        invoicedAmount: purchaseOrder.invoicedAmount || 0,
-        remainingAmount: Math.max(0, purchaseOrder.totalAmount - (purchaseOrder.invoicedAmount || 0)),
-        invoicingStatus: purchaseOrder.invoicingStatus,
-        invoiceCount: invoices.length,
-        invoices
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching invoice history for PO:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch invoice history' });
-  }
-};
-
-/**
  * Get purchase orders available for invoicing
  */
 exports.getPOsForInvoicing = async (req, res) => {
   try {
-    // A PO stays available for invoicing until it's fully invoiced - this is what
-    // enables partial invoicing: finance can keep raising invoices against the same
-    // PO as long as there's remaining, uninvoiced balance.
     const purchaseOrders = await PurchaseOrder.find({
       status: 'approved',
-      invoicingStatus: { $ne: 'fully_invoiced' }
+      hasInvoice: false
     })
-      .populate('supplierId', 'fullName email supplierDetails.companyName')
-      .select('poNumber poDate supplierDetails supplierId totalAmount status invoicingStatus invoicedAmount invoices items')
+      .populate('supplier', 'name email')
+      .select('poNumber poDate supplier totalAmount status hasInvoice items')
       .sort({ createdAt: -1 });
-
-    const data = purchaseOrders.map(po => ({
-      ...po.toObject(),
-      remainingAmount: Math.max(0, po.totalAmount - (po.invoicedAmount || 0))
-    }));
 
     res.json({
       success: true,
-      data,
-      count: data.length
+      data: purchaseOrders,
+      count: purchaseOrders.length
     });
   } catch (error) {
     console.error('Error fetching POs:', error);
@@ -387,7 +434,7 @@ exports.downloadFinanceInvoicePDF = async (req, res) => {
     const { invoiceId } = req.params;
 
     const invoice = await Invoice.findById(invoiceId)
-      .populate('customer', 'companyName tradingName primaryEmail primaryPhone')
+      .populate('customer', 'companyName tradingName primaryEmail primaryPhone address billingAddress taxIdNumber businessRegistrationNumber')
       .populate('employee', 'fullName email');
 
     if (!invoice) {
@@ -398,6 +445,40 @@ exports.downloadFinanceInvoicePDF = async (req, res) => {
     }
 
     const customer = invoice.customer || {};
+
+    // Address block for the PDF: use the billing address when it differs from
+    // the physical one, otherwise the physical address.
+    const addr = (customer.billingAddress && customer.billingAddress.street && customer.billingAddress.sameAsPhysical === false)
+      ? customer.billingAddress
+      : (customer.address || {});
+    const addressLines = [];
+    if (addr.street) String(addr.street).split(/\r?\n/).forEach(l => l.trim() && addressLines.push(l.trim()));
+    if (addr.city) addressLines.push(addr.city);
+    if (addr.state && addr.state !== addr.city) addressLines.push(addr.state);
+    if (addr.country) addressLines.push(addr.country);
+
+    // If this invoice was drawn against a tracked customer PO, pull its
+    // current balance so the PDF can show "partial invoice, X of Y" context
+    // instead of looking like a standalone, full-value invoice.
+    let poBalance = null;
+    if (invoice.customerPOId && invoice.customer) {
+      try {
+        const custDoc = await Customer.findById(invoice.customer).select('purchaseOrders');
+        const po = custDoc?.purchaseOrders?.id(invoice.customerPOId);
+        if (po) {
+          poBalance = {
+            poNumber: po.poNumber,
+            poTotal: po.amount,
+            invoicedSoFar: po.invoicedAmount || 0,
+            remaining: Math.round(((po.amount || 0) - (po.invoicedAmount || 0)) * 100) / 100,
+            invoicingStatus: po.invoicingStatus || 'not_invoiced'
+          };
+        }
+      } catch (err) {
+        console.warn('Could not load PO balance for invoice PDF:', err.message);
+      }
+    }
+
     const pdfData = {
       invoiceNumber: invoice.invoiceNumber,
       poNumber: invoice.poNumber,
@@ -411,11 +492,15 @@ exports.downloadFinanceInvoicePDF = async (req, res) => {
       paymentTerms: invoice.paymentTerms,
       items: invoice.items,
       paymentTermsBreakdown: invoice.paymentTermsBreakdown,
-      customerDetails: invoice.customerDetails || {
-        name: customer.companyName || customer.tradingName,
-        email: customer.primaryEmail,
-        phone: customer.primaryPhone
-      }
+      customerDetails: {
+        name: invoice.customerDetails?.name || customer.companyName || customer.tradingName,
+        email: invoice.customerDetails?.email || customer.primaryEmail,
+        phone: invoice.customerDetails?.phone || customer.primaryPhone,
+        addressLines,
+        taxId: customer.taxIdNumber,
+        registrationNumber: customer.businessRegistrationNumber
+      },
+      poBalance
     };
 
     const pdfResult = await pdfService.generateInvoicePDF(pdfData);
@@ -468,16 +553,9 @@ exports.submitInvoiceForApproval = async (req, res) => {
 
     // Update status
     invoice.status = 'pending_approval';
+    invoice.approvalStatus = 'pending_manager_approval';
     invoice.submittedDate = new Date();
     invoice.submittedBy = req.user.userId;
-
-    // Build a real approval chain via the schema's own method - previously this just set
-    // approvalStatus to an invalid value and never populated approvalChain at all, so even
-    // a "successful" submission would leave the invoice permanently unapprovable (every
-    // approval method on this model depends on approvalChain being populated). Nothing
-    // upstream in this flow assigns a department, so default to the finance preparer's own.
-    const financeUser = await User.findById(req.user.userId).select('department');
-    invoice.assignToDepartment(invoice.assignedDepartment || financeUser?.department || 'Finance', req.user.userId);
 
     await invoice.save();
 
@@ -550,6 +628,20 @@ exports.deleteFinanceInvoice = async (req, res) => {
       });
     }
 
+    // Give back the tracked balance on the customer PO this invoice was
+    // drawn against, so deleting a draft doesn't leave the PO permanently
+    // showing money that was never actually invoiced.
+    if (invoice.customerPOId && invoice.customer) {
+      try {
+        const cust = await Customer.findById(invoice.customer);
+        if (cust) {
+          await cust.reverseInvoicing(invoice.customerPOId, invoice.totalAmount || 0);
+        }
+      } catch (err) {
+        console.warn('Failed to reverse PO invoiced total on delete:', err.message);
+      }
+    }
+
     await Invoice.findByIdAndDelete(invoiceId);
 
     res.json({
@@ -561,6 +653,50 @@ exports.deleteFinanceInvoice = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to delete invoice'
+    });
+  }
+};
+
+/**
+ * Get every invoice raised against a given customer PO, plus the PO's
+ * current balance — used by the "invoicing history" view so Finance can see
+ * what's already been billed and what's left before raising another partial
+ * invoice.
+ */
+exports.getInvoicesForCustomerPO = async (req, res) => {
+  try {
+    const { customerPOId } = req.params;
+    const { customerId } = req.query;
+
+    const invoices = await Invoice.find({ customerPOId })
+      .select('invoiceNumber totalAmount taxAmount netAmount status approvalStatus invoiceDate dueDate createdAt createdByDetails')
+      .sort({ createdAt: -1 });
+
+    let poBalance = null;
+    if (customerId) {
+      const customer = await Customer.findById(customerId).select('purchaseOrders');
+      const po = customer?.purchaseOrders?.id(customerPOId);
+      if (po) {
+        poBalance = {
+          poNumber: po.poNumber,
+          poTotal: po.amount,
+          invoicedSoFar: po.invoicedAmount || 0,
+          remaining: Math.round(((po.amount || 0) - (po.invoicedAmount || 0)) * 100) / 100,
+          invoicingStatus: po.invoicingStatus || 'not_invoiced'
+        };
+      }
+    }
+
+    res.json({
+      success: true,
+      data: invoices,
+      poBalance
+    });
+  } catch (error) {
+    console.error('Error fetching invoices for PO:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch invoices for this PO'
     });
   }
 };

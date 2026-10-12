@@ -41,6 +41,30 @@ exports.authMiddleware = async (req, res, next) => {
       fullName: currentUser.fullName
     };
 
+    // 4b. Support ("view as user") sessions started from the IT console are
+    // strictly READ-ONLY and only valid while the IT user who started them is
+    // still an active IT/admin/CEO account.
+    if (decoded.impersonatedBy) {
+      const impersonator = await User.findById(decoded.impersonatedBy).select('role isActive');
+      if (!impersonator || !impersonator.isActive || !['it', 'admin', 'ceo'].includes(impersonator.role)) {
+        return res.status(401).json({
+          success: false,
+          message: 'Support session is no longer valid'
+        });
+      }
+
+      req.user.impersonatedBy = String(decoded.impersonatedBy);
+
+      const readOnly = ['GET', 'HEAD', 'OPTIONS'].includes(req.method);
+      const isLogout = req.method === 'POST' && (req.originalUrl || '').split('?')[0] === '/api/auth/logout';
+      if (!readOnly && !isLogout) {
+        return res.status(403).json({
+          success: false,
+          message: 'Read-only support session: changes are not allowed. Exit the support session to make changes.'
+        });
+      }
+    }
+
     // 5. Check role-specific restrictions
     if (currentUser.role === 'supplier') {
       // For suppliers, exclude from regular employee functions

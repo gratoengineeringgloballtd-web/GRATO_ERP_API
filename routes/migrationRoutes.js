@@ -3,9 +3,9 @@ const router = express.Router();
 const migrationController = require('../controllers/migrationController');
 const { authMiddleware, requireRoles } = require('../middlewares/authMiddleware');
 
-// All migration endpoints require admin access
+// Data migration / import endpoints: admin, CEO and IT support
 router.use(authMiddleware);
-router.use(requireRoles('admin', 'ceo'));
+router.use(requireRoles('admin', 'ceo', 'it'));
 
 router.post('/available-stock', migrationController.migrateAvailableStock);
 router.post('/inbound', migrationController.migrateInbound);

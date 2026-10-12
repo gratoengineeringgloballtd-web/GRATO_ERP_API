@@ -133,4 +133,16 @@ router.delete('/:customerId/purchase-orders/:poId',
   customerController.deletePurchaseOrder
 );
 
+// Close a PO to further (partial) invoicing
+router.patch('/:customerId/purchase-orders/:poId/close-invoicing',
+  requireRoles('admin', 'finance', 'ceo'),
+  customerController.closePurchaseOrderInvoicing
+);
+
+// Reopen a previously-closed PO for invoicing
+router.patch('/:customerId/purchase-orders/:poId/reopen-invoicing',
+  requireRoles('admin', 'finance', 'ceo'),
+  customerController.reopenPurchaseOrderInvoicing
+);
+
 module.exports = router;

@@ -1,6 +1,6 @@
 const cron = require('node-cron');
 const Communication = require('../models/Communication');
-const { batchSendEmails } = require('../services/communicationEmailService');
+const { deliverCommunication, recoverStuckCommunications } = require('../services/communicationDeliveryService');
 
 /**
  * Process scheduled communications
@@ -8,6 +8,9 @@ const { batchSendEmails } = require('../services/communicationEmailService');
  */
 const processScheduledCommunications = async () => {
   try {
+    // Free any message left on 'sending' by a crash/restart (60+ min without progress)
+    await recoverStuckCommunications().catch((e) => console.error('Recovery check failed:', e.message));
+
     console.log('=== CHECKING FOR SCHEDULED COMMUNICATIONS ===');
     
     const now = new Date();
@@ -33,36 +36,7 @@ const processScheduledCommunications = async () => {
         communication.status = 'sending';
         await communication.save();
 
-        // Get recipient list
-        const recipients = await communication.getRecipientList();
-
-        if (recipients.length === 0) {
-          console.error(`No recipients found for communication ${communication._id}`);
-          communication.status = 'failed';
-          await communication.save();
-          continue;
-        }
-
-        // Send emails
-        if (communication.deliveryMethod.email) {
-          const emailResults = await batchSendEmails(communication, recipients);
-          
-          communication.deliveryStats.emailsSent = emailResults.sent;
-          communication.deliveryStats.emailsFailed = emailResults.failed;
-        }
-
-        // Create in-app notifications (if enabled)
-        if (communication.deliveryMethod.inApp) {
-          communication.deliveryStats.inAppDelivered = recipients.length;
-        }
-
-        // Update status to sent
-        communication.status = 'sent';
-        communication.sentAt = new Date();
-        communication.deliveryStats.lastUpdated = new Date();
-        await communication.save();
-
-        console.log(`✅ Communication ${communication._id} sent successfully to ${recipients.length} recipients`);
+        await deliverCommunication(communication._id);
 
       } catch (error) {
         console.error(`Error processing communication ${communication._id}:`, error);
@@ -98,7 +72,9 @@ const initializeScheduledMessagesCron = () => {
   console.log('✅ Scheduled messages cron job initialized (runs every 5 minutes)');
 
   // Run once on startup to catch any missed scheduled messages
-  setTimeout(() => {
+  setTimeout(async () => {
+    // A restart means any 'sending' message was interrupted: reset them right away
+    await recoverStuckCommunications({ onStartup: true }).catch((e) => console.error('Startup recovery failed:', e.message));
     processScheduledCommunications();
   }, 5000); // Wait 5 seconds after server start
 };

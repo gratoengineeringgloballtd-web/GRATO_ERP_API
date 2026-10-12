@@ -777,14 +777,38 @@ exports.updatePurchaseOrder = async (req, res) => {
       });
     }
 
+    // The PO's value can't be edited down below what's already been
+    // invoiced against it — that would make the tracked balance negative
+    // and invalidate every invoice already raised against it.
+    const newAmount = parseFloat(amount);
+    const alreadyInvoiced = po.invoicedAmount || 0;
+    if (newAmount < alreadyInvoiced - 0.5) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot set PO amount below what's already invoiced (${alreadyInvoiced.toLocaleString()} XAF already invoiced against this PO).`
+      });
+    }
+
     // Update PO fields
     po.poNumber = poNumber;
     po.description = description || '';
-    po.amount = parseFloat(amount);
+    po.amount = newAmount;
     po.currency = currency || 'XAF';
     po.poDate = poDate ? new Date(poDate) : po.poDate;
     po.dueDate = dueDate ? new Date(dueDate) : null;
     po.notes = notes || '';
+
+    // Amount changed, so the invoicing-progress status may need to change
+    // with it (e.g. raising the total on a "fully invoiced" PO reopens a
+    // remaining balance).
+    const remainingAfter = Math.round((newAmount - alreadyInvoiced) * 100) / 100;
+    if (alreadyInvoiced <= 0) {
+      po.invoicingStatus = 'not_invoiced';
+    } else if (remainingAfter <= 0.5) {
+      po.invoicingStatus = 'fully_invoiced';
+    } else {
+      po.invoicingStatus = 'partially_invoiced';
+    }
 
     // Handle payment terms - can be string or array (JSON string)
     if (paymentTerms) {
@@ -904,7 +928,25 @@ exports.deletePurchaseOrder = async (req, res) => {
       });
     }
 
-    customer.purchaseOrders.id(poId).remove();
+    const po = customer.purchaseOrders.id(poId);
+    if (!po) {
+      return res.status(404).json({
+        success: false,
+        message: 'Purchase Order not found'
+      });
+    }
+
+    // A PO that already has invoices raised against it is referenced by
+    // those Invoice documents (customerPOId) — deleting it would orphan
+    // that link and lose the balance history. Close it instead.
+    if ((po.invoicedAmount || 0) > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'This PO already has invoices raised against it and cannot be deleted. Close it to stop further invoicing instead.'
+      });
+    }
+
+    po.remove();
     await customer.save();
 
     res.json({
@@ -916,6 +958,71 @@ exports.deletePurchaseOrder = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to delete purchase order',
+      error: error.message
+    });
+  }
+};
+
+// Close a PO to further invoicing (without pretending it was fully billed)
+exports.closePurchaseOrderInvoicing = async (req, res) => {
+  try {
+    const { customerId, poId } = req.params;
+    const { reason } = req.body;
+
+    const customer = await Customer.findById(customerId);
+    if (!customer) {
+      return res.status(404).json({ success: false, message: 'Customer not found' });
+    }
+
+    const po = customer.purchaseOrders.id(poId);
+    if (!po) {
+      return res.status(404).json({ success: false, message: 'Purchase Order not found' });
+    }
+
+    await customer.closePOInvoicing(poId, req.user.id, reason || '');
+
+    res.json({
+      success: true,
+      message: 'Purchase Order closed to further invoicing',
+      data: customer.purchaseOrders.id(poId)
+    });
+  } catch (error) {
+    console.error('Error closing purchase order:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to close purchase order',
+      error: error.message
+    });
+  }
+};
+
+// Reopen a previously-closed PO for further invoicing
+exports.reopenPurchaseOrderInvoicing = async (req, res) => {
+  try {
+    const { customerId, poId } = req.params;
+
+    const customer = await Customer.findById(customerId);
+    if (!customer) {
+      return res.status(404).json({ success: false, message: 'Customer not found' });
+    }
+
+    const po = customer.purchaseOrders.id(poId);
+    if (!po) {
+      return res.status(404).json({ success: false, message: 'Purchase Order not found' });
+    }
+
+    await customer.reopenPOInvoicing(poId);
+
+    res.json({
+      success: true,
+      message: 'Purchase Order reopened for invoicing',
+      data: customer.purchaseOrders.id(poId)
+    });
+  } catch (error) {
+    console.error('Error reopening purchase order:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to reopen purchase order',
       error: error.message
     });
   }

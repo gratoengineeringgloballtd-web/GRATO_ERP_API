@@ -181,7 +181,32 @@ const CustomerSchema = new mongoose.Schema({
       enum: ['pending', 'approved', 'rejected', 'paid'],
       default: 'pending'
     },
-    notes: String
+    notes: String,
+
+    // ── Partial invoicing tracking ──────────────────────────────────────────
+    // Running total of what has been invoiced against this PO so far, across
+    // however many separate (partial) invoices Finance has raised for it.
+    invoicedAmount: {
+      type: Number,
+      default: 0
+    },
+    // Derived from amount vs invoicedAmount — kept as a stored field (rather
+    // than computed only on read) so it's easy to filter/sort on in listings.
+    invoicingStatus: {
+      type: String,
+      enum: ['not_invoiced', 'partially_invoiced', 'fully_invoiced'],
+      default: 'not_invoiced'
+    },
+    // Lets Finance stop further invoicing on a PO early (e.g. the client
+    // cancelled the rest of the order, or a partially-invoiced PO is being
+    // written off) without pretending the whole PO amount was billed.
+    invoicingClosed: {
+      type: Boolean,
+      default: false
+    },
+    closedReason: String,
+    closedAt: Date,
+    closedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
   }],
   
   // Business Metrics
@@ -296,7 +321,7 @@ CustomerSchema.methods.updateStatus = function(newStatus, userId, reason = '') {
   return this.save();
 };
 
-CustomerSchema.methods.addPurchaseOrder = function(poData, userId) {
+CustomerSchema.methods.addPurchaseOrder = async function(poData, userId) {
   const po = {
     poNumber: poData.poNumber,
     description: poData.description,
@@ -309,11 +334,16 @@ CustomerSchema.methods.addPurchaseOrder = function(poData, userId) {
     uploadedBy: userId,
     uploadedAt: new Date(),
     status: 'pending',
-    notes: poData.notes
+    notes: poData.notes,
+    invoicedAmount: 0,
+    invoicingStatus: 'not_invoiced'
   };
-  
+
   this.purchaseOrders.push(po);
-  return this.save();
+  await this.save();
+  // Return the subdocument that was just created (with its generated _id)
+  // so callers (e.g. invoice preparation) can reference it immediately.
+  return this.purchaseOrders[this.purchaseOrders.length - 1];
 };
 
 CustomerSchema.methods.updatePOStatus = function(poId, newStatus, notes = '') {
@@ -327,6 +357,104 @@ CustomerSchema.methods.updatePOStatus = function(poId, newStatus, notes = '') {
 
 CustomerSchema.methods.getPurchaseOrders = function() {
   return this.purchaseOrders || [];
+};
+
+/**
+ * Record that `amount` has just been invoiced against a customer PO —
+ * called every time Finance successfully prepares an invoice (full or
+ * partial) that references this PO. Throws if the amount would push the
+ * running total past the PO's total value, so callers should validate the
+ * remaining balance BEFORE creating the invoice, and only call this after
+ * the invoice document has actually been saved.
+ */
+CustomerSchema.methods.recordInvoicing = function(poId, amount) {
+  const po = this.purchaseOrders.id(poId);
+  if (!po) {
+    throw new Error('Purchase Order not found on this customer');
+  }
+
+  const amt = Number(amount) || 0;
+  const newInvoiced = Math.round(((po.invoicedAmount || 0) + amt) * 100) / 100;
+  const total = Number(po.amount) || 0;
+
+  // Small rounding tolerance (0.5 currency unit) rather than exact equality,
+  // since totals may be computed from tax-inclusive line items elsewhere.
+  if (newInvoiced - total > 0.5) {
+    throw new Error(
+      `Amount exceeds remaining balance on PO ${po.poNumber} ` +
+      `(total: ${total}, already invoiced: ${po.invoicedAmount || 0}, requested: ${amt})`
+    );
+  }
+
+  po.invoicedAmount = newInvoiced;
+  const remaining = Math.round((total - newInvoiced) * 100) / 100;
+  if (remaining <= 0.5) {
+    po.invoicingStatus = 'fully_invoiced';
+  } else if (newInvoiced > 0) {
+    po.invoicingStatus = 'partially_invoiced';
+  } else {
+    po.invoicingStatus = 'not_invoiced';
+  }
+
+  return this.save();
+};
+
+/**
+ * Undo recordInvoicing() — called when a draft invoice referencing a PO is
+ * deleted, so the PO's tracked balance doesn't get permanently stuck showing
+ * money that was never actually invoiced.
+ */
+CustomerSchema.methods.reverseInvoicing = function(poId, amount) {
+  const po = this.purchaseOrders.id(poId);
+  if (!po) return this.save(); // PO may have been removed separately — nothing to reverse
+
+  const amt = Number(amount) || 0;
+  po.invoicedAmount = Math.max(0, Math.round(((po.invoicedAmount || 0) - amt) * 100) / 100);
+
+  const total = Number(po.amount) || 0;
+  if (po.invoicedAmount <= 0) {
+    po.invoicingStatus = 'not_invoiced';
+  } else if (po.invoicedAmount < total - 0.5) {
+    po.invoicingStatus = 'partially_invoiced';
+  } else {
+    po.invoicingStatus = 'fully_invoiced';
+  }
+
+  return this.save();
+};
+
+/**
+ * Stop further invoicing against a PO before it's fully invoiced — e.g. the
+ * client cancelled the remainder of the order, or the balance is being
+ * written off. Does NOT touch invoicedAmount/invoicingStatus, so the record
+ * still accurately shows how much was actually billed before it closed.
+ */
+CustomerSchema.methods.closePOInvoicing = function(poId, userId, reason = '') {
+  const po = this.purchaseOrders.id(poId);
+  if (!po) {
+    throw new Error('Purchase Order not found on this customer');
+  }
+  po.invoicingClosed = true;
+  po.closedReason = reason;
+  po.closedAt = new Date();
+  po.closedBy = userId;
+  return this.save();
+};
+
+/**
+ * Undo closePOInvoicing() — re-allow invoicing against this PO's remaining
+ * balance.
+ */
+CustomerSchema.methods.reopenPOInvoicing = function(poId) {
+  const po = this.purchaseOrders.id(poId);
+  if (!po) {
+    throw new Error('Purchase Order not found on this customer');
+  }
+  po.invoicingClosed = false;
+  po.closedReason = undefined;
+  po.closedAt = undefined;
+  po.closedBy = undefined;
+  return this.save();
 };
 
 CustomerSchema.methods.isApproved = function() {

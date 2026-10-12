@@ -72,7 +72,7 @@ communicationReadReceiptSchema.index({ emailOpened: 1, emailOpenedAt: -1 });
 // Static method to get read statistics for a communication
 communicationReadReceiptSchema.statics.getReadStats = async function(communicationId) {
   const stats = await this.aggregate([
-    { $match: { communication: mongoose.Types.ObjectId(communicationId) } },
+    { $match: { communication: new mongoose.Types.ObjectId(communicationId) } },
     {
       $group: {
         _id: null,

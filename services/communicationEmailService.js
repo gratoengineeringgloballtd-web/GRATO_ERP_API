@@ -18,41 +18,71 @@ const getTransporter = () => {
       maxConnections: 5,
       maxMessages: 100,
       rateDelta: 1000,
-      rateLimit: 5
+      rateLimit: 5,
+      connectionTimeout: 20000,
+      greetingTimeout: 20000,
+      socketTimeout: 60000
     };
     _transporter = nodemailer.createTransport(config);
   }
   return _transporter;
 };
 
+
+/**
+ * Public URLs used inside emails.
+ * CLIENT_URL may contain several comma-separated values; the first is the frontend.
+ * Tracking pixel, click tracking and attachment links must hit the BACKEND (BACKEND_URL),
+ * not the frontend.
+ */
+const stripSlash = (u) => String(u || '').trim().replace(/\/+$/, '');
+const getClientUrl = () => {
+  const first = String(process.env.CLIENT_URL || '').split(',')[0];
+  return stripSlash(first) || 'http://localhost:3000';
+};
+let _warnedBackendUrl = false;
+const getBackendUrl = () => {
+  const url = stripSlash(process.env.BACKEND_URL || process.env.API_URL || '');
+  if (!url) return getClientUrl();
+  if (!_warnedBackendUrl && /localhost|127\.0\.0\.1/.test(url) && process.env.NODE_ENV === 'production') {
+    _warnedBackendUrl = true;
+    console.warn('⚠️ BACKEND_URL points to localhost in production - email open/click tracking and attachment links will not work for recipients.');
+  }
+  return url;
+};
+
+const QUOTA_RE = /quota|rate limit|too many (messages|emails|recipients)|5\.4\.5|daily user sending|exceeded/i;
+const isQuotaError = (e) => QUOTA_RE.test(`${e && e.message || ''} ${e && e.response || ''}`);
+const isFatalAuthError = (e) => e && (e.code === 'EAUTH' || e.responseCode === 535);
+const isPermanentError = (e) => e && e.responseCode >= 500 && e.responseCode < 600;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
 /**
  * Send communication email with tracking
  */
 const sendCommunicationEmail = async (options, communicationId, retries = 3) => {
-  const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
-  
+  const backendUrl = getBackendUrl();
+
   // Generate tracking pixel for email opens
-  const trackingPixel = `<img src="${clientUrl}/api/communications/${communicationId}/track-open?user=${options.userId}" width="1" height="1" style="display:none;" alt="" />`;
-  
+  const trackingPixel = `<img src="${backendUrl}/api/communications/${communicationId}/track-open?user=${options.userId}" width="1" height="1" style="display:none;" alt="" />`;
+
   // Add tracking to links in HTML
   let contentWithTracking = options.html || '';
   if (contentWithTracking) {
     contentWithTracking = contentWithTracking.replace(
-      /<a\s+href="([^"]+)"/gi, 
+      /<a\s+href="([^"]+)"/gi,
       (match, url) => {
-        // Don't track if it's already a tracking link
-        if (url.includes('track-click')) return match;
+        // Don't track if it's already a tracking link or an attachment download link
+        if (url.includes('track-click') || url.includes('/attachment/')) return match;
         const encodedUrl = encodeURIComponent(url);
-        return `<a href="${clientUrl}/api/communications/${communicationId}/track-click?url=${encodedUrl}&user=${options.userId}" target="_blank"`;
+        return `<a href="${backendUrl}/api/communications/${communicationId}/track-click?url=${encodedUrl}&user=${options.userId}" target="_blank"`;
       }
     );
   }
-  
-  // Prepare attachments with logo
+
+  // Prepare attachments with logo (copy so the caller's array is never mutated)
   const logoPath = path.join(__dirname, '../public/images/company-logo.jpg');
-  const attachments = options.attachments || [];
-  
-  // Add logo as inline attachment if it exists
+  const attachments = [...(options.attachments || [])];
   if (fs.existsSync(logoPath)) {
     attachments.unshift({
       filename: 'company-logo.jpg',
@@ -60,7 +90,7 @@ const sendCommunicationEmail = async (options, communicationId, retries = 3) => 
       cid: 'company-logo'
     });
   }
-  
+
   const mailOptions = {
     from: options.from || process.env.SMTP_FROM || `"Internal Communications" <${process.env.SMTP_USER}>`,
     to: options.to,
@@ -69,36 +99,50 @@ const sendCommunicationEmail = async (options, communicationId, retries = 3) => 
     text: options.text,
     attachments: attachments,
     headers: {
-      'X-Communication-ID': communicationId,
+      'X-Communication-ID': String(communicationId),
       'X-Priority': options.priority === 'urgent' ? '1' : options.priority === 'important' ? '2' : '3',
       'Importance': options.priority === 'urgent' ? 'high' : options.priority === 'important' ? 'high' : 'normal'
     }
   };
 
+  let lastError;
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       const info = await getTransporter().sendMail(mailOptions);
-      return { 
-        success: true, 
+      const rejected = info.rejected || [];
+      if (rejected.length > 0 && (info.accepted || []).length === 0) {
+        return { success: false, attempts: attempt, error: `Recipient rejected by mail server: ${rejected.join(', ')}`, code: 'EREJECTED' };
+      }
+      return {
+        success: true,
+        attempts: attempt,
         messageId: info.messageId,
         accepted: info.accepted,
-        response: info.response 
+        response: info.response
       };
     } catch (error) {
-      console.error(`❌ Email attempt ${attempt} failed:`, error.message);
-      
-      if (attempt === retries) {
-        return { 
-          success: false, 
+      lastError = error;
+      console.error(`❌ Email attempt ${attempt}/${retries} to ${options.to} failed: ${error.message}`);
+
+      const quota = isQuotaError(error);
+      const authFatal = isFatalAuthError(error);
+      // Do not retry permanent failures (bad mailbox, quota exceeded, bad credentials)
+      if (quota || authFatal || isPermanentError(error) || attempt === retries) {
+        return {
+          success: false,
+          attempts: attempt,
           error: error.message,
-          code: error.code
+          code: error.code,
+          responseCode: error.responseCode,
+          quota,
+          fatal: quota || authFatal
         };
       }
-      
-      const delay = Math.min(2000 * Math.pow(2, attempt - 1), 30000);
-      await new Promise(resolve => setTimeout(resolve, delay));
+
+      await sleep(Math.min(3000 * Math.pow(2, attempt - 1), 30000));
     }
   }
+  return { success: false, attempts: retries, error: lastError ? lastError.message : 'Unknown error' };
 };
 
 /**
@@ -124,7 +168,7 @@ const generateCommunicationTemplate = (communication, recipient) => {
   const style = priorityStyles[communication.priority] || priorityStyles.normal;
   const icon = typeIcons[communication.messageType] || '📧';
   
-  const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+  const backendUrl = getBackendUrl();
   
   return `
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
@@ -213,12 +257,9 @@ const generateCommunicationTemplate = (communication, recipient) => {
               <table border="0" cellpadding="0" cellspacing="0" width="100%">
                 <tr>
                   <td>
-                    <h2 style="color: #333333; margin: 0 0 10px 0; font-size: 22px; font-weight: bold; font-family: Arial, Helvetica, sans-serif;">
+                    <h2 style="color: #333333; margin: 0; font-size: 22px; font-weight: bold; font-family: Arial, Helvetica, sans-serif;">
                       ${communication.title}
                     </h2>
-                    <p style="color: #666666; margin: 0; font-size: 14px; font-family: Arial, Helvetica, sans-serif;">
-                      Hello ${recipient.fullName},
-                    </p>
                   </td>
                 </tr>
               </table>
@@ -261,7 +302,7 @@ const generateCommunicationTemplate = (communication, recipient) => {
                           <table border="0" cellpadding="0" cellspacing="0" width="100%">
                             <tr>
                               <td>
-                                <a href="${clientUrl}/api/communications/${communication._id}/attachment/${att._id}" style="color: #1890ff; text-decoration: none; font-size: 14px; font-family: Arial, Helvetica, sans-serif;">
+                                <a href="${backendUrl}/api/communications/${communication._id}/attachment/${att._id}" style="color: #1890ff; text-decoration: none; font-size: 14px; font-family: Arial, Helvetica, sans-serif;">
                                   📄 ${att.originalName || att.filename}
                                 </a>
                                 <span style="color: #999999; font-size: 12px; margin-left: 10px; font-family: Arial, Helvetica, sans-serif;">
@@ -380,8 +421,6 @@ ${typeLabels[communication.messageType] || 'COMPANY COMMUNICATION'}
 
 ${communication.title}
 
-Hello ${recipient.fullName},
-
 ${stripHtml(communication.content)}
 
 `;
@@ -409,85 +448,109 @@ This is an official company communication.
 };
 
 /**
- * Batch send emails with rate limiting
+ * Send emails to recipients with limited concurrency.
+ *
+ * Gmail/SMTP providers throttle bursts, so recipients are processed by a small
+ * worker pool with a pause between sends instead of 50 at once.
+ * Returns per-recipient results in `log` so the outcome can be stored and failures re-sent.
  */
-const batchSendEmails = async (communication, recipients, batchSize = 50) => {
-  const results = {
-    sent: 0,
-    failed: 0,
-    errors: []
-  };
-  
-  console.log(`📧 Starting batch email send to ${recipients.length} recipients`);
-  
-  for (let i = 0; i < recipients.length; i += batchSize) {
-    const batch = recipients.slice(i, i + batchSize);
-    console.log(`📤 Processing batch ${Math.floor(i / batchSize) + 1} (${batch.length} emails)`);
-    
-    const promises = batch.map(async (recipient) => {
+const batchSendEmails = async (communication, recipients, opts = {}) => {
+  const concurrency = opts.concurrency || Number(process.env.COMM_EMAIL_CONCURRENCY) || 3;
+  const pauseMs = opts.pauseMs !== undefined ? opts.pauseMs : (Number(process.env.COMM_EMAIL_PAUSE_MS) || 700);
+
+  const results = { sent: 0, failed: 0, errors: [], log: [], aborted: null };
+
+  console.log(`📧 Sending to ${recipients.length} recipients (concurrency ${concurrency})`);
+
+  const subjectPrefix =
+    communication.priority === 'urgent' ? '[🚨 URGENT] ' :
+    communication.priority === 'important' ? '[⚠️ IMPORTANT] ' : '';
+  const attachments = communication.attachments?.map(att => ({
+    filename: att.originalName || att.filename,
+    path: att.path
+  }));
+
+  let next = 0;
+
+  const worker = async () => {
+    while (true) {
+      const i = next++;
+      if (i >= recipients.length) return;
+      const recipient = recipients[i];
+      const entry = {
+        user: recipient._id,
+        email: recipient.email,
+        fullName: recipient.fullName,
+        lastAttemptAt: new Date()
+      };
+
+      if (results.aborted) {
+        entry.status = 'failed';
+        entry.attempts = 0;
+        entry.error = `Not attempted: ${results.aborted}`;
+        results.failed++;
+        results.errors.push({ recipient: recipient.email, error: entry.error });
+        results.log.push(entry);
+        continue;
+      }
+
       try {
-        const html = generateCommunicationTemplate(communication, recipient);
-        const text = generatePlainText(communication, recipient);
-        
-        // Build subject with priority indicator
-        let subjectPrefix = '';
-        if (communication.priority === 'urgent') {
-          subjectPrefix = '[🚨 URGENT] ';
-        } else if (communication.priority === 'important') {
-          subjectPrefix = '[⚠️ IMPORTANT] ';
-        }
-        
+        if (!recipient.email) throw new Error('User has no email address');
+
         const result = await sendCommunicationEmail({
           to: recipient.email,
           subject: `${subjectPrefix}${communication.title}`,
-          html,
-          text,
+          html: generateCommunicationTemplate(communication, recipient),
+          text: generatePlainText(communication, recipient),
           userId: recipient._id,
           priority: communication.priority,
-          attachments: communication.attachments?.map(att => ({
-            filename: att.originalName || att.filename,
-            path: att.path
-          }))
+          attachments
         }, communication._id);
-        
+
+        entry.attempts = result.attempts || 1;
         if (result.success) {
+          entry.status = 'sent';
+          entry.sentAt = new Date();
+          entry.error = null;
           results.sent++;
           console.log(`✅ Sent to ${recipient.email}`);
         } else {
+          entry.status = 'failed';
+          entry.error = result.error;
+          entry.errorCode = result.responseCode ? String(result.responseCode) : result.code;
           results.failed++;
-          results.errors.push({
-            recipient: recipient.email,
-            error: result.error
-          });
+          results.errors.push({ recipient: recipient.email, error: result.error });
           console.error(`❌ Failed to send to ${recipient.email}: ${result.error}`);
+          if (result.fatal && !results.aborted) {
+            results.aborted = result.quota
+              ? 'email provider sending limit reached - stopped to avoid further rejections. Use "Resend to failed" later.'
+              : 'email server authentication failed - check SMTP_USER / SMTP_PASS.';
+            console.error(`🛑 Aborting send run: ${results.aborted}`);
+          }
         }
-        
-        return result;
       } catch (error) {
+        entry.status = 'failed';
+        entry.attempts = entry.attempts || 1;
+        entry.error = error.message;
         results.failed++;
-        results.errors.push({
-          recipient: recipient.email,
-          error: error.message
-        });
+        results.errors.push({ recipient: recipient.email, error: error.message });
         console.error(`❌ Exception sending to ${recipient.email}:`, error.message);
-        return { success: false, error: error.message };
       }
-    });
-    
-    await Promise.allSettled(promises);
-    
-    // Rate limiting delay between batches
-    if (i + batchSize < recipients.length) {
-      console.log('⏳ Waiting 2 seconds before next batch...');
-      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      results.log.push(entry);
+      if (pauseMs > 0) await sleep(pauseMs);
     }
-  }
-  
-  console.log(`📊 Batch send complete: ${results.sent} sent, ${results.failed} failed`);
+  };
+
+  await Promise.all(Array.from({ length: Math.min(concurrency, recipients.length) }, worker));
+
+  console.log(`📊 Email send complete: ${results.sent} sent, ${results.failed} failed`);
   return results;
 };
 
 module.exports = {
+  getClientUrl,
+  getBackendUrl,
   sendCommunicationEmail,
   generateCommunicationTemplate,
   generatePlainText,

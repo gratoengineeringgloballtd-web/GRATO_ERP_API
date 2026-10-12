@@ -334,7 +334,7 @@ const getDeliveryStatistics = async (req, res) => {
     const stats = await DeliveryTracking.aggregate([
       {
         $match: {
-          buyerId: require('mongoose').Types.ObjectId(req.user.userId),
+          buyerId: new (require("mongoose").Types.ObjectId)(req.user.userId),
           createdAt: { $gte: startDate }
         }
       },

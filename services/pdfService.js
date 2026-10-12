@@ -1245,171 +1245,383 @@ class PDFService {
   }
 
   generateInvoiceContent(doc, data) {
-    let yPos = 50, currentPage = 1;
+    let currentPage = 1;
 
-    this.drawHeader(doc, yPos, data);                yPos += 90;
-    this.drawInvoiceAddressSection(doc, yPos, data); yPos += 90;
-    this.drawInvoiceTitleBar(doc, yPos, data);       yPos += 50;
+    // ── Header: logo + company block (left) ─────────────────────────────────
+    const headerEnd = this.drawInvoiceHeaderBlock(doc);
 
-    const tableResult = this.drawInvoiceItemsTable(doc, yPos, data, currentPage);
-    yPos = tableResult.yPos; currentPage = tableResult.currentPage;
+    // ── Customer block (right) ──────────────────────────────────────────────
+    const customerEnd = this.drawInvoiceCustomerBlock(doc, data, 178);
 
-    if (yPos > 650) { doc.addPage(); currentPage++; yPos = 50; }
+    // ── Title + dates ───────────────────────────────────────────────────────
+    const titleY = Math.max(311, customerEnd + 26, headerEnd + 20);
+    const afterTitle = this.drawInvoiceTitleBar(doc, titleY, data);
 
-    yPos = this.drawInvoicePaymentTerms(doc, yPos, data);
+    // ── Items table + totals ────────────────────────────────────────────────
+    const tableResult = this.drawInvoiceItemsTable(doc, afterTitle + 37, data, currentPage);
+    let yPos = tableResult.yPos;
+    currentPage = tableResult.currentPage;
+
+    // ── Optional extras (payment breakdown, partial-PO balance) ─────────────
+    if (yPos > 690) { doc.addPage(); currentPage++; yPos = 50; }
     yPos = this.drawInvoicePaymentBreakdown(doc, yPos, data);
+    yPos = this.drawInvoicePOBalance(doc, yPos, data);
 
     const range = doc.bufferedPageRange();
     for (let i = 0; i < range.count; i++) {
       doc.switchToPage(i);
-      this.drawFooter(doc, data, i + 1, range.count);
+      this.drawInvoiceFooter(doc, i + 1, range.count);
     }
   }
 
-  drawInvoiceAddressSection(doc, yPos, data) {
-    const customer = data.customerDetails || {};
-    doc.fontSize(9).font(this.boldFont).fillColor('#000000').text('Bill To', 40, yPos);
-    doc.font(this.defaultFont).fontSize(9)
-      .text(this.safeString(customer.name,    'Customer Name'), 40, yPos + 15)
-      .text(this.safeString(customer.address, 'Address'),       40, yPos + 28)
-      .text(this.safeString(customer.email,   'Email'),         40, yPos + 41);
-    if (customer.phone) doc.text(`${customer.phone}`, 40, yPos + 54);
+  // Logo + "GRATO ENGINEERING GLOBAL LTD" block, top-left. Returns the y just below it.
+  drawInvoiceHeaderBlock(doc) {
+    const x = 40;
+    let y = 28;
+    let logoHeight = 44;
 
-    doc.fontSize(9).font(this.boldFont).text('Issued By', 320, yPos);
-    doc.font(this.defaultFont).fontSize(9)
-      .text('GRATO ENGINEERING GLOBAL LTD', 320, yPos + 15)
-      .text('Bonaberi, Douala',             320, yPos + 28)
-      .text('Cameroon',                     320, yPos + 41)
-      .text('682952153',                    320, yPos + 54);
+    try {
+      if (fs.existsSync(this.logoPath)) {
+        const logoWidth = 54;
+        try {
+          const img = doc.openImage(this.logoPath);
+          logoHeight = img.height * (logoWidth / img.width);
+        } catch (e) { /* keep default height */ }
+        doc.image(this.logoPath, x, y, { width: logoWidth });
+      }
+    } catch (error) {
+      console.log('Logo loading error:', error.message);
+    }
+
+    y += logoHeight + 12;
+    doc.font(this.defaultFont).fontSize(9).fillColor('#222222');
+    ['GRATO ENGINEERING GLOBAL LTD', 'Bonaberi', 'Douala Cameroon'].forEach(line => {
+      doc.text(line, x, y, { lineBreak: false });
+      y += 14.5;
+    });
+    y += 12;
+    doc.text('Tax ID: M061412103052L', x, y, { lineBreak: false });
+    return y + 14;
   }
 
+  // Customer name / address / tax IDs, right column. Returns the y just below it.
+  drawInvoiceCustomerBlock(doc, data, startY) {
+    const x = 350, w = 205;
+    const c = data.customerDetails || {};
+    let y = startY;
+
+    doc.font(this.defaultFont).fontSize(9).fillColor('#222222');
+
+    const lines = [this.safeString(c.name, 'Customer')];
+    const extra = Array.isArray(c.addressLines) ? c.addressLines : (c.address ? [c.address] : []);
+    extra.forEach(l => { if (l) lines.push(String(l)); });
+
+    lines.forEach(line => {
+      doc.text(line, x, y, { width: w });
+      y += doc.heightOfString(line, { width: w }) + 3;
+    });
+
+    if (c.taxId || c.registrationNumber) {
+      y += 8;
+      const taxText = [
+        c.taxId ? `Tax ID: ${c.taxId}` : '',
+        c.registrationNumber ? `VAT REG: ${c.registrationNumber}` : ''
+      ].filter(Boolean).join(' ');
+      doc.text(taxText, x, y, { width: w });
+      y += doc.heightOfString(taxText, { width: w }) + 3;
+    }
+    return y;
+  }
+
+  // "Invoice <number>" title + Invoice Date / Due Date. Returns the y just below it.
   drawInvoiceTitleBar(doc, yPos, data) {
-    doc.fillColor('#C5504B').fontSize(14).font(this.boldFont)
-      .text(`Invoice #${this.safeString(data.invoiceNumber, 'INV-000001')}`, 40, yPos);
+    doc.fillColor('#A4343A').font(this.boldFont).fontSize(16.5)
+      .text(`Invoice ${this.safeString(data.invoiceNumber, 'INV-000001')}`, 40, yPos, { lineBreak: false });
 
-    const detailsY = yPos + 25;
-    doc.fillColor('#888888').fontSize(8).font(this.defaultFont).text('Invoice Date:', 40,  detailsY);
-    doc.fillColor('#000000').fontSize(9).text(this.formatDateExact(data.invoiceDate),  40,  detailsY + 12);
-    doc.fillColor('#888888').fontSize(8).text('Due Date:',    220, detailsY);
-    doc.fillColor('#000000').fontSize(9).text(this.formatDateExact(data.dueDate),      220, detailsY + 12);
-    doc.fillColor('#888888').fontSize(8).text('PO Reference:', 400, detailsY);
-    doc.fillColor('#000000').fontSize(9)
-      .text(this.safeString(data.poReference || data.poNumber, 'N/A'), 400, detailsY + 12);
+    const labelY = yPos + 26;
+    doc.fillColor('#8A8A8A').font(this.defaultFont).fontSize(8.5);
+    doc.text('Invoice Date', 40,  labelY, { lineBreak: false });
+    doc.text('Due Date',     305, labelY, { lineBreak: false });
+
+    doc.fillColor('#222222').fontSize(9);
+    doc.text(this.formatDateDMY(data.invoiceDate), 40,  labelY + 14, { lineBreak: false });
+    doc.text(this.formatDateDMY(data.dueDate),     305, labelY + 14, { lineBreak: false });
+    return labelY + 14;
   }
 
+  // Clean items table (no cell borders, no tax column) followed by the totals block.
   drawInvoiceItemsTable(doc, yPos, data, currentPage) {
-    const tableWidth = 515;
-    const colX = { desc: 40, qty: 280, unitPrice: 325, tax: 400, amount: 470 };
-    let currentY = yPos;
-    const pageBottomLimit = 720;
+    const L = 40, R = 555;
+    const col = {
+      desc:  { x: 40,  w: 255 },
+      qty:   { x: 300, w: 55  },
+      price: { x: 360, w: 90  },
+      amt:   { x: 455, w: 100 }
+    };
+    const pageBottomLimit = 690;
 
     const drawTableHeader = y => {
-      doc.fillColor('#F5F5F5').rect(40, y, tableWidth, 20).fill();
-      doc.strokeColor('#CCCCCC').lineWidth(0.5).rect(40, y, tableWidth, 20).stroke();
-      doc.fillColor('#000000').fontSize(9).font(this.boldFont);
-      doc.text('Description', colX.desc + 5, y + 6);
-      doc.text('Qty',         colX.qty,       y + 6);
-      doc.text('Unit Price',  colX.unitPrice, y + 6);
-      doc.text('Tax %',       colX.tax,       y + 6);
-      doc.text('Amount',      colX.amount,    y + 6);
-      [colX.qty, colX.unitPrice, colX.tax, colX.amount].forEach(x => doc.moveTo(x, y).lineTo(x, y + 20).stroke());
-      return y + 20;
+      doc.strokeColor('#333333').lineWidth(0.6).moveTo(L, y).lineTo(R, y).stroke();
+      doc.font(this.defaultFont).fontSize(8.5).fillColor('#222222');
+      doc.text('Description', col.desc.x,  y + 10, { width: col.desc.w,  lineBreak: false });
+      doc.text('Quantity',    col.qty.x,   y + 10, { width: col.qty.w,   align: 'right', lineBreak: false });
+      doc.text('Unit Price',  col.price.x, y + 10, { width: col.price.w, align: 'right', lineBreak: false });
+      doc.text('Amount',      col.amt.x,   y + 10, { width: col.amt.w,   align: 'right', lineBreak: false });
+      doc.strokeColor('#333333').lineWidth(0.6).moveTo(L, y + 27).lineTo(R, y + 27).stroke();
+      return y + 27;
     };
 
-    currentY = drawTableHeader(currentY);
-    let subtotal = 0, taxTotal = 0, total = 0;
+    let y = drawTableHeader(yPos);
+    let subtotal = 0, taxTotal = 0;
+    const rates = new Set();
     const items = Array.isArray(data.items) ? data.items : [];
 
     items.forEach(item => {
-      const quantity      = this.safeNumber(item.quantity,  0);
-      const unitPrice     = this.safeNumber(item.unitPrice, 0);
-      const taxRate       = this.safeNumber(item.taxRate,   0);
-      const lineSubtotal  = quantity * unitPrice;
-      const lineTax       = lineSubtotal * (taxRate / 100);
-      const lineTotal     = lineSubtotal + lineTax;
-      subtotal += lineSubtotal; taxTotal += lineTax; total += lineTotal;
+      const quantity  = this.safeNumber(item.quantity,  0);
+      const unitPrice = this.safeNumber(item.unitPrice, 0);
+      const taxRate   = this.safeNumber(item.taxRate,   0);
+      const lineSub   = quantity * unitPrice;
+      subtotal += lineSub;
+      taxTotal += lineSub * (taxRate / 100);
+      if (taxRate > 0) rates.add(taxRate);
 
       const description = this.safeString(item.description, 'No description');
-      const descWidth   = 230;
-      doc.fontSize(8).font(this.defaultFont);
-      const descHeight  = doc.heightOfString(description, { width: descWidth, lineGap: 1 });
-      const rowHeight   = Math.max(25, descHeight + 12);
+      doc.font(this.defaultFont).fontSize(8.5);
+      const descHeight = doc.heightOfString(description, { width: col.desc.w, lineGap: 1 });
+      const rowHeight  = Math.max(26, descHeight + 16);
 
-      if (currentY + rowHeight > pageBottomLimit) {
-        doc.addPage(); currentPage++; currentY = 50;
-        currentY = drawTableHeader(currentY);
+      if (y + rowHeight > pageBottomLimit) {
+        doc.addPage(); currentPage++;
+        y = drawTableHeader(50);
       }
 
-      doc.strokeColor('#CCCCCC').rect(40, currentY, tableWidth, rowHeight).stroke();
-      doc.fillColor('#000000').fontSize(8).font(this.defaultFont);
-      doc.text(description, colX.desc + 5, currentY + 6, { width: descWidth, align: 'left', lineGap: 1 });
-
-      const textY = currentY + (rowHeight / 2) - 4;
-      doc.text(quantity.toFixed(2),           colX.qty,       textY);
-      doc.text(this.formatCurrency(unitPrice), colX.unitPrice, textY);
-      doc.text(`${taxRate.toFixed(2)}%`,       colX.tax,       textY);
-      doc.text(`${this.formatCurrency(lineTotal)} FCFA`, colX.amount, textY);
-
-      [colX.qty, colX.unitPrice, colX.tax, colX.amount].forEach(x =>
-        doc.moveTo(x, currentY).lineTo(x, currentY + rowHeight).stroke());
-      currentY += rowHeight;
+      doc.fillColor('#222222').fontSize(8.5);
+      doc.text(description, col.desc.x, y + 9, { width: col.desc.w, lineGap: 1 });
+      doc.text(quantity.toFixed(2),                     col.qty.x,   y + 9, { width: col.qty.w,   align: 'right', lineBreak: false });
+      doc.text(this.formatCurrency(unitPrice),          col.price.x, y + 9, { width: col.price.w, align: 'right', lineBreak: false });
+      doc.text(`${this.formatMoney0(lineSub)} FCFA`,    col.amt.x,   y + 9, { width: col.amt.w,   align: 'right', lineBreak: false });
+      y += rowHeight;
     });
 
     if (items.length === 0) {
-      doc.fillColor('#F9F9F9').rect(40, currentY, tableWidth, 22).fill();
-      doc.strokeColor('#CCCCCC').rect(40, currentY, tableWidth, 22).stroke();
-      doc.fillColor('#666666').text('No items found', colX.desc + 5, currentY + 6);
-      currentY += 22;
+      doc.fillColor('#8A8A8A').fontSize(8.5).text('No items found', col.desc.x, y + 9, { lineBreak: false });
+      y += 26;
     }
 
-    if (currentY + 90 > pageBottomLimit) { doc.addPage(); currentPage++; currentY = 50; }
+    // ── Payment terms (under the table) ─────────────────────────────────────
+    y += 6;
+    if (data.paymentTerms) {
+      doc.font(this.defaultFont).fontSize(8.5).fillColor('#222222')
+        .text(`Payment terms: ${data.paymentTerms}`, L, y, { width: 300 });
+      y += 14;
+    }
+    y += 12;
 
-    this.drawInvoiceSummary(doc, currentY, {
-      subtotal: data.netAmount   ?? subtotal,
-      taxTotal: data.taxAmount   ?? taxTotal,
-      total:    data.totalAmount ?? total
-    });
-    currentY += 80;
-    return { yPos: currentY, currentPage };
+    // Totals + notes need ~120pt; start a fresh page if they won't fit.
+    if (y + 120 > 740) { doc.addPage(); currentPage++; y = 50; }
+
+    const net   = this.safeNumber(data.netAmount, 0) > 0 ? this.safeNumber(data.netAmount, 0) : subtotal;
+    const tax   = (data.taxAmount !== undefined && data.taxAmount !== null) ? this.safeNumber(data.taxAmount, 0) : taxTotal;
+    const total = this.safeNumber(data.totalAmount, 0) > 0 ? this.safeNumber(data.totalAmount, 0) : net + tax;
+
+    let taxLabel = 'VAT';
+    if (rates.size === 1) taxLabel = `VAT ${[...rates][0].toFixed(2).replace(/\.?0+$/, '')}%`;
+    else if (rates.size === 0 && tax === 0) taxLabel = 'VAT 0%';
+
+    const endY = this.drawInvoiceSummary(doc, y, { net, tax, total, taxLabel }, data);
+    return { yPos: endY, currentPage };
   }
 
-  drawInvoiceSummary(doc, yPos, totals) {
-    const summaryX = 380, summaryWidth = 175, labelX = summaryX + 10;
-    doc.strokeColor('#CCCCCC').lineWidth(0.5).rect(summaryX, yPos, summaryWidth, 60).stroke();
-    doc.fontSize(9).font(this.defaultFont).fillColor('#000000');
+  // Totals (right) + payment communication / PO ref / amount in words (left) + stamp.
+  // Returns the y just below the whole block.
+  drawInvoiceSummary(doc, yPos, totals, data) {
+    const boxX = 350, boxW = 205, boxR = boxX + boxW;
+    const ty = yPos;
 
-    doc.text('Net Amount', labelX, yPos + 8);
-    doc.text(`${this.formatCurrency(totals.subtotal)} FCFA`, labelX, yPos + 8, { width: summaryWidth - 20, align: 'right' });
-    doc.text('Tax Amount', labelX, yPos + 24);
-    doc.text(`${this.formatCurrency(totals.taxTotal)} FCFA`, labelX, yPos + 24, { width: summaryWidth - 20, align: 'right' });
+    // ── Totals, right ───────────────────────────────────────────────────────
+    doc.font(this.defaultFont).fontSize(8.5).fillColor('#222222');
+    doc.text('Untaxed Amount', boxX, ty, { lineBreak: false });
+    doc.text(`${this.formatMoney0(totals.net)} FCFA`, boxX, ty, { width: boxW, align: 'right', lineBreak: false });
+    doc.strokeColor('#D9D9D9').lineWidth(0.5).moveTo(boxX, ty + 14).lineTo(boxR, ty + 14).stroke();
 
-    doc.fillColor('#E8E8E8').rect(summaryX, yPos + 40, summaryWidth, 20).fill();
-    doc.strokeColor('#CCCCCC').rect(summaryX, yPos + 40, summaryWidth, 20).stroke();
-    doc.fillColor('#000000').font(this.boldFont).text('Total', labelX, yPos + 46);
-    doc.text(`${this.formatCurrency(totals.total)} FCFA`, labelX, yPos + 46, { width: summaryWidth - 20, align: 'right' });
-  }
+    doc.text(totals.taxLabel, boxX, ty + 26, { lineBreak: false });
+    doc.text(`${this.formatMoney0(totals.tax)} FCFA`, boxX, ty + 26, { width: boxW, align: 'right', lineBreak: false });
+    doc.strokeColor('#666666').lineWidth(0.5).moveTo(boxX, ty + 40).lineTo(boxR, ty + 40).stroke();
 
-  drawInvoicePaymentTerms(doc, yPos, data) {
-    doc.fontSize(9).font(this.boldFont).fillColor('#000000').text('Payment Terms:', 40, yPos);
-    yPos += 16;
-    doc.font(this.defaultFont).fontSize(8).text(this.safeString(data.paymentTerms, 'Net 30 days'), 40, yPos);
-    return yPos + 14;
+    doc.font(this.boldFont).fontSize(8.5).fillColor('#A4343A');
+    doc.text('Total', boxX, ty + 52, { lineBreak: false });
+    doc.text(`${this.formatMoney0(totals.total)} FCFA`, boxX, ty + 52, { width: boxW, align: 'right', lineBreak: false });
+
+    // ── Notes, left ─────────────────────────────────────────────────────────
+    const noteW = 290;
+    const invNo = this.safeString(data.invoiceNumber, '');
+    doc.font(this.defaultFont).fontSize(8.5).fillColor('#222222');
+    doc.text('Payment Communication: ', 40, ty + 14, { continued: true, width: noteW });
+    doc.font(this.boldFont).text(invNo);
+
+    let notesY = ty + 41;
+    const poRef = this.safeString(data.poReference || data.poNumber, '');
+    if (poRef) {
+      doc.font(this.defaultFont).fontSize(8.5).fillColor('#8C7B7B')
+        .text(`PO REF: ${poRef}`, 40, notesY, { width: noteW });
+      notesY += 33;
+    } else {
+      notesY += 5;
+    }
+
+    const words = this.numberToWordsEn(totals.total);
+    const wordsText = `Amount in words: ${words.charAt(0).toUpperCase()}${words.slice(1)} FCFA.`;
+    doc.font(this.defaultFont).fontSize(8.5).fillColor('#8C8C8C')
+      .text(wordsText, 40, notesY, { width: noteW, lineGap: 2 });
+    const wordsEnd = notesY + doc.heightOfString(wordsText, { width: noteW, lineGap: 2 });
+
+    // ── Signature / company stamp (optional image) ──────────────────────────
+    let stampEnd = 0;
+    const stampPath = path.join(__dirname, '../public/images/invoice-stamp.png');
+    try {
+      if (fs.existsSync(stampPath)) {
+        const stampW = 105, stampX = boxR - stampW, stampY = ty + 84;
+        let stampH = 70;
+        try {
+          const img = doc.openImage(stampPath);
+          stampH = img.height * (stampW / img.width);
+        } catch (e) { /* keep default */ }
+        doc.image(stampPath, stampX, stampY, { width: stampW });
+        stampEnd = stampY + stampH;
+      }
+    } catch (error) {
+      console.log('Stamp loading error (non-fatal):', error.message);
+    }
+
+    return Math.max(wordsEnd, stampEnd, ty + 70) + 16;
   }
 
   drawInvoicePaymentBreakdown(doc, yPos, data) {
     const breakdown = Array.isArray(data.paymentTermsBreakdown) ? data.paymentTermsBreakdown : [];
     if (breakdown.length === 0) return yPos;
-    let currentY = yPos + 8;
-    doc.fontSize(9).font(this.boldFont).fillColor('#000000').text('Payment Breakdown:', 40, currentY);
-    currentY += 14;
+
+    let y = yPos + 4;
+    doc.font(this.boldFont).fontSize(8.5).fillColor('#222222').text('Payment Breakdown', 40, y, { lineBreak: false });
+    y += 15;
     breakdown.forEach(term => {
       const timeframe = term.customTimeframe || term.timeframe || '';
-      const line      = `${term.description || 'Term'} - ${this.safeNumber(term.percentage, 0)}% (${this.formatCurrency(term.amount)} FCFA)`;
-      doc.fontSize(8).font(this.defaultFont).fillColor('#000000')
-        .text(timeframe ? `${line} | ${timeframe}` : line, 40, currentY, { width: 500 });
-      currentY += 12;
+      const line = `${term.description || 'Term'} - ${this.safeNumber(term.percentage, 0)}% (${this.formatMoney0(term.amount)} FCFA)`;
+      doc.font(this.defaultFont).fontSize(8.5).fillColor('#222222')
+        .text(timeframe ? `${line} | ${timeframe}` : line, 40, y, { width: 400 });
+      y += 13;
     });
-    return currentY + 6;
+    return y + 8;
+  }
+
+  /**
+   * When an invoice was drawn against a tracked customer PO (poBalance is
+   * passed in by the controller — see financeInvoiceController's PDF route),
+   * show the client exactly how this invoice relates to the PO as a whole:
+   * a partial invoice should never look like the final bill for the PO.
+   */
+  drawInvoicePOBalance(doc, yPos, data) {
+    const balance = data.poBalance;
+    if (!balance || !balance.poTotal) return yPos;
+
+    const isPartial = balance.invoicingStatus === 'partially_invoiced' ||
+      (balance.remaining || 0) > 0.5;
+
+    let y = yPos + 4;
+    if (y + 80 > 740) { doc.addPage(); y = 50; }
+
+    doc.font(this.boldFont).fontSize(8.5).fillColor('#A4343A').text(
+      isPartial
+        ? `Partial invoice — against PO ${this.safeString(balance.poNumber, '')}`
+        : `Final invoice — PO ${this.safeString(balance.poNumber, '')} fully invoiced`,
+      40, y, { width: 400 }
+    );
+    y += 16;
+
+    const rows = [
+      ['PO Total', balance.poTotal],
+      ['Invoiced to date (incl. this invoice)', balance.invoicedSoFar],
+      ['Remaining balance on PO', balance.remaining]
+    ];
+    rows.forEach(([label, value]) => {
+      doc.font(this.defaultFont).fontSize(8.5).fillColor('#222222');
+      doc.text(label, 40, y, { lineBreak: false });
+      doc.text(`${this.formatMoney0(value)} FCFA`, 240, y, { width: 120, align: 'right', lineBreak: false });
+      doc.strokeColor('#E5E5E5').lineWidth(0.5).moveTo(40, y + 13).lineTo(360, y + 13).stroke();
+      y += 17;
+    });
+    return y + 6;
+  }
+
+  // Invoice-specific footer — drawn lower on the page than the shared PO footer,
+  // so the bottom margin is lifted while it's written.
+  drawInvoiceFooter(doc, pageNum, totalPages) {
+    const oldBottom = doc.page.margins.bottom;
+    doc.page.margins.bottom = 0;
+
+    const y = doc.page.height - 58;
+    doc.font(this.defaultFont).fontSize(7.5).fillColor('#333333');
+
+    doc.text('RC/DLA/2014/B/2690 NIU: M061412103052L Access Bank Cameroon PLC 10041000010010130003616',
+      40, y, { width: 430, lineBreak: false });
+    doc.text(`Page ${pageNum} / ${totalPages}`, 480, y, { width: 75, align: 'right', lineBreak: false });
+
+    doc.fillColor('#333333').text('679586444 ', 40, y + 12, { continued: true });
+    doc.fillColor('#1F5FBF').text('info@gratoengineering.com', { continued: true });
+    doc.fillColor('#333333').text(' ', { continued: true });
+    doc.fillColor('#1F5FBF').text('www.gratoengineering.com', { continued: true });
+    doc.fillColor('#333333').text(' Location: Bonaberi-Douala, beside Santa', { continued: false });
+
+    doc.fillColor('#333333').text(
+      'Lucia Telecommunications, Civil, Electrical and Mechanical Engineering Services.',
+      40, y + 24, { width: 515, lineBreak: false });
+
+    doc.page.margins.bottom = oldBottom;
+  }
+
+  // ── Invoice helpers ───────────────────────────────────────────────────────
+  formatDateDMY(date) {
+    if (!date) return '';
+    try {
+      const d = new Date(date);
+      if (isNaN(d.getTime())) return '';
+      return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+    } catch { return ''; }
+  }
+
+  // Whole-franc amount with thousands separators (XAF has no decimals).
+  formatMoney0(number) {
+    const n = Math.round(this.safeNumber(number, 0));
+    return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+
+  // 1459125 -> "one million, four hundred and fifty nine thousand, one hundred and twenty five"
+  numberToWordsEn(value) {
+    const n = Math.round(Math.abs(this.safeNumber(value, 0)));
+    if (n === 0) return 'zero';
+
+    const ones = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
+      'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
+    const tens = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+
+    const belowHundred = x => x < 20 ? ones[x] : tens[Math.floor(x / 10)] + (x % 10 ? ` ${ones[x % 10]}` : '');
+    const belowThousand = x => {
+      const h = Math.floor(x / 100), r = x % 100;
+      let s = '';
+      if (h) s += `${ones[h]} hundred`;
+      if (r) s += `${h ? ' and ' : ''}${belowHundred(r)}`;
+      return s;
+    };
+
+    const parts = [];
+    let rest = n;
+    [[1e9, 'billion'], [1e6, 'million'], [1e3, 'thousand']].forEach(([scale, name]) => {
+      if (rest >= scale) {
+        parts.push(`${belowThousand(Math.floor(rest / scale))} ${name}`);
+        rest %= scale;
+      }
+    });
+    if (rest > 0) parts.push(`${parts.length && rest < 100 ? 'and ' : ''}${belowThousand(rest)}`);
+    return parts.join(', ');
   }
 
   // ===========================================================================
