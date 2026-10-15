@@ -56,7 +56,7 @@ const UserSchema = new mongoose.Schema({
     // CORE ROLE (What they do, NOT who they supervise)
     role: {
         type: String,
-        enum: ['employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project', 'ceo'],
+        enum: ['employee', 'finance', 'admin', 'buyer', 'hr', 'supply_chain', 'technical', 'hse', 'supplier', 'it', 'project', 'ceo', 'sales'],
         required: true,
         default: 'employee'
     },

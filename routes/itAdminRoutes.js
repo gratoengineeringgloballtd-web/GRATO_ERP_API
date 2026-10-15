@@ -39,7 +39,7 @@ router.use((req, res, next) => {
 const FULL_ADMIN_ROLES = ['admin', 'ceo'];
 // Roles IT may assign or remove. Granting admin / ceo / finance / hr is a
 // privilege decision that stays with admin / ceo.
-const IT_ASSIGNABLE_ROLES = ['employee', 'buyer', 'supply_chain', 'technical', 'hse', 'project', 'it'];
+const IT_ASSIGNABLE_ROLES = ['employee', 'buyer', 'supply_chain', 'technical', 'hse', 'project', 'it', 'sales'];
 // Roles whose screens contain no payroll / HR-file / finance data, so a
 // read-only support session is acceptable.
 const VIEW_AS_ROLES = ['employee', 'buyer', 'supply_chain', 'technical', 'hse', 'project'];
@@ -183,6 +183,466 @@ router.get('/users', async (req, res) => {
   } catch (error) {
     console.error('IT list users error:', error);
     res.status(500).json({ success: false, message: 'Failed to load users' });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Organisation structure (approval-chain registry)
+// The hardcoded config/departmentStructure.js is the base; people added here are
+// stored in StructureEntry and picked up by findPersonByEmail() immediately.
+// ---------------------------------------------------------------------------
+const StructureEntry = require('../models/StructureEntry');
+const dynamicStructure = require('../config/dynamicStructure');
+const { findPersonByEmail } = require('../config/departmentStructure');
+const AUTHORITIES = ['staff', 'supervisor', 'coordinator', 'head', 'manager'];
+
+/** Registers (or updates) a user in the runtime structure. Returns { entry, warning }. */
+const registerInStructure = async (req, user, opts = {}) => {
+  const email = String(user.email).toLowerCase().trim();
+  const existing = findPersonByEmail(email);
+  if (existing && !existing.dynamic) {
+    return { skipped: true, warning: 'This person is already listed in the base department structure file.' };
+  }
+
+  const reportsTo = opts.reportsTo ? String(opts.reportsTo).toLowerCase().trim() : null;
+  let warning = null;
+  let supervisorPerson = null;
+  if (reportsTo) {
+    supervisorPerson = findPersonByEmail(reportsTo);
+    if (!supervisorPerson) {
+      warning = `Supervisor ${reportsTo} is not in the department structure, so approval chains will stop at ${user.fullName}. Register the supervisor first.`;
+    }
+  } else {
+    warning = 'No supervisor given - approval chains for this person will have no departmental approver.';
+  }
+
+  const authority = AUTHORITIES.includes(opts.approvalAuthority) ? opts.approvalAuthority : 'staff';
+  const level = Number(opts.hierarchyLevel) ||
+    (supervisorPerson?.hierarchyLevel ? Math.max(1, supervisorPerson.hierarchyLevel - 1) : 1);
+
+  const entry = await StructureEntry.findOneAndUpdate(
+    { email },
+    {
+      email,
+      name: user.fullName,
+      department: opts.department || user.department,
+      position: opts.position || user.position,
+      reportsTo,
+      hierarchyLevel: Math.min(6, Math.max(1, level)),
+      canSupervise: Array.isArray(opts.canSupervise) ? opts.canSupervise : [],
+      approvalAuthority: authority,
+      isDepartmentHead: false,
+      user: user._id,
+      addedBy: req.user.userId
+    },
+    { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true }
+  );
+  await dynamicStructure.refresh();
+  await log(req, 'structure_registered', user, `Registered ${email} in approval structure (reports to ${reportsTo || 'nobody'})`, { reportsTo, level: entry.hierarchyLevel, authority });
+  return { entry, warning };
+};
+
+router.get('/structure/entries', async (req, res) => {
+  try {
+    const entries = await StructureEntry.find({}).sort({ department: 1, hierarchyLevel: -1, name: 1 }).lean();
+    res.json({ success: true, data: entries });
+  } catch (error) {
+    console.error('IT structure entries error:', error);
+    res.status(500).json({ success: false, message: 'Failed to load structure entries' });
+  }
+});
+
+router.get('/users/:userId/structure', async (req, res) => {
+  try {
+    const user = await loadManageableUser(req, res);
+    if (!user) return;
+    const person = findPersonByEmail(user.email);
+    res.json({
+      success: true,
+      data: person
+        ? { registered: true, source: person.dynamic ? 'runtime' : 'base', reportsTo: person.reportsTo, hierarchyLevel: person.hierarchyLevel, approvalAuthority: person.approvalAuthority, position: person.position, department: person.department }
+        : { registered: false }
+    });
+  } catch (error) {
+    console.error('IT structure lookup error:', error);
+    res.status(500).json({ success: false, message: 'Failed to look up structure' });
+  }
+});
+
+// Builds the approval line a person's requests would follow by running the same
+// chain builders the workflows use. Read-only.
+const buildChainPreview = ({ type, email, fullName, department, amount, requestType }) => {
+  const notes = [];
+  const person = findPersonByEmail(email);
+  const source = person ? (person.dynamic ? (person.source === 'base' ? 'edited' : 'runtime') : 'base') : 'none';
+  if (!person) notes.push('This person is not in the department structure, so workflows fall back to a default approval chain. Add them in the Org structure editor.');
+
+  const origLog = console.log; // the builders are chatty
+  let raw = [];
+  try {
+    console.log = () => {};
+    switch (type) {
+      case 'department':
+        raw = require('../config/departmentStructure').getApprovalChainFromStructure(email);
+        break;
+      case 'requisition':
+        raw = require('../config/requisitionApprovalChain').getApprovalChainForRequisition(email, amount);
+        break;
+      case 'cash':
+        raw = require('../config/cashRequestApprovalChain').getCashRequestApprovalChain(email, requestType, amount);
+        break;
+      case 'it_support':
+        raw = require('../config/itSupportApprovalChain').getITSupportApprovalChain(email);
+        break;
+      case 'leave':
+        raw = require('../config/leaveApprovalChain').getLeaveApprovalChain(fullName, department);
+        notes.push('The leave chain is matched by name and department from the base structure file; people added or edited in the editor get its default chain.');
+        break;
+      case 'invoice':
+        raw = require('../config/invoiceApprovalChain').getInvoiceApprovalChain(fullName, department, amount);
+        notes.push('The invoice chain is matched by name and department from the base structure file; people added or edited in the editor get its default chain.');
+        break;
+      default:
+        return { error: 'Unknown chain type' };
+    }
+  } finally {
+    console.log = origLog;
+  }
+
+  const steps = (Array.isArray(raw) ? raw : []).map((st, i) => {
+    const a = st.approver || st;
+    return {
+      level: st.level || i + 1,
+      name: a.name || a.fullName || '-',
+      email: a.email || null,
+      role: a.role || a.position || null,
+      department: a.department || null,
+      required: st.required !== false
+    };
+  });
+  if (!steps.length) notes.push('No approval steps were produced for this person.');
+  return { steps, notes, source };
+};
+
+const parseChainQuery = (q) => ({
+  type: String(q.type || 'requisition'),
+  amount: q.amount !== undefined && q.amount !== '' ? Number(q.amount) : null,
+  requestType: String(q.requestType || 'expense')
+});
+
+router.get('/users/:userId/approval-chain', async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.userId)) {
+      return res.status(400).json({ success: false, message: 'Invalid user id' });
+    }
+    const user = await User.findById(req.params.userId).select('fullName email department position role supervisor');
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    const q = parseChainQuery(req.query);
+    const out = buildChainPreview({ ...q, email: String(user.email).toLowerCase().trim(), fullName: user.fullName, department: user.department });
+    if (out.error) return res.status(400).json({ success: false, message: out.error });
+
+    res.json({
+      success: true,
+      data: {
+        user: { _id: user._id, fullName: user.fullName, email: user.email, department: user.department, position: user.position },
+        type: q.type, amount: q.amount, requestType: q.requestType, source: out.source, steps: out.steps, notes: out.notes
+      }
+    });
+  } catch (error) {
+    console.error('IT approval chain preview error:', error);
+    res.status(500).json({ success: false, message: error.message || 'Failed to build approval chain' });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Org structure editor
+// The base file (config/departmentStructure.js) stays the starting point. Editing a
+// person there saves an override in StructureEntry (source 'base', edited true);
+// "reset" deletes it and the file value applies again. People not in the file are
+// stored as source 'runtime'. Lookups pick overrides up via config/dynamicStructure.
+// ---------------------------------------------------------------------------
+const lcE = (s) => String(s || '').toLowerCase().trim();
+
+const baseStructurePeople = () => {
+  const { DEPARTMENT_STRUCTURE } = require('../config/departmentStructure');
+  const out = [];
+  for (const [dept, d] of Object.entries(DEPARTMENT_STRUCTURE)) {
+    out.push({ dept, position: d.head.position, isHead: true, ...d.head });
+    for (const [position, p] of Object.entries(d.positions || {})) out.push({ dept, positionKey: position, position: p.position || position, ...p });
+  }
+  return out;
+};
+
+const wouldCycle = (email, reportsTo) => {
+  const seen = new Set([email]);
+  let cur = reportsTo;
+  while (cur) {
+    if (seen.has(cur)) return true;
+    seen.add(cur);
+    const p = findPersonByEmail(cur);
+    cur = p && p.reportsTo ? lcE(p.reportsTo) : null;
+  }
+  return false;
+};
+
+router.get('/structure/people', async (req, res) => {
+  try {
+    await dynamicStructure.refresh();
+    const overrides = new Map(dynamicStructure.all().map((e) => [lcE(e.email), e]));
+    const seen = new Set();
+    const rows = [];
+
+    for (const p of baseStructurePeople()) {
+      const email = lcE(p.email);
+      if (seen.has(email)) continue; // a few emails are listed twice in the file
+      seen.add(email);
+      const ov = overrides.get(email);
+      const eff = ov && ov.edited ? ov : p;
+      rows.push({
+        email, name: eff.name, department: ov && ov.edited ? ov.department : p.dept,
+        position: eff.position, reportsTo: eff.reportsTo ? lcE(eff.reportsTo) : null,
+        hierarchyLevel: eff.hierarchyLevel, approvalAuthority: eff.approvalAuthority || null,
+        canSupervise: eff.canSupervise || [], isDepartmentHead: !!(p.isHead || eff.isDepartmentHead),
+        source: 'base', edited: !!(ov && ov.edited),
+        original: ov && ov.edited ? { reportsTo: p.reportsTo ? lcE(p.reportsTo) : null, position: p.position, hierarchyLevel: p.hierarchyLevel, approvalAuthority: p.approvalAuthority || null } : null
+      });
+    }
+    for (const e of dynamicStructure.all()) {
+      const email = lcE(e.email);
+      if (e.source === 'base' || seen.has(email)) continue;
+      seen.add(email);
+      rows.push({
+        email, name: e.name, department: e.department, position: e.position, reportsTo: e.reportsTo,
+        hierarchyLevel: e.hierarchyLevel, approvalAuthority: e.approvalAuthority, canSupervise: e.canSupervise || [],
+        isDepartmentHead: !!e.isDepartmentHead, source: 'runtime', edited: false, original: null
+      });
+    }
+    rows.sort((a, b) => (a.department || '').localeCompare(b.department || '') || (b.hierarchyLevel || 0) - (a.hierarchyLevel || 0) || a.name.localeCompare(b.name));
+    res.json({ success: true, data: rows });
+  } catch (error) {
+    console.error('IT structure people error:', error);
+    res.status(500).json({ success: false, message: 'Failed to load the org structure' });
+  }
+});
+
+const saveStructurePerson = async (req, res, isCreate) => {
+  try {
+    const email = lcE(isCreate ? req.body.email : req.params.email);
+    if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
+
+    const base = baseStructurePeople().find((p) => lcE(p.email) === email);
+    const existing = await StructureEntry.findOne({ email });
+    if (isCreate && (base || existing)) return res.status(409).json({ success: false, message: 'That person is already in the structure - edit them instead' });
+    if (!isCreate && !base && !existing) return res.status(404).json({ success: false, message: 'Person not found in the structure' });
+
+    const cur = findPersonByEmail(email) || {};
+    const b = req.body || {};
+    const reportsTo = b.reportsTo === undefined ? (cur.reportsTo ? lcE(cur.reportsTo) : null) : (lcE(b.reportsTo) || null);
+
+    if (reportsTo) {
+      if (reportsTo === email) return res.status(400).json({ success: false, message: 'A person cannot report to themselves' });
+      if (!findPersonByEmail(reportsTo)) return res.status(400).json({ success: false, message: `${reportsTo} is not in the structure - add them first` });
+      if (wouldCycle(email, reportsTo)) return res.status(400).json({ success: false, message: 'That would create a reporting loop' });
+    }
+    if (b.approvalAuthority !== undefined && b.approvalAuthority !== null && !AUTHORITIES.includes(b.approvalAuthority)) {
+      return res.status(400).json({ success: false, message: 'Invalid approval authority' });
+    }
+    const level = b.hierarchyLevel === undefined || b.hierarchyLevel === null ? (cur.hierarchyLevel || 1) : Number(b.hierarchyLevel);
+    if (!(level >= 1 && level <= 6)) return res.status(400).json({ success: false, message: 'Hierarchy level must be 1 to 6' });
+
+    const name = (b.name || cur.name || '').trim();
+    const department = (b.department || cur.department || (base && base.dept) || '').trim();
+    const position = (b.position || cur.position || '').trim();
+    if (!name || !department || !position) return res.status(400).json({ success: false, message: 'Name, department and position are required' });
+
+    const before = existing ? existing.toObject() : (base ? { reportsTo: base.reportsTo, position: base.position, hierarchyLevel: base.hierarchyLevel } : null);
+    const entry = await StructureEntry.findOneAndUpdate(
+      { email },
+      {
+        email, name, department, position, reportsTo, hierarchyLevel: level,
+        canSupervise: Array.isArray(b.canSupervise) ? b.canSupervise : (cur.canSupervise || []),
+        approvalAuthority: b.approvalAuthority || cur.approvalAuthority || 'staff',
+        isDepartmentHead: !!(base && base.isHead) || !!b.isDepartmentHead,
+        source: base ? 'base' : 'runtime',
+        edited: true,
+        notes: b.notes || '',
+        addedBy: req.user.userId
+      },
+      { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true }
+    );
+    await dynamicStructure.refresh();
+    await log(req, isCreate ? 'structure_person_added' : 'structure_person_edited', null,
+      `${isCreate ? 'Added' : 'Edited'} ${email} in the org structure (reports to ${reportsTo || 'nobody'})`, { email, before, after: { reportsTo, position, hierarchyLevel: level } });
+    res.json({ success: true, message: isCreate ? 'Person added to the structure' : 'Structure updated', data: entry });
+  } catch (error) {
+    console.error('IT save structure person error:', error);
+    res.status(error.name === 'ValidationError' ? 400 : 500).json({ success: false, message: error.message || 'Failed to save' });
+  }
+};
+
+router.post('/structure/people', (req, res) => saveStructurePerson(req, res, true));
+router.put('/structure/people/:email', (req, res) => saveStructurePerson(req, res, false));
+
+router.delete('/structure/people/:email', async (req, res) => {
+  try {
+    const email = lcE(req.params.email);
+    const out = await StructureEntry.deleteOne({ email });
+    await dynamicStructure.refresh();
+    const stillInFile = baseStructurePeople().some((p) => lcE(p.email) === email);
+    await log(req, 'structure_person_reset', null, `${stillInFile ? 'Reset to file values' : 'Removed from structure'}: ${email}`, { email });
+    res.json({ success: true, message: stillInFile ? 'Reset to the values in the structure file' : (out.deletedCount ? 'Removed from the structure' : 'Nothing to remove') });
+  } catch (error) {
+    console.error('IT reset structure person error:', error);
+    res.status(500).json({ success: false, message: 'Failed to reset' });
+  }
+});
+
+router.get('/structure/preview', async (req, res) => {
+  try {
+    const email = lcE(req.query.email);
+    if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
+    const person = findPersonByEmail(email);
+    const q = parseChainQuery(req.query);
+    const out = buildChainPreview({ ...q, email, fullName: person?.name || '', department: person?.department || '' });
+    if (out.error) return res.status(400).json({ success: false, message: out.error });
+    res.json({ success: true, data: { type: q.type, amount: q.amount, source: out.source, steps: out.steps, notes: out.notes, person: person ? { name: person.name, position: person.position, department: person.department, email } : null } });
+  } catch (error) {
+    console.error('IT structure preview error:', error);
+    res.status(500).json({ success: false, message: error.message || 'Failed to build approval chain' });
+  }
+});
+
+router.post('/users/:userId/structure', async (req, res) => {
+  try {
+    const user = await loadManageableUser(req, res);
+    if (!user) return;
+    const result = await registerInStructure(req, user, req.body || {});
+    if (result.skipped) return res.status(409).json({ success: false, message: result.warning });
+    res.json({ success: true, message: 'Registered in the approval structure', warning: result.warning, data: result.entry });
+  } catch (error) {
+    console.error('IT register structure error:', error);
+    res.status(error.name === 'ValidationError' ? 400 : 500).json({ success: false, message: error.message || 'Failed to register in structure' });
+  }
+});
+
+router.delete('/users/:userId/structure', async (req, res) => {
+  try {
+    const user = await loadManageableUser(req, res);
+    if (!user) return;
+    const out = await StructureEntry.deleteOne({ email: String(user.email).toLowerCase().trim() });
+    await dynamicStructure.refresh();
+    await log(req, 'structure_removed', user, `Removed ${user.email} from runtime approval structure`, {});
+    res.json({ success: true, message: out.deletedCount ? 'Removed from the approval structure' : 'Not in the runtime structure (base-file entries cannot be removed here)' });
+  } catch (error) {
+    console.error('IT remove structure error:', error);
+    res.status(500).json({ success: false, message: 'Failed to remove from structure' });
+  }
+});
+
+// Create a new user account. IT may create accounts for the roles it can assign;
+// finance / hr / admin / ceo accounts can only be created by an admin / ceo.
+// A temporary password is generated and emailed to the new user.
+router.post('/users', async (req, res) => {
+  try {
+    const { fullName, email, department, position, role = 'employee', departmentRole = 'staff', phone, personalEmail, supervisorEmail, addToStructure = true, hierarchyLevel, approvalAuthority } = req.body;
+
+    if (!fullName || !String(fullName).trim()) return res.status(400).json({ success: false, message: 'Full name is required' });
+    if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
+    if (!department || !position) return res.status(400).json({ success: false, message: 'Department and position are required' });
+
+    if (role === 'supplier') {
+      return res.status(400).json({ success: false, message: 'Supplier accounts are created through supplier onboarding' });
+    }
+    if (!isFullAdmin(req) && !IT_ASSIGNABLE_ROLES.includes(role)) {
+      return res.status(403).json({ success: false, message: `Only an admin or CEO can create ${role} accounts` });
+    }
+
+    const cleanEmail = String(email).toLowerCase().trim();
+    const exists = await User.findOne({ email: cleanEmail }).select('_id');
+    if (exists) return res.status(409).json({ success: false, message: 'An account with that email already exists' });
+
+    let supervisor = null;
+    if (supervisorEmail) {
+      supervisor = await User.findOne({ email: String(supervisorEmail).toLowerCase().trim() }).select('_id fullName');
+      if (!supervisor) return res.status(400).json({ success: false, message: 'No user found with that supervisor email' });
+    }
+
+    const pick = (chars) => chars[crypto.randomInt(chars.length)];
+    const all = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+    let temp = pick('ABCDEFGHJKLMNPQRSTUVWXYZ') + pick('abcdefghijkmnopqrstuvwxyz') + pick('23456789') + pick('@#$%');
+    while (temp.length < 12) temp += pick(all);
+    temp = temp.split('').sort(() => crypto.randomInt(3) - 1).join('');
+
+    // password is hashed by the model's pre-save hook
+    const created = await User.create({
+      fullName: String(fullName).trim(),
+      email: cleanEmail,
+      personalEmail: personalEmail ? String(personalEmail).toLowerCase().trim() : undefined,
+      phoneNumber: phone || undefined,
+      password: temp,
+      department,
+      position,
+      role,
+      departmentRole,
+      isActive: true
+    });
+
+    if (supervisor) {
+      try {
+        await HierarchyService.updateSupervisor(created._id, supervisor._id, req.user.userId);
+      } catch (e) {
+        console.error('IT create user: supervisor link failed:', e.message);
+        await User.updateOne({ _id: created._id }, { $set: { supervisor: supervisor._id } });
+      }
+    }
+
+    let structure = null;
+    if (addToStructure !== false) {
+      try {
+        structure = await registerInStructure(req, created, {
+          reportsTo: supervisorEmail, hierarchyLevel, approvalAuthority, department, position
+        });
+      } catch (e) {
+        console.error('IT create user: structure registration failed:', e.message);
+        structure = { warning: 'Account created but could not be added to the approval structure: ' + e.message };
+      }
+    }
+
+    let emailSent = false;
+    try {
+      const { sendEmail } = require('../services/emailService');
+      const result = await sendEmail({
+        to: cleanEmail,
+        subject: 'Your GRATO ERP account has been created',
+        text:
+          `Hello ${created.fullName},\n\nAn account has been created for you on the GRATO ERP by the IT department.\n\n` +
+          `Email: ${cleanEmail}\nTemporary password: ${temp}\n` +
+          `Login: ${process.env.FRONTEND_URL || ''}/login\n\n` +
+          `Please log in and change your password immediately.`
+      });
+      emailSent = !!(result && result.success !== false);
+    } catch (e) {
+      console.error('IT create user email failed:', e.message);
+    }
+
+    // IT can only create non-sensitive roles (enforced above), so showing the temporary
+    // password to the creator is safe; admin/ceo creating any role also see it.
+    await log(req, 'user_created', created, `Created ${role} account for ${cleanEmail}`, { role, department, position, emailSent });
+
+    res.status(201).json({
+      success: true,
+      message: emailSent ? 'Account created and login details emailed to the user' : 'Account created (login email could not be sent)',
+      emailSent,
+      data: { _id: created._id, fullName: created.fullName, email: created.email, role: created.role },
+      structureRegistered: !!(structure && structure.entry),
+      structureWarning: structure?.warning || null,
+      temporaryPassword: temp
+    });
+  } catch (error) {
+    console.error('IT create user error:', error);
+    const status = error.name === 'ValidationError' ? 400 : error.code === 11000 ? 409 : 500;
+    res.status(status).json({ success: false, message: error.code === 11000 ? 'An account with that email already exists' : (error.message || 'Failed to create user') });
   }
 });
 

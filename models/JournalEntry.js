@@ -43,7 +43,10 @@ const journalEntrySchema = new mongoose.Schema({
   },
   sourceType: {
     type: String,
-    enum: ['manual', 'cash_request_disbursement', 'supplier_invoice', 'customer_invoice', 'salary_payment', 'reversal'],
+    enum: ['manual', 'cash_request_disbursement', 'supplier_invoice', 'customer_invoice', 'salary_payment', 'reversal',
+           'partial_customer_invoice', 'project_plan_completion', 'payment_receipt', 'supplier_payment',
+           'credit_note_customer', 'credit_note_supplier', 'fx_adjustment', 'asset_acquisition', 'asset_depreciation',
+           'payment_batch', 'cash_rounding', 'year_end_closing', 'payroll_run', 'payroll_payment', 'expense_claim', 'expense_payment', 'expense_surplus_return'],
     default: 'manual'
   },
   sourceId: {

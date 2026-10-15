@@ -1,6 +1,9 @@
 const dotenv = require('dotenv');
 dotenv.config();
 
+// Field-level audit trail: must be registered before any model is compiled.
+require('mongoose').plugin(require('./utils/auditTrailPlugin'));
+
 const { initializeServer, verifyConfiguration } = require('./utils/serverInit');
 
 initializeServer();
@@ -237,6 +240,7 @@ cron.schedule('0 9 * * *', async () => {
   }
 });
 
+app.use(require('./utils/auditContext').auditContextMiddleware);
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
@@ -367,6 +371,56 @@ try {
   console.log('✅ Mounted: /api/it-admin');
 } catch (e) {
   console.error('❌ Failed to mount /api/it-admin:', e.message);
+}
+
+try {
+  app.use('/api/sales', require('./routes/salesRoutes'));
+  console.log('✅ Mounted: /api/sales');
+} catch (e) {
+  console.error('❌ Failed to mount /api/sales:', e.message);
+}
+
+try {
+  app.use('/api/payroll', require('./routes/payrollRoutes'));
+  console.log('✅ Mounted: /api/payroll');
+} catch (e) {
+  console.error('❌ Failed to mount /api/payroll:', e.message);
+}
+
+try {
+  app.use('/api/expenses', require('./routes/expenseRoutes'));
+  console.log('✅ Mounted: /api/expenses');
+} catch (e) {
+  console.error('❌ Failed to mount /api/expenses:', e.message);
+}
+
+try {
+  app.use('/api/recruitment', require('./routes/recruitmentRoutes'));
+  console.log('✅ Mounted: /api/recruitment');
+} catch (e) {
+  console.error('❌ Failed to mount /api/recruitment:', e.message);
+}
+
+try {
+  app.use('/api/documents', require('./routes/documentHubRoutes'));
+  console.log('✅ Mounted: /api/documents');
+} catch (e) {
+  console.error('❌ Failed to mount /api/documents:', e.message);
+}
+
+try {
+  app.use('/api/audit-trail', require('./routes/auditTrailRoutes'));
+  app.use('/api/data-exports', require('./routes/dataExportRoutes'));
+  console.log('✅ Mounted: /api/audit-trail, /api/data-exports');
+} catch (e) {
+  console.error('❌ Failed to mount audit/export routes:', e.message);
+}
+
+try {
+  app.use('/api/analytics-overview', require('./routes/analyticsOverviewRoutes'));
+  console.log('✅ Mounted: /api/analytics-overview');
+} catch (e) {
+  console.error('❌ Failed to mount /api/analytics-overview:', e.message);
 }
 
 if (buyerRoutes) {
@@ -597,6 +651,9 @@ app.use(handleMulterError);
 })();
 
 releaseStaleReservationsJob.start();
+
+// Post due fixed-asset depreciation daily
+try { require('./services/cronJobs').postDueDepreciation.start(); console.log('✅ Depreciation job scheduled'); } catch (e) { console.error('❌ Depreciation job failed to start:', e.message); }
 scheduleBudgetAlerts();
 initializeScheduledReports();
 ceoEscalation.start();

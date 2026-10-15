@@ -266,11 +266,11 @@ const FixedAssetSchema = new mongoose.Schema({
   },
 
   accountCodes: {
-    assetAccount:        { type: String, default: '1500' },
-    depreciationAccount: { type: String, default: '5400' },
-    accumulatedAccount:  { type: String, default: '1510' },
-    disposalGainAccount: { type: String, default: '4100' },
-    disposalLossAccount: { type: String, default: '5300' }
+    assetAccount:        { type: String, default: '244' },
+    depreciationAccount: { type: String, default: '681' },
+    accumulatedAccount:  { type: String, default: '284' },
+    disposalGainAccount: { type: String, default: '758' },
+    disposalLossAccount: { type: String, default: '638' }
   },
   depreciationLines: [{
     sequence:  { type: Number, required: true },

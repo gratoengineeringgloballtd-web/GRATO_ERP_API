@@ -33,6 +33,7 @@ const accountSchema = new mongoose.Schema({
     ref: 'Account',
     default: null
   },
+  legacyCode: { type: String, trim: true, default: '' },
   isActive: {
     type: Boolean,
     default: true

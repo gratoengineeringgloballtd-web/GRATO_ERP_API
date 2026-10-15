@@ -4,7 +4,7 @@ const paymentBatchSchema = new mongoose.Schema({
   batchNumber:    { type: String, required: true, unique: true },
   type:           { type: String, enum: ['receipt','disbursement'], required: true },
   paymentMethod:  { type: String, enum: ['bank_transfer','cheque','eft'], required: true },
-  bankAccount:    { type: String, default: '1010' },
+  bankAccount:    { type: String, default: '521' },
   batchDate:      { type: Date, required: true, default: Date.now },
   paymentIds:     [{ type: mongoose.Schema.Types.ObjectId, ref: 'Payment' }],
   totalAmount:    { type: Number, default: 0 },

@@ -81,13 +81,41 @@ const checkOverdueDeliveries = cron.schedule('0 8 * * *', async () => {
   scheduled: false 
 });
 
+// Post due fixed-asset depreciation (runs daily at 02:30; only lines whose date has passed)
+const postDueDepreciation = cron.schedule('30 2 * * *', async () => {
+  try {
+    const User = require('../models/User');
+    const accountingService = require('./accountingService');
+    const poster = await User.findOne({ role: 'admin', isActive: { $ne: false } }).select('_id').lean();
+    if (!poster) { console.warn('Depreciation job skipped: no admin user to post as'); return; }
+    const result = await accountingService.postAllPendingDepreciations(poster._id);
+    if (result.posted || result.errors.length) console.log(`Depreciation job: ${result.posted} posted, ${result.errors.length} errors`);
+  } catch (error) {
+    console.error('Error posting due depreciation:', error.message);
+  }
+}, { scheduled: false });
+
+// Document expiry reminders and retention flagging (daily at 07:00)
+const documentReminders = cron.schedule('0 7 * * *', async () => {
+  try {
+    const result = await require('./documentHubService').runReminders();
+    if (result.sent || result.retentionFlagged) console.log(`Document job: ${result.sent} reminder email(s), ${result.retentionFlagged} flagged for retention review`);
+  } catch (error) {
+    console.error('Error running document reminders:', error.message);
+  }
+}, { scheduled: false });
+
 const startBuyerCronJobs = () => {
+  documentReminders.start();
+  postDueDepreciation.start();
   checkExpiringQuotes.start();
   checkOverdueDeliveries.start();
   console.log('Buyer cron jobs started');
 };
 
 const stopBuyerCronJobs = () => {
+  documentReminders.stop();
+  postDueDepreciation.stop();
   checkExpiringQuotes.stop();
   checkOverdueDeliveries.stop();
   console.log('Buyer cron jobs stopped');
@@ -97,5 +125,7 @@ module.exports = {
   startBuyerCronJobs,
   stopBuyerCronJobs,
   checkExpiringQuotes,
-  checkOverdueDeliveries
+  checkOverdueDeliveries,
+  postDueDepreciation,
+  documentReminders
 };

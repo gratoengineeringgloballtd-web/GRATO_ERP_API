@@ -22,43 +22,18 @@ const AuditLog = require('../models/AuditLog');
   const PaymentBatch   = require('../models/PaymentBatch');
   const FiscalYear     = require('../models/FiscalYear');
 
-const DEFAULT_CHART = [
-  { code: '1000', name: 'Cash on Hand', type: 'asset', subType: 'current_asset', normalBalance: 'debit' },
-  { code: '1010', name: 'Bank Account', type: 'asset', subType: 'current_asset', normalBalance: 'debit' },
-  { code: '1100', name: 'Accounts Receivable', type: 'asset', subType: 'current_asset', normalBalance: 'debit' },
-  { code: '1300', name: 'VAT Receivable', type: 'asset', subType: 'current_asset', normalBalance: 'debit' },
-  { code: '1200', name: 'Staff Advances', type: 'asset', subType: 'current_asset', normalBalance: 'debit' },
-  { code: '2000', name: 'Accounts Payable', type: 'liability', subType: 'current_liability', normalBalance: 'credit' },
-  { code: '2200', name: 'VAT Payable', type: 'liability', subType: 'current_liability', normalBalance: 'credit' },
-  { code: '2300', name: 'Withholding Tax Payable', type: 'liability', subType: 'current_liability', normalBalance: 'credit' },
-  { code: '1500', name: 'Fixed Assets', type: 'asset', subType: 'non_current_asset', normalBalance: 'debit' },
-  { code: '2100', name: 'Accrued Expenses', type: 'liability', subType: 'current_liability', normalBalance: 'credit' },
-  { code: '3000', name: 'Owner Equity', type: 'equity', subType: 'equity', normalBalance: 'credit' },
-  { code: '4000', name: 'Sales Revenue', type: 'revenue', subType: 'operating_revenue', normalBalance: 'credit' },
-  { code: '5000', name: 'Cost of Services', type: 'expense', subType: 'cost_of_sales', normalBalance: 'debit' },
-  { code: '5100', name: 'Salaries Expense', type: 'expense', subType: 'operating_expense', normalBalance: 'debit' },
-  { code: '5200', name: 'Transport Expense', type: 'expense', subType: 'operating_expense', normalBalance: 'debit' },
-  { code: '5300', name: 'General Admin Expense', type: 'expense', subType: 'operating_expense', normalBalance: 'debit' },
-  { code:'1510', name:'Accumulated Depreciation',  type:'asset',     subType:'non_current_asset', normalBalance:'credit' },
-  { code:'3100', name:'Retained Earnings',          type:'equity',    subType:'equity',            normalBalance:'credit' },
-  { code:'3200', name:'Current Year Earnings',      type:'equity',    subType:'equity',            normalBalance:'credit' },
-  { code:'4100', name:'Other Revenue',              type:'revenue',   subType:'other_revenue',     normalBalance:'credit' },
-  { code:'5400', name:'Depreciation Expense',       type:'expense',   subType:'operating_expense', normalBalance:'debit'  },
-  { code:'5500', name:'FX Gain/Loss',               type:'expense',   subType:'financial_expense', normalBalance:'debit'  },
-];
+const { SYSCOHADA_CHART, CODES, LEGACY_MAP, EXPENSE_BY_CATEGORY } = require('../config/syscohadaChart');
+
+const DEFAULT_CHART = SYSCOHADA_CHART;
+
+// Old clients may still send legacy codes (e.g. 1010); translate them.
+const normCode = (c) => (c && LEGACY_MAP[String(c)]) || c;
 
 const DEFAULT_MAPPINGS = {
-  CASH: '1000',
-  BANK: '1010',
-  AR: '1100',
-  VAT_RECEIVABLE: '1300',
-  STAFF_ADVANCES: '1200',
-  AP: '2000',
-  VAT_PAYABLE: '2200',
-  SALES: '4000',
-  SALARIES_EXP: '5100',
-  TRANSPORT_EXP: '5200',
-  ADMIN_EXP: '5300'
+  CASH: CODES.CASH, BANK: CODES.BANK, AR: CODES.AR,
+  VAT_RECEIVABLE: CODES.VAT_RECEIVABLE, STAFF_ADVANCES: CODES.STAFF_ADVANCES,
+  AP: CODES.AP, VAT_PAYABLE: CODES.VAT_PAYABLE, SALES: CODES.SALES,
+  SALARIES_EXP: CODES.SALARIES_EXP, TRANSPORT_EXP: CODES.TRANSPORT_EXP, ADMIN_EXP: CODES.ADMIN_EXP
 };
 
 const DEFAULT_RULES = [
@@ -125,9 +100,9 @@ const DEFAULT_RULES = [
     isActive: true,
     taxConfig: { enabled: true, defaultRate: 19.25 },
     lines: [
-      { side: 'debit', accountCode: '1100', amountSource: 'gross', description: 'Accounts receivable (partial)' },
-      { side: 'credit', accountCode: '4000', amountSource: 'net', description: 'Sales revenue (partial)' },
-      { side: 'credit', accountCode: '2200', amountSource: 'tax', description: 'VAT on partial invoice', optional: true }
+      { side: 'debit', accountCode: CODES.AR, amountSource: 'gross', description: 'Accounts receivable (partial)' },
+      { side: 'credit', accountCode: CODES.SALES, amountSource: 'net', description: 'Sales revenue (partial)' },
+      { side: 'credit', accountCode: CODES.VAT_PAYABLE, amountSource: 'tax', description: 'VAT on partial invoice', optional: true }
     ]
   },
   {
@@ -139,24 +114,24 @@ const DEFAULT_RULES = [
     isActive: true,
     taxConfig: { enabled: false, defaultRate: 0 },
     lines: [
-      { side: 'debit', accountCode: '5000', amountSource: 'gross', description: 'Cost of services recognized' },
-      { side: 'credit', accountCode: '2100', amountSource: 'gross', description: 'Accrued expense - milestone' }
+      { side: 'debit', accountCode: CODES.COST_OF_SERVICES, amountSource: 'gross', description: 'Cost of services recognized' },
+      { side: 'credit', accountCode: CODES.ACCRUED_EXPENSES, amountSource: 'gross', description: 'Accrued expense - milestone' }
     ]
   },
   { name: 'Payment Receipt', documentType: 'payment_receipt', sourceType: 'payment_receipt',
     description: 'Debit bank, credit AR', priority: 10, isActive: true,
     taxConfig: { enabled: false, defaultRate: 0 },
     lines: [
-      { side: 'debit',  accountCode: '1010', amountSource: 'gross', description: 'Bank receipt' },
-      { side: 'credit', accountCode: '1100', amountSource: 'gross', description: 'Clear AR' }
+      { side: 'debit',  accountCode: CODES.BANK, amountSource: 'gross', description: 'Bank receipt' },
+      { side: 'credit', accountCode: CODES.AR, amountSource: 'gross', description: 'Clear AR' }
     ]
   },
   { name: 'Supplier Payment', documentType: 'supplier_payment', sourceType: 'supplier_payment',
     description: 'Debit AP, credit bank', priority: 10, isActive: true,
     taxConfig: { enabled: false, defaultRate: 0 },
     lines: [
-      { side: 'debit',  accountCode: '2000', amountSource: 'gross', description: 'Clear AP' },
-      { side: 'credit', accountCode: '1010', amountSource: 'gross', description: 'Bank payment' }
+      { side: 'debit',  accountCode: CODES.AP, amountSource: 'gross', description: 'Clear AP' },
+      { side: 'credit', accountCode: CODES.BANK, amountSource: 'gross', description: 'Bank payment' }
     ]
   }
 ];
@@ -173,8 +148,14 @@ function getPeriodParts(date) {
   };
 }
 
-async function ensureOpenPeriod(date) {
+async function ensureOpenPeriod(date, { bypassFiscalLock = false } = {}) {
   const { year, month } = getPeriodParts(date);
+  if (!bypassFiscalLock) {
+    const FiscalYear = require('../models/FiscalYear');
+    const when = date ? new Date(date) : new Date();
+    const fy = await FiscalYear.findOne({ startDate: { $lte: when }, endDate: { $gte: when }, status: { $in: ['locked', 'closed'] } }).lean();
+    if (fy) throw new Error(`Fiscal year ${fy.year} is ${fy.status}; posting is not allowed`);
+  }
   const period = await AccountingPeriod.findOne({ year, month }).lean();
 
   if (period?.status === 'closed') {
@@ -279,7 +260,11 @@ async function buildJournalLinesFromRule(rule, context) {
       continue;
     }
 
-    const account = await getAccountByCode(ruleLine.accountCode);
+    let lineCode = ruleLine.accountCode;
+    // Per-document overrides: expense account by category, cash vs bank for payments.
+    if (context.expenseAccountCode && ruleLine.side === 'debit' && lineCode === CODES.ADMIN_EXP) lineCode = context.expenseAccountCode;
+    if (context.treasuryAccountCode && lineCode === CODES.BANK) lineCode = context.treasuryAccountCode;
+    const account = await getAccountByCode(lineCode);
     lines.push({
       account: account._id,
       description: ruleLine.description || '',
@@ -346,7 +331,62 @@ async function nextEntryNumber() {
   return `JE-${period}-${String(counter.seq).padStart(5, '0')}`;
 }
 
+let chartMigrated = false;
+
+/**
+ * One-time, idempotent move from the old generic codes (1000, 4000, ...) to SYSCOHADA.
+ * Accounts are renumbered IN PLACE (same _id), so every existing journal line keeps pointing
+ * at the same account and history is preserved. Rules and stored code strings are updated too.
+ */
+async function migrateLegacyChart() {
+  const report = { renamed: [], skipped: [], rules: 0, references: 0 };
+  const byCode = Object.fromEntries(SYSCOHADA_CHART.map((c) => [c.code, c]));
+
+  for (const [oldCode, newCode] of Object.entries(LEGACY_MAP)) {
+    const legacy = await Account.findOne({ code: oldCode });
+    if (!legacy) continue;
+    const clash = await Account.findOne({ code: newCode });
+    if (clash) { report.skipped.push({ oldCode, newCode, reason: 'target code already exists' }); continue; }
+    const def = byCode[newCode];
+    await Account.updateOne({ _id: legacy._id }, { $set: { code: newCode, legacyCode: oldCode, ...(def ? { name: def.name, subType: def.subType } : {}) } });
+    report.renamed.push({ oldCode, newCode });
+  }
+
+  const renamed = Object.fromEntries(report.renamed.map((r) => [r.oldCode, r.newCode]));
+  if (report.renamed.length) {
+    const rules = await AccountingRule.find({});
+    for (const rule of rules) {
+      let changed = false;
+      for (const line of rule.lines || []) {
+        if (renamed[line.accountCode]) { line.accountCode = renamed[line.accountCode]; changed = true; }
+      }
+      if (changed) { rule.markModified('lines'); await rule.save(); report.rules += 1; }
+    }
+    for (const [oldCode, newCode] of Object.entries(renamed)) {
+      const r1 = await BankTransaction.updateMany({ accountCode: oldCode }, { $set: { accountCode: newCode } });
+      const r2 = await Payment.updateMany({ bankAccount: oldCode }, { $set: { bankAccount: newCode } });
+      let r3 = { modifiedCount: 0 }, r4 = { modifiedCount: 0 };
+      try { r3 = await require('../models/TaxGroup').updateMany({ 'taxes.accountCode': oldCode }, { $set: { 'taxes.$[t].accountCode': newCode } }, { arrayFilters: [{ 't.accountCode': oldCode }] }); } catch (e) { /* model optional */ }
+      try {
+        const FA = require('../models/FixedAsset');
+        for (const f of ['assetAccount', 'depreciationAccount', 'accumulatedAccount', 'disposalGainAccount', 'disposalLossAccount']) {
+          const r = await FA.updateMany({ [`accountCodes.${f}`]: oldCode }, { $set: { [`accountCodes.${f}`]: newCode } });
+          r4.modifiedCount += r.modifiedCount || 0;
+        }
+      } catch (e) { /* model optional */ }
+      report.references += (r1.modifiedCount || 0) + (r2.modifiedCount || 0) + (r3.modifiedCount || 0) + r4.modifiedCount;
+    }
+  }
+  return report;
+}
+
 async function ensureDefaultChart() {
+  if (!chartMigrated) {
+    const report = await migrateLegacyChart();
+    chartMigrated = true;
+    if (report.renamed.length) console.log('[accounting] Migrated to SYSCOHADA chart:', JSON.stringify(report));
+  }
+
   let created = 0;
   for (const account of DEFAULT_CHART) {
     const result = await Account.updateOne(
@@ -360,7 +400,7 @@ async function ensureDefaultChart() {
 
   return {
     created,
-    message: created > 0 ? 'Default chart of accounts initialized/updated' : 'Chart of accounts already initialized'
+    message: created > 0 ? 'SYSCOHADA chart of accounts initialized/updated' : 'Chart of accounts already initialized'
   };
 }
 
@@ -406,12 +446,13 @@ async function postByRule({
   description,
   context,
   userId,
-  auditModel
+  auditModel,
+  allowMultiple = false
 }) {
   await ensureDefaultChart();
   await ensureDefaultRules();
 
-  const existing = await JournalEntry.findOne({ sourceType, sourceId, status: 'posted' });
+  const existing = allowMultiple ? null : await JournalEntry.findOne({ sourceType, sourceId, status: 'posted' });
   if (existing) {
     await stampAccountingAudit(auditModel, sourceId, sourceType, existing);
     return existing;
@@ -436,7 +477,8 @@ async function postByRule({
   return entry;
 }
 
-async function getAccountByCode(code) {
+async function getAccountByCode(rawCode) {
+  const code = normCode(rawCode);
   const account = await Account.findOne({ code, isActive: true });
   if (!account) {
     throw new Error(`Account not found for code ${code}. Initialize chart first.`);
@@ -444,7 +486,7 @@ async function getAccountByCode(code) {
   return account;
 }
 
-async function createJournalEntry({ date, description, sourceType = 'manual', sourceId = null, lines }, userId) {
+async function createJournalEntry({ date, description, sourceType = 'manual', sourceId = null, lines, bypassFiscalLock = false }, userId) {
   if (!Array.isArray(lines) || lines.length < 2) {
     throw new Error('Journal entry requires at least 2 lines');
   }
@@ -457,7 +499,7 @@ async function createJournalEntry({ date, description, sourceType = 'manual', so
   }));
 
   const postingDate = date || new Date();
-  await ensureOpenPeriod(postingDate);
+  await ensureOpenPeriod(postingDate, { bypassFiscalLock });
 
   const entryNumber = await nextEntryNumber();
 
@@ -524,22 +566,25 @@ async function postCashRequestDisbursement(requestId, userId) {
   const request = await CashRequest.findById(requestId).lean();
   if (!request) throw new Error('Cash request not found');
 
-  const amount = Number(request.totalDisbursed || 0);
-  if (amount <= 0) throw new Error('Cash request has no disbursed amount to post');
+  const total = roundAmount(request.totalDisbursed || 0);
+  if (total <= 0) throw new Error('Cash request has no disbursed amount to post');
+
+  // Partial disbursements: post only what has not been posted yet.
+  const prior = await JournalEntry.find({ sourceType: 'cash_request_disbursement', sourceId: request._id, status: 'posted' }).lean();
+  const alreadyPosted = roundAmount(prior.reduce((sum, e) => sum + Number(e.totalDebit || 0), 0));
+  const delta = roundAmount(total - alreadyPosted);
+  if (delta <= 0.005) return prior[prior.length - 1];
 
   return postByRule({
     documentType: 'cash_disbursement',
     sourceType: 'cash_request_disbursement',
     sourceId: request._id,
     date: new Date(),
-    description: `Cash disbursement posted for ${request.displayId || request._id}`,
-    context: {
-      grossAmount: amount,
-      netAmount: amount,
-      taxAmount: 0
-    },
+    description: `Cash disbursement for ${request.displayId || request._id}${prior.length ? ` (additional ${delta})` : ''}`,
+    context: { grossAmount: delta, netAmount: delta, taxAmount: 0 },
     userId,
-    auditModel: CashRequest
+    auditModel: CashRequest,
+    allowMultiple: true
   });
 }
 
@@ -562,7 +607,8 @@ async function postSupplierInvoice(invoiceId, userId) {
       grossAmount,
       netAmount,
       taxAmount,
-      invoice
+      invoice,
+      expenseAccountCode: invoice.expenseAccountCode || EXPENSE_BY_CATEGORY[invoice.serviceCategory] || CODES.ADMIN_EXP
     },
     userId,
     auditModel: SupplierInvoice
@@ -982,10 +1028,15 @@ async function getBalanceSheet({ asOfDate }) {
     .lean();
  
   const buckets = new Map();
+  let unclosedResult = 0; // revenue - expenses not yet moved to equity by a year-end closing
  
   entries.forEach((entry) => {
     (entry.lines || []).forEach((line) => {
       if (!line.account) return;
+      if (['revenue', 'expense'].includes(line.account.type)) {
+        unclosedResult += Number(line.credit || 0) - Number(line.debit || 0);
+        return;
+      }
       if (!['asset', 'liability', 'equity'].includes(line.account.type)) return;
  
       const key = String(line.account._id);
@@ -1019,6 +1070,14 @@ async function getBalanceSheet({ asOfDate }) {
   const assetLines = lines.filter((l) => l.type === 'asset').sort((a, b) => a.code.localeCompare(b.code));
   const liabilityLines = lines.filter((l) => l.type === 'liability').sort((a, b) => a.code.localeCompare(b.code));
   const equityLines = lines.filter((l) => l.type === 'equity').sort((a, b) => a.code.localeCompare(b.code));
+  unclosedResult = roundAmount(unclosedResult);
+  if (unclosedResult !== 0) {
+    equityLines.push({
+      accountId: null, code: unclosedResult >= 0 ? '131' : '139',
+      name: unclosedResult >= 0 ? "Resultat de l'exercice en cours (benefice)" : "Resultat de l'exercice en cours (perte)",
+      type: 'equity', subType: 'equity', normalBalance: 'credit', debit: 0, credit: 0, balance: unclosedResult, isComputed: true
+    });
+  }
  
   const totalAssets = roundAmount(assetLines.reduce((s, l) => s + l.balance, 0));
   const totalLiabilities = roundAmount(liabilityLines.reduce((s, l) => s + l.balance, 0));
@@ -1072,7 +1131,7 @@ async function createPayment({ type, invoiceId, supplierInvoiceId, customerId, s
     supplierInvoiceId: supplierInvoiceId || null,
     customerId: customerId || null, supplierId: supplierId || null,
     amount: Number(amount), paymentDate: paymentDate || new Date(),
-    paymentMethod, bankAccount: bankAccount || '1010',
+    paymentMethod, bankAccount: normCode(bankAccount) || CODES.BANK,
     reference: reference || '', notes: notes || '', recordedBy: userId
   });
   await logAudit('payment_recorded', 'Payment', payment._id, userId,
@@ -1094,7 +1153,7 @@ async function postPaymentReceipt(paymentId, userId) {
     sourceId: payment._id,
     date: payment.paymentDate || new Date(),
     description: `Customer receipt ${payment.paymentNumber}${payment.reference ? ' - ' + payment.reference : ''}`,
-    context: { grossAmount: amount, netAmount: amount, taxAmount: 0 },
+    context: { grossAmount: amount, netAmount: amount, taxAmount: 0, treasuryAccountCode: normCode(payment.bankAccount) },
     userId,
     auditModel: Payment
   });
@@ -1133,7 +1192,7 @@ async function postSupplierPayment(paymentId, userId) {
     sourceId: payment._id,
     date: payment.paymentDate || new Date(),
     description: `Supplier payment ${payment.paymentNumber}${payment.reference ? ' - ' + payment.reference : ''}`,
-    context: { grossAmount: amount, netAmount: amount, taxAmount: 0 },
+    context: { grossAmount: amount, netAmount: amount, taxAmount: 0, treasuryAccountCode: normCode(payment.bankAccount) },
     userId,
     auditModel: Payment
   });
@@ -1353,11 +1412,11 @@ async function getVATReturn({ startDate, endDate } = {}) {
   entries.forEach(entry => {
     (entry.lines || []).forEach(line => {
       if (!line.account) return;
-      if (line.account.code === '2200' && line.credit > 0) {
+      if (line.account.code === CODES.VAT_PAYABLE && line.credit > 0) {
         outputVAT += Number(line.credit);
         outputLines.push({ date: entry.date, entryNumber: entry.entryNumber, description: entry.description, amount: line.credit });
       }
-      if (line.account.code === '1300' && line.debit > 0) {
+      if (line.account.code === CODES.VAT_RECEIVABLE && line.debit > 0) {
         inputVAT += Number(line.debit);
         inputLines.push({ date: entry.date, entryNumber: entry.entryNumber, description: entry.description, amount: line.debit });
       }
@@ -1404,9 +1463,9 @@ async function getDashboardKPIs() {
     return roundAmount(Math.abs((line.debitBalance || 0) - (line.creditBalance || 0)));
   };
  
-  const cashBalance      = roundAmount(absBalance('1000') + absBalance('1010'));
-  const totalReceivables = absBalance('1100');
-  const totalPayables    = absBalance('2000');
+  const cashBalance      = roundAmount(absBalance(CODES.CASH) + absBalance(CODES.BANK));
+  const totalReceivables = absBalance(CODES.AR);
+  const totalPayables    = absBalance(CODES.AP);
  
   return {
     cashBalance,
@@ -1442,34 +1501,34 @@ async function getCashFlowStatement({ startDate, endDate } = {}) {
   // Operating activities (indirect method)
   const netProfit = pl.netProfit;
  
-  const arOpen  = getNetBalance(openingTB, '1100');
-  const arClose = getNetBalance(closingTB,  '1100');
+  const arOpen  = getNetBalance(openingTB, CODES.AR);
+  const arClose = getNetBalance(closingTB,  CODES.AR);
   const arChange = roundAmount(arOpen - arClose);   // decrease in AR = cash inflow
  
-  const apOpen  = Math.abs(getNetBalance(openingTB, '2000'));
-  const apClose = Math.abs(getNetBalance(closingTB,  '2000'));
+  const apOpen  = Math.abs(getNetBalance(openingTB, CODES.AP));
+  const apClose = Math.abs(getNetBalance(closingTB,  CODES.AP));
   const apChange = roundAmount(apClose - apOpen);   // increase in AP = cash inflow
  
-  const accruedOpen  = Math.abs(getNetBalance(openingTB, '2100'));
-  const accruedClose = Math.abs(getNetBalance(closingTB,  '2100'));
+  const accruedOpen  = Math.abs(getNetBalance(openingTB, CODES.ACCRUED_EXPENSES));
+  const accruedClose = Math.abs(getNetBalance(closingTB,  CODES.ACCRUED_EXPENSES));
   const accruedChange = roundAmount(accruedClose - accruedOpen);
  
   const operatingTotal = roundAmount(netProfit + arChange + apChange + accruedChange);
  
   // Investing activities (changes in fixed assets 1500)
-  const faOpen  = getNetBalance(openingTB, '1500');
-  const faClose = getNetBalance(closingTB,  '1500');
+  const faOpen  = getNetBalance(openingTB, CODES.FIXED_ASSETS);
+  const faClose = getNetBalance(closingTB,  CODES.FIXED_ASSETS);
   const investingTotal = roundAmount(faOpen - faClose);  // decrease in FA = cash inflow
  
   // Financing activities (changes in equity 3000)
-  const eqOpen  = Math.abs(getNetBalance(openingTB, '3000'));
-  const eqClose = Math.abs(getNetBalance(closingTB,  '3000'));
+  const eqOpen  = Math.abs(getNetBalance(openingTB, CODES.EQUITY));
+  const eqClose = Math.abs(getNetBalance(closingTB,  CODES.EQUITY));
   const financingTotal = roundAmount(eqClose - eqOpen);
  
   const netCashChange = roundAmount(operatingTotal + investingTotal + financingTotal);
  
   const openingCash = roundAmount(
-    Math.abs(getNetBalance(openingTB, '1000')) + Math.abs(getNetBalance(openingTB, '1010'))
+    Math.abs(getNetBalance(openingTB, CODES.CASH)) + Math.abs(getNetBalance(openingTB, CODES.BANK))
   );
   const closingCash = roundAmount(openingCash + netCashChange);
  
@@ -1502,7 +1561,7 @@ async function importBankTransactions(rows, accountCode, importBatch, userId) {
   if (!Array.isArray(rows) || rows.length === 0) throw new Error('No rows to import');
  
   const docs = rows.map(row => ({
-    accountCode: accountCode || '1010',
+    accountCode: normCode(accountCode) || CODES.BANK,
     date: new Date(row.date),
     description: String(row.description || '').trim(),
     amount: Math.abs(Number(row.amount)),
@@ -1537,7 +1596,8 @@ async function reconcileTransaction(bankTxId, journalEntryId, userId) {
   return tx;
 }
  
-async function getReconciliationSummary(accountCode, { startDate, endDate } = {}) {
+async function getReconciliationSummary(rawAccountCode, { startDate, endDate } = {}) {
+  const accountCode = normCode(rawAccountCode);
   const dateFilter = {};
   if (startDate) dateFilter.$gte = new Date(startDate);
   if (endDate)   dateFilter.$lte = new Date(endDate);
@@ -1572,7 +1632,7 @@ async function getReconciliationSummary(accountCode, { startDate, endDate } = {}
  
 async function listBankTransactions({ accountCode, isReconciled, startDate, endDate, page = 1, limit = 50 }) {
   const filter = {};
-  if (accountCode) filter.accountCode = accountCode;
+  if (accountCode) filter.accountCode = normCode(accountCode);
   if (typeof isReconciled !== 'undefined') filter.isReconciled = isReconciled === 'true' || isReconciled === true;
   if (startDate || endDate) {
     filter.date = {};
@@ -1707,6 +1767,8 @@ async function exportBalanceSheetCSV({ asOfDate } = {}) {
 module.exports = {
   DEFAULT_CHART,
   DEFAULT_RULES,
+  CODES,
+  migrateLegacyChart,
   ensureDefaultChart,
   ensureDefaultRules,
   ensureOpenPeriod,
@@ -1725,6 +1787,7 @@ module.exports = {
   getProfitAndLoss,
   getBalanceSheet,
   logAudit,
+  getAccountByCode, roundAmount, normCode, nextEntryNumber,
   createPayment, postPaymentReceipt, postSupplierPayment, listPayments,
   getAgedReceivables, getAgedPayables,
   createDraftJournalEntry, submitJournalForReview, approveJournal, rejectJournal,
@@ -1735,3 +1798,6 @@ module.exports = {
   getAuditLog,
   exportTrialBalanceCSV, exportJournalEntriesCSV, exportProfitAndLossCSV, exportBalanceSheetCSV
 };
+
+// Additional accounting features (tax groups, FX, credit notes, assets, budgets, fiscal years, ...)
+Object.assign(module.exports, require('./accountingExtensions')(module.exports));

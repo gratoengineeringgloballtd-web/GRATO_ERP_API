@@ -125,7 +125,9 @@ exports.requireRoles = (...roles) => {
       });
     }
     
-    if (!roles.includes(req.user.role)) {
+    // 'sales' staff are ordinary employees for every general (employee-level) route.
+    const effectiveRoles = roles.includes('employee') && !roles.includes('sales') ? [...roles, 'sales'] : roles;
+    if (!effectiveRoles.includes(req.user.role)) {
       return res.status(403).json({
         success: false,
         message: `User role ${req.user.role} is not authorized to access this route. Required roles: ${roles.join(', ')}`

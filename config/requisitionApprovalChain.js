@@ -218,6 +218,10 @@ const DEPARTMENT_STRUCTURE = {
 const findPersonByEmail = (email) => {
   const normalizedEmail = String(email || '').toLowerCase().trim();
 
+  // Entries edited or added from the admin editor take precedence over this file
+  const override = require('./dynamicStructure').get(normalizedEmail);
+  if (override) return override;
+
   for (const [deptKey, dept] of Object.entries(DEPARTMENT_STRUCTURE)) {
     if (dept.head.email.toLowerCase().trim() === normalizedEmail) {
       return {
@@ -238,7 +242,10 @@ const findPersonByEmail = (email) => {
       }
     }
   }
-  return null;
+  // Not in this file's legacy copy: use the main organisation structure
+  // (config/departmentStructure.js, which also includes people registered at
+  // runtime from the IT console) so everyone resolves to their real supervisor.
+  return require('./departmentStructure').findPersonByEmail(normalizedEmail);
 };
 
 

@@ -1045,6 +1045,156 @@ router.get('/buyer-assignment-tracking',
 );
 
 // ============================================
+// SUPPLY CHAIN ANALYTICS (real figures computed from requisitions)
+// GET /api/purchase-requisitions/analytics/supply-chain?period=monthly|quarterly|yearly&category=all|<itemCategory>
+// ============================================
+router.get('/analytics/supply-chain',
+  authMiddleware,
+  requireRoles('supply_chain', 'admin', 'ceo', 'it', 'finance', 'buyer', 'project'),
+  async (req, res) => {
+    try {
+      const { period = 'quarterly', category = 'all' } = req.query;
+      const windowMonths = period === 'monthly' ? 1 : period === 'yearly' ? 12 : 3;
+      const trendMonths = Math.max(6, windowMonths);
+
+      const now = new Date();
+      const windowStart = new Date(now.getFullYear(), now.getMonth() - (windowMonths - 1), 1);
+      const trendStart = new Date(now.getFullYear(), now.getMonth() - (trendMonths - 1), 1);
+
+      const query = { status: { $ne: 'draft' }, createdAt: { $gte: trendStart } };
+      if (category && category !== 'all') query.itemCategory = category;
+
+      const all = await PurchaseRequisition.find(query)
+        .select('status itemCategory budgetXAF createdAt approvalChain.actionDate approvalChain.status financeVerification.verificationDate supplyChainReview.buyerAssignmentDate headApproval.decisionDate procurementDetails.selectedVendor procurementDetails.finalCost procurementDetails.deliveryStatus procurementDetails.deliveryDate')
+        .lean();
+
+      const APPROVED_PLUS = ['approved', 'supply_chain_approved', 'partially_disbursed', 'fully_disbursed', 'in_procurement', 'procurement_complete', 'delivered', 'completed'];
+      const REJECTED = ['rejected', 'supply_chain_rejected'];
+      const DAY = 86400000;
+      const days = (a, b) => (a && b ? (new Date(b) - new Date(a)) / DAY : null);
+      const avg = (arr) => {
+        const v = arr.filter((x) => x !== null && x !== undefined && x >= 0);
+        return v.length ? Math.round((v.reduce((a, b) => a + b, 0) / v.length) * 10) / 10 : 0;
+      };
+      const spendOf = (r) => (r.procurementDetails?.finalCost > 0 ? r.procurementDetails.finalCost : (r.budgetXAF || 0));
+      const decisionTime = (r) => days(r.createdAt, r.headApproval?.decisionDate);
+
+      const inWindow = all.filter((r) => new Date(r.createdAt) >= windowStart);
+      const approved = inWindow.filter((r) => APPROVED_PLUS.includes(r.status));
+      const rejected = inWindow.filter((r) => REJECTED.includes(r.status));
+
+      const totalSpend = approved.reduce((a, r) => a + spendOf(r), 0);
+      const totalAllocated = approved.reduce((a, r) => a + (r.budgetXAF || 0), 0);
+      const costSavings = approved.reduce((a, r) => {
+        const fc = r.procurementDetails?.finalCost;
+        return fc > 0 && r.budgetXAF > fc ? a + (r.budgetXAF - fc) : a;
+      }, 0);
+      const delivered = inWindow.filter((r) => r.procurementDetails?.deliveryStatus === 'delivered').length;
+      const delayed = inWindow.filter((r) => r.procurementDetails?.deliveryStatus === 'delayed').length;
+      const vendorsInWindow = new Set(inWindow.map((r) => r.procurementDetails?.selectedVendor).filter(Boolean));
+      const decided = approved.length + rejected.length;
+
+      const summary = {
+        totalRequisitions: inWindow.length,
+        totalSpend,
+        averageProcessingTime: avg(inWindow.map(decisionTime)),
+        approvalRate: decided ? Math.round((approved.length / decided) * 100) : 0,
+        budgetUtilization: totalAllocated ? Math.min(100, Math.round((totalSpend / totalAllocated) * 100)) : 0,
+        activeVendors: vendorsInWindow.size,
+        costSavings,
+        deliveryPerformance: delivered + delayed ? Math.round((delivered / (delivered + delayed)) * 100) : 0
+      };
+
+      const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const trendData = [];
+      for (let i = trendMonths - 1; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const next = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+        const rows = all.filter((r) => new Date(r.createdAt) >= d && new Date(r.createdAt) < next);
+        trendData.push({
+          month: `${MONTHS[d.getMonth()]}${d.getFullYear() !== now.getFullYear() ? ` ${String(d.getFullYear()).slice(2)}` : ''}`,
+          requisitions: rows.length,
+          spend: rows.filter((r) => APPROVED_PLUS.includes(r.status)).reduce((a, r) => a + spendOf(r), 0),
+          avgTime: avg(rows.map(decisionTime))
+        });
+      }
+
+      const catMap = {};
+      inWindow.forEach((r) => {
+        const k = r.itemCategory && r.itemCategory !== 'all' ? r.itemCategory : 'Other';
+        catMap[k] = catMap[k] || { name: k, count: 0, spend: 0 };
+        catMap[k].count += 1;
+        if (APPROVED_PLUS.includes(r.status)) catMap[k].spend += spendOf(r);
+      });
+      const categoryBreakdown = Object.values(catMap)
+        .map((c) => ({ ...c, value: inWindow.length ? Math.round((c.count / inWindow.length) * 100) : 0 }))
+        .sort((a, b) => b.count - a.count);
+
+      const vMap = {};
+      inWindow.forEach((r) => {
+        const v = r.procurementDetails?.selectedVendor;
+        if (!v) return;
+        vMap[v] = vMap[v] || { name: v, orders: 0, spend: 0, delivered: 0, delayed: 0 };
+        vMap[v].orders += 1;
+        vMap[v].spend += spendOf(r);
+        if (r.procurementDetails.deliveryStatus === 'delivered') vMap[v].delivered += 1;
+        if (r.procurementDetails.deliveryStatus === 'delayed') vMap[v].delayed += 1;
+      });
+      const ratingByName = {};
+      try {
+        const SupplierPerformance = require('../models/SupplierPerformance');
+        const perf = await SupplierPerformance.aggregate([
+          { $match: { supplierName: { $in: Object.keys(vMap) } } },
+          { $group: { _id: '$supplierName', score: { $avg: '$overallScore' } } }
+        ]);
+        perf.forEach((p) => { ratingByName[p._id] = Math.round((p.score / 20) * 10) / 10; });
+      } catch (e) { /* ratings are optional */ }
+      const vendorPerformance = Object.values(vMap)
+        .map((v) => ({
+          name: v.name,
+          rating: ratingByName[v.name] ?? null,
+          orders: v.orders,
+          onTime: v.delivered + v.delayed ? Math.round((v.delivered / (v.delivered + v.delayed)) * 100) : null,
+          spend: v.spend
+        }))
+        .sort((a, b) => b.spend - a.spend)
+        .slice(0, 10);
+
+      const lastSupervisor = (r) => {
+        const ds = (r.approvalChain || []).filter((s) => s.status === 'approved' && s.actionDate).map((s) => new Date(s.actionDate));
+        return ds.length ? new Date(Math.max(...ds)) : null;
+      };
+      const stageDefs = [
+        { stage: 'Supervisor Approval', from: (r) => r.createdAt, to: lastSupervisor },
+        { stage: 'Finance Verification', from: lastSupervisor, to: (r) => r.financeVerification?.verificationDate },
+        { stage: 'Supply Chain Review', from: (r) => r.financeVerification?.verificationDate, to: (r) => r.supplyChainReview?.buyerAssignmentDate },
+        { stage: 'Head of Business Approval', from: (r) => r.supplyChainReview?.buyerAssignmentDate, to: (r) => r.headApproval?.decisionDate }
+      ];
+      const processingTimes = stageDefs.map((d) => {
+        const reached = inWindow.filter((r) => d.to(r));
+        return {
+          stage: d.stage,
+          avgDays: avg(reached.map((r) => days(d.from(r), d.to(r)))),
+          percentage: inWindow.length ? Math.round((reached.length / inWindow.length) * 100) : 0
+        };
+      });
+
+      const alerts = [];
+      if (summary.budgetUtilization >= 80) alerts.push({ type: 'warning', message: `Budget utilization at ${summary.budgetUtilization}%`, category: 'Budget' });
+      const stuck = inWindow.filter((r) => ['pending_supply_chain_review', 'pending_buyer_assignment'].includes(r.status) && (Date.now() - new Date(r.createdAt)) > 7 * DAY).length;
+      if (stuck) alerts.push({ type: 'warning', message: `${stuck} requisition(s) waiting at Supply Chain for over 7 days`, category: 'Workflow' });
+      if (delayed) alerts.push({ type: 'info', message: `${delayed} delayed deliveries in this period`, category: 'Delivery' });
+      if (summary.approvalRate >= 90 && decided >= 5) alerts.push({ type: 'success', message: `Approval rate is ${summary.approvalRate}%`, category: 'Efficiency' });
+
+      res.json({ success: true, data: { summary, trendData, categoryBreakdown, vendorPerformance, processingTimes, alerts } });
+    } catch (error) {
+      console.error('Supply chain analytics error:', error);
+      res.status(500).json({ success: false, message: 'Failed to fetch supply chain analytics', error: error.message });
+    }
+  }
+);
+
+// ============================================
 // GENERIC ROUTES (last)
 // ============================================
 

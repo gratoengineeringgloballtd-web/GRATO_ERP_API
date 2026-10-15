@@ -6,7 +6,7 @@ const fiscalYearSchema = new mongoose.Schema({
   endDate:         { type: Date, required: true },
   status:          { type: String, enum: ['open','locked','closed'], default: 'open' },
   closingEntryId:  { type: mongoose.Schema.Types.ObjectId, ref: 'JournalEntry', default: null },
-  retainedEarningsAccount: { type: String, default: '3100' },    // new equity account
+  retainedEarningsAccount: { type: String, default: '121' },    // new equity account
   lockedAt:        { type: Date, default: null },
   closedAt:        { type: Date, default: null },
   closedBy:        { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },

@@ -53,8 +53,8 @@ const paymentSchema = new mongoose.Schema({
   },
   bankAccount: {
     type: String,
-    enum: ['1000', '1010'],  // Cash on Hand or Bank Account
-    default: '1010'
+    enum: ['571', '521', '1000', '1010'],  // Caisse / Banque (SYSCOHADA); legacy codes tolerated
+    default: '521'
   },
   reference: {
     type: String,

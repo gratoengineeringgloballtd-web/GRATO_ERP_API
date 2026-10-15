@@ -375,7 +375,21 @@ router.get('/payments', async (req, res) => {
 router.post('/payments', async (req, res) => {
   try {
     const payment = await accountingService.createPayment(req.body, req.user.userId);
-    res.status(201).json({ success: true, data: payment, message: 'Payment recorded' });
+    // Post to the ledger straight away unless the caller opts out (autoPost: false).
+    let entry = null, postingWarning = null;
+    if (req.body.autoPost !== false && req.body.autoPost !== 'false') {
+      try {
+        entry = payment.type === 'receipt'
+          ? await accountingService.postPaymentReceipt(payment._id, req.user.userId)
+          : await accountingService.postSupplierPayment(payment._id, req.user.userId);
+      } catch (postErr) {
+        postingWarning = `Payment saved but not posted to the ledger: ${postErr.message}`;
+      }
+    }
+    res.status(201).json({
+      success: true, data: payment, entry, warning: postingWarning,
+      message: postingWarning ? 'Payment recorded (not yet posted)' : (entry ? `Payment recorded and posted (${entry.entryNumber})` : 'Payment recorded')
+    });
   } catch (error) {
     res.status(400).json({ success: false, message: 'Failed to record payment', error: error.message });
   }

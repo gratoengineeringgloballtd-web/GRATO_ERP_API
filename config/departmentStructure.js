@@ -518,6 +518,10 @@ const DEPARTMENT_STRUCTURE = {
  * Find person details by email across all departments
  */
 const findPersonByEmail = (email) => {
+  // Entries edited or added from the admin editor take precedence over this file
+  const override = require('./dynamicStructure').get(email);
+  if (override) return override;
+
   for (const [deptKey, dept] of Object.entries(DEPARTMENT_STRUCTURE)) {
     if (dept.head.email === email) {
       return {
@@ -538,7 +542,8 @@ const findPersonByEmail = (email) => {
       }
     }
   }
-  return null;
+  // Fall back to people registered at runtime (IT console)
+  return require('./dynamicStructure').get(email);
 };
 
 /**
