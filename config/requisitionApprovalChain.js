@@ -132,7 +132,7 @@ const DEPARTMENT_STRUCTURE = {
         approvalAuthority: 'staff'
       },
       'Finance Officer': {
-        email: 'ranibellmambo@gratoengineering.com',
+        email: 'ranibell.mambo@gratoglobal.com',
         name: 'Ms. Ranibell Mambo',
         reportsTo: 'kelvin.eyong@gratoglobal.com',
         hierarchyLevel: 3,
@@ -347,7 +347,7 @@ const getApprovalChainForRequisition = (employeeEmail, amount = null) => {
 
   // ── STEP 2: FINANCE OFFICER ───────────────────────────────────────────────
   console.log(`\n📋 Adding Finance Officer for budget verification`);
-  const financeEmail = 'ranibellmambo@gratoengineering.com';
+  const financeEmail = 'ranibell.mambo@gratoglobal.com';
 
   if (!seenEmails.has(financeEmail.toLowerCase())) {
     chain.push({
@@ -462,7 +462,7 @@ const createDefaultRequisitionApprovalChain = (amount = null) => {
     level: level++,
     approver: {
       name:       'Ms. Ranibell Mambo',
-      email:      'ranibellmambo@gratoengineering.com',
+      email:      'ranibell.mambo@gratoglobal.com',
       role:       'Finance Officer - Budget Verification',
       department: 'Business Development & Supply Chain',
     },
@@ -734,7 +734,7 @@ module.exports = {
 //         approvalAuthority: 'staff'
 //       },
 //       'Finance Officer': {
-//         email: 'ranibellmambo@gratoengineering.com',
+//         email: 'ranibell.mambo@gratoglobal.com',
 //         name: 'Ms. Ranibell Mambo',
 //         reportsTo: 'kelvin.eyong@gratoglobal.com',
 //         hierarchyLevel: 3,
@@ -914,7 +914,7 @@ module.exports = {
 
 //   // ── STEP 2: FINANCE OFFICER ───────────────────────────────────────────────
 //   console.log(`\n📋 Adding Finance Officer for budget verification`);
-//   const financeEmail = 'ranibellmambo@gratoengineering.com';
+//   const financeEmail = 'ranibell.mambo@gratoglobal.com';
   
 //   if (!seenEmails.has(financeEmail.toLowerCase())) {
 //     chain.push({
@@ -1014,7 +1014,7 @@ module.exports = {
 //     level: level++,
 //     approver: {
 //       name: 'Ms. Ranibell Mambo',
-//       email: 'ranibellmambo@gratoengineering.com',
+//       email: 'ranibell.mambo@gratoglobal.com',
 //       role: 'Finance Officer - Budget Verification',
 //       department: 'Business Development & Supply Chain'
 //     },
@@ -1280,7 +1280,7 @@ module.exports = {
 //         approvalAuthority: 'staff'
 //       },
 //       'Finance Officer': {
-//         email: 'ranibellmambo@gratoengineering.com',
+//         email: 'ranibell.mambo@gratoglobal.com',
 //         name: 'Ms. Ranibell Mambo',
 //         reportsTo: 'kelvin.eyong@gratoglobal.com',
 //         hierarchyLevel: 3,
@@ -1473,7 +1473,7 @@ module.exports = {
 //   // STEP 2: FINANCE OFFICER (Budget Verification)
 //   // ============================================
 //   console.log(`\n📋 Adding Finance Officer for budget verification`);
-//   const financeEmail = 'ranibellmambo@gratoengineering.com';
+//   const financeEmail = 'ranibell.mambo@gratoglobal.com';
   
 //   if (!seenEmails.has(financeEmail.toLowerCase())) {
 //     chain.push({
@@ -1559,7 +1559,7 @@ module.exports = {
 //     level: level++,
 //     approver: {
 //       name: 'Ms. Ranibell Mambo',
-//       email: 'ranibellmambo@gratoengineering.com',
+//       email: 'ranibell.mambo@gratoglobal.com',
 //       role: 'Finance Officer - Budget Verification',
 //       department: 'Business Development & Supply Chain'
 //     },

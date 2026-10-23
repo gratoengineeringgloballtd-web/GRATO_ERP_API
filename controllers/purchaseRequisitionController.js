@@ -1549,7 +1549,7 @@ const processFinanceVerification = async (req, res) => {
 
     if (!requisition) return res.status(404).json({ success: false, message: 'Requisition not found' });
 
-    const canVerify = user.role === 'admin' || user.role === 'finance' || user.email === 'ranibellmambo@gratoengineering.com';
+    const canVerify = user.role === 'admin' || user.role === 'finance' || user.email === 'ranibell.mambo@gratoglobal.com';
     if (!canVerify) return res.status(403).json({ success: false, message: 'Access denied' });
 
     if (requisition.items && requisition.items.length > 0) {
@@ -1973,7 +1973,7 @@ const getBudgetCodesForVerification = async (req, res) => {
 const getFinanceDashboardData = async (req, res) => {
   try {
     const user = await User.findById(req.user.userId);
-    const canView = user.role === 'admin' || user.role === 'finance' || user.email === 'ranibellmambo@gratoengineering.com';
+    const canView = user.role === 'admin' || user.role === 'finance' || user.email === 'ranibell.mambo@gratoglobal.com';
     if (!canView) return res.status(403).json({ success: false, message: 'Access denied' });
 
     const financeRequisitions = await PurchaseRequisition.find({ status: { $in: ['pending_finance_verification', 'pending_supply_chain_review', 'pending_buyer_assignment', 'pending_head_approval', 'approved', 'in_procurement', 'procurement_complete'] } }).populate('employee', 'fullName email department').sort({ createdAt: -1 });
@@ -2777,7 +2777,7 @@ const processJustificationDecision = async (req, res) => {
     if (decision === 'approved') {
       // Notify the next approver
       const nextApproverEmails = {
-        justification_pending_finance:      'ranibellmambo@gratoengineering.com',
+        justification_pending_finance:      'ranibell.mambo@gratoglobal.com',
         justification_pending_supply_chain: 'lukong.lambert@gratoglobal.com',
         justification_pending_head:         'kelvin.eyong@gratoglobal.com',
         justification_pending_ceo:          'tom@gratoengineering.com',

@@ -538,7 +538,7 @@ const updateBudgetCode = async (req, res) => {
     const canUpdate = 
       user.role === 'admin' || 
       user.role === 'finance' ||
-      user.email === 'ranibellmambo@gratoengineering.com';
+      user.email === 'ranibell.mambo@gratoglobal.com';
 
     if (!canUpdate) {
       return res.status(403).json({

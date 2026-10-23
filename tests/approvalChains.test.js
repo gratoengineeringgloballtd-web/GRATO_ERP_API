@@ -98,7 +98,7 @@ test('requisition: a person missing from the legacy copy now follows their real 
 // ---------------------------------------------------------------------------
 test('department line: coordinator reports up to dept head then president', quiet(() => {
   const chain = emailsOf(ds.getApprovalChainFromStructure('bechem.mbu@gratoglobal.com'));
-  expect(chain).toEqual(['didier.oyong@gratoengineering.com', PRESIDENT]);
+  expect(chain).toEqual(['didier.oyong@gratoglobal.com', PRESIDENT]);
 }));
 
 test('department line: unknown email yields an empty line, not an exception', quiet(() => {
@@ -225,7 +225,7 @@ describe('structure overrides (admin editor)', () => {
       reportsTo: PRESIDENT, hierarchyLevel: 3, source: 'base', edited: false
     }]);
     expect(emailsOf(ds.getApprovalChainFromStructure('bechem.mbu@gratoglobal.com')))
-      .toEqual(['didier.oyong@gratoengineering.com', PRESIDENT]);
+      .toEqual(['didier.oyong@gratoglobal.com', PRESIDENT]);
   }));
 
   test('a runtime person can be a supervisor for another runtime person', quiet(() => {

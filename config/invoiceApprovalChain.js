@@ -134,7 +134,7 @@ const getInvoiceApprovalChain = (employeeName, department, amount = null) => {
   }
 
   // ── LEVEL 4: Finance Officer ──────────────────────────────────────────────
-  const financeEmail = 'ranibellmambo@gratoengineering.com';
+  const financeEmail = 'ranibell.mambo@gratoglobal.com';
   if (!seenEmails.has(financeEmail)) {
     const financeLevel = chain.length + 1;
     chain.push({
@@ -286,7 +286,7 @@ const getFallbackInvoiceApprovalChain = (department, amount = null) => {
   }
 
   // Finance Officer
-  const financeEmail = 'ranibellmambo@gratoengineering.com';
+  const financeEmail = 'ranibell.mambo@gratoglobal.com';
   if (!seenEmails.has(financeEmail)) {
     chain.push({
       level: level++,
@@ -523,7 +523,7 @@ module.exports = {
 //   }
 
 //   // LEVEL 4: Finance Officer
-//   const financeEmail = 'ranibellmambo@gratoengineering.com';
+//   const financeEmail = 'ranibell.mambo@gratoglobal.com';
 //   if (!seenEmails.has(financeEmail)) {
 //     const financeLevel = chain.length + 1;
 //     chain.push({
@@ -646,7 +646,7 @@ module.exports = {
 //   }
 
 //   // Finance
-//   const financeEmail = 'ranibellmambo@gratoengineering.com';
+//   const financeEmail = 'ranibell.mambo@gratoglobal.com';
 //   if (!seenEmails.has(financeEmail)) {
 //     chain.push({
 //       level: level++,
@@ -871,7 +871,7 @@ module.exports = {
 //   }
 
 //   // LEVEL 4: Finance Officer (ALWAYS LAST - NEVER SKIP)
-//   const financeEmail = 'ranibellmambo@gratoengineering.com';
+//   const financeEmail = 'ranibell.mambo@gratoglobal.com';
 //   if (!seenEmails.has(financeEmail)) {
 //     const finalLevel = chain.length + 1;
 //     chain.push({
@@ -975,7 +975,7 @@ module.exports = {
 //   }
 
 //   // Finance (ALWAYS LAST)
-//   const financeEmail = 'ranibellmambo@gratoengineering.com';
+//   const financeEmail = 'ranibell.mambo@gratoglobal.com';
 //   if (!seenEmails.has(financeEmail)) {
 //     chain.push({
 //       level: level++,

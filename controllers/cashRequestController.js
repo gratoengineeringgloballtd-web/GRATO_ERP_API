@@ -1320,7 +1320,7 @@ const submitJustification = async (req, res) => {
 
       const FINANCE_OFFICER = {
         name: 'Ms. Ranibell Mambo',
-        email: 'ranibellmambo@gratoengineering.com',
+        email: 'ranibell.mambo@gratoglobal.com',
         role: 'Finance Officer',
         department: 'Finance'
       };
@@ -3302,7 +3302,7 @@ const processSupervisorDecision = async (req, res) => {
  
         // Notify Finance to disburse
         await sendEmail({
-          to: 'ranibellmambo@gratoengineering.com',
+          to: 'ranibell.mambo@gratoglobal.com',
           subject: `💰 CEO Approved - Ready for Disbursement - ${request.employee.fullName}`,
           html: `
             <h3>Request Approved by CEO - Ready for Disbursement</h3>
@@ -3404,7 +3404,7 @@ const processSupervisorDecision = async (req, res) => {
           await request.save();
  
           await sendEmail({
-            to: 'ranibellmambo@gratoengineering.com',
+            to: 'ranibell.mambo@gratoglobal.com',
             subject: `💰 Approved for Disbursement - ${request.employee.fullName}`,
             html: `
               <h3>Request Approved - Ready for Disbursement</h3>

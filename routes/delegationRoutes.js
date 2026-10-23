@@ -9,6 +9,7 @@ router.get('/me', delegationController.getMyDelegation);
 router.post('/me', delegationController.setDelegation);
 router.delete('/me', delegationController.clearDelegation);
 router.get('/delegators', delegationController.getMyDelegators);
+router.get('/acting-profile/:userId', delegationController.getActingProfile);
 router.get('/candidates', delegationController.searchDelegateCandidates);
 
 module.exports = router;

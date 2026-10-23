@@ -415,7 +415,7 @@ const DEPARTMENT_STRUCTURE = {
         approvalAuthority: 'staff'
       },
       'Finance Officer': {
-        email: 'ranibellmambo@gratoengineering.com',
+        email: 'ranibell.mambo@gratoglobal.com',
         name: 'Ms. Ranibell Mambo',
         reportsTo: 'kelvin.eyong@gratoglobal.com',
         hierarchyLevel: 3,
