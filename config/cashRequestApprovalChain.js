@@ -78,8 +78,8 @@ const getCashRequestApprovalChain = (employeeEmail, requestType, amount = null) 
   };
 
   const FINANCE_OFFICER = {
-    name:       'Ms. Ranibell Mambo',
-    email:      'ranibell.mambo@gratoglobal.com',
+    name:       'Mr. Lainjo Remyhans',
+    email:      'lainjo.remyhans@gratoglobal.com',
     role:       'Finance Officer',
     department: 'Finance',
   };
@@ -345,7 +345,7 @@ const mapRoleForCashApproval = (structureRole, level, email = '') => {
   const emailLow  = String(email || '').toLowerCase();
 
   if (emailLow === 'bruiline.tsitoh@gratoglobal.com')    return 'HR Head';
-  if (emailLow === 'ranibell.mambo@gratoglobal.com') return 'Finance Officer';
+  if (emailLow === 'lainjo.remyhans@gratoglobal.com' || emailLow === 'ranibell.mambo@gratoglobal.com') return 'Finance Officer';
   if (emailLow === 'kelvin.eyong@gratoglobal.com')       return 'Head of Business';
   if (emailLow === 'tom@gratoengineering.com')           return 'CEO - Final Authority';
 
@@ -447,8 +447,8 @@ const getFallbackApprovalChain = (requestType, amount = null) => {
   fallbackChain.push({
     level:        nextLevel,
     approver: {
-      name:       'Ms. Ranibell Mambo',
-      email:      'ranibell.mambo@gratoglobal.com',
+      name:       'Mr. Lainjo Remyhans',
+      email:      'lainjo.remyhans@gratoglobal.com',
       role:       'Finance Officer',
       department: 'Finance',
     },
@@ -594,7 +594,7 @@ const isFinanceStep = (step) => {
   if (!step || !step.approver) return false;
   return (
     step.approver.role === 'Finance Officer' ||
-    step.approver.email?.toLowerCase() === 'ranibell.mambo@gratoglobal.com'
+    ['lainjo.remyhans@gratoglobal.com', 'ranibell.mambo@gratoglobal.com'].includes(step.approver.email?.toLowerCase())
   );
 };
 
@@ -713,8 +713,8 @@ module.exports = {
 //   };
 
 //   const FINANCE_OFFICER = {
-//     name: 'Ms. Ranibell Mambo',
-//     email: 'ranibell.mambo@gratoglobal.com',
+//     name: 'Mr. Lainjo Remyhans',
+//     email: 'lainjo.remyhans@gratoglobal.com',
 //     role: 'Finance Officer',
 //     department: 'Finance'
 //   };
@@ -972,7 +972,7 @@ module.exports = {
 //   }
 
 //   // Finance Officer role mapping
-//   if (emailLower === 'ranibell.mambo@gratoglobal.com') {
+//   if (emailLower === 'lainjo.remyhans@gratoglobal.com') {
 //     return 'Finance Officer';
 //   }
 
@@ -1095,8 +1095,8 @@ module.exports = {
 //   fallbackChain.push({
 //     level: nextLevel,
 //     approver: {
-//       name: 'Ms. Ranibell Mambo',
-//       email: 'ranibell.mambo@gratoglobal.com',
+//       name: 'Mr. Lainjo Remyhans',
+//       email: 'lainjo.remyhans@gratoglobal.com',
 //       role: 'Finance Officer',
 //       department: 'Finance'
 //     },
@@ -1246,7 +1246,7 @@ module.exports = {
 //   if (!step || !step.approver) return false;
   
 //   return step.approver.role === 'Finance Officer' || 
-//          step.approver.email?.toLowerCase() === 'ranibell.mambo@gratoglobal.com';
+//          step.approver.email?.toLowerCase() === 'lainjo.remyhans@gratoglobal.com';
 // };
 
 // /**

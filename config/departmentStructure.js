@@ -422,6 +422,15 @@ const DEPARTMENT_STRUCTURE = {
         canSupervise: [],
         approvalAuthority: 'finance',
         specialRole: 'finance'
+      },
+      'Manager Finance, Audit and Assets': {
+        email: 'lainjo.remyhans@gratoglobal.com',
+        name: 'Mr. Lainjo Remyhans',
+        reportsTo: 'kelvin.eyong@gratoglobal.com',
+        hierarchyLevel: 3,
+        canSupervise: [],
+        approvalAuthority: 'finance',
+        specialRole: 'finance'
       }
     }
   },

@@ -440,8 +440,8 @@ invoiceSchema.methods.assignToDepartment = function(department, assignedByUserId
     defaultChain.push({
       level: defaultChain.length + 1,
       approver: {
-        name: 'Ms. Ranibell Mambo',
-        email: 'ranibell.mambo@gratoglobal.com',
+        name: 'Mr. Lainjo Remyhans',
+        email: 'lainjo.remyhans@gratoglobal.com',
         role: 'Finance Officer',
         department: 'Business Development & Supply Chain'
       }

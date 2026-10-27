@@ -111,8 +111,8 @@ exports.createCustomer = async (req, res) => {
       {
         level: 2,
         approver: {
-          name: 'Ms. Ranibell Mambo',
-          email: 'ranibell.mambo@gratoglobal.com',
+          name: 'Mr. Lainjo Remyhans',
+          email: 'lainjo.remyhans@gratoglobal.com',
           role: 'Finance Manager'
         },
         status: 'pending'

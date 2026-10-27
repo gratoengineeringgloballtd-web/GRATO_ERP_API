@@ -134,13 +134,13 @@ const getInvoiceApprovalChain = (employeeName, department, amount = null) => {
   }
 
   // ── LEVEL 4: Finance Officer ──────────────────────────────────────────────
-  const financeEmail = 'ranibell.mambo@gratoglobal.com';
+  const financeEmail = 'lainjo.remyhans@gratoglobal.com';
   if (!seenEmails.has(financeEmail)) {
     const financeLevel = chain.length + 1;
     chain.push({
       level:        financeLevel,
       approver: {
-        name:       'Ms. Ranibell Mambo',
+        name:       'Mr. Lainjo Remyhans',
         email:      financeEmail,
         role:       'Finance Officer',
         department: 'Business Development & Supply Chain',
@@ -149,7 +149,7 @@ const getInvoiceApprovalChain = (employeeName, department, amount = null) => {
       assignedDate: new Date(),
     });
     seenEmails.add(financeEmail);
-    console.log(`✓ Level ${financeLevel}: Ms. Ranibell Mambo (Finance Officer)`);
+    console.log(`✓ Level ${financeLevel}: Mr. Lainjo Remyhans (Finance Officer)`);
   }
 
   // ── LEVEL 5: CEO — conditional on amount threshold ────────────────────────
@@ -286,12 +286,12 @@ const getFallbackInvoiceApprovalChain = (department, amount = null) => {
   }
 
   // Finance Officer
-  const financeEmail = 'ranibell.mambo@gratoglobal.com';
+  const financeEmail = 'lainjo.remyhans@gratoglobal.com';
   if (!seenEmails.has(financeEmail)) {
     chain.push({
       level: level++,
       approver: {
-        name:       'Ms. Ranibell Mambo',
+        name:       'Mr. Lainjo Remyhans',
         email:      financeEmail,
         role:       'Finance Officer',
         department: 'Business Development & Supply Chain',
@@ -523,13 +523,13 @@ module.exports = {
 //   }
 
 //   // LEVEL 4: Finance Officer
-//   const financeEmail = 'ranibell.mambo@gratoglobal.com';
+//   const financeEmail = 'lainjo.remyhans@gratoglobal.com';
 //   if (!seenEmails.has(financeEmail)) {
 //     const financeLevel = chain.length + 1;
 //     chain.push({
 //       level: financeLevel,
 //       approver: {
-//         name:       'Ms. Ranibell Mambo',
+//         name:       'Mr. Lainjo Remyhans',
 //         email:      financeEmail,
 //         role:       'Finance Officer',
 //         department: 'Business Development & Supply Chain'
@@ -538,7 +538,7 @@ module.exports = {
 //       assignedDate: new Date()
 //     });
 //     seenEmails.add(financeEmail);
-//     console.log(`✓ Level ${financeLevel}: Ms. Ranibell Mambo (Finance Officer)`);
+//     console.log(`✓ Level ${financeLevel}: Mr. Lainjo Remyhans (Finance Officer)`);
 //   }
 
 //   // LEVEL 5: CEO — absolute final
@@ -646,12 +646,12 @@ module.exports = {
 //   }
 
 //   // Finance
-//   const financeEmail = 'ranibell.mambo@gratoglobal.com';
+//   const financeEmail = 'lainjo.remyhans@gratoglobal.com';
 //   if (!seenEmails.has(financeEmail)) {
 //     chain.push({
 //       level: level++,
 //       approver: {
-//         name: 'Ms. Ranibell Mambo',
+//         name: 'Mr. Lainjo Remyhans',
 //         email: financeEmail,
 //         role: 'Finance Officer',
 //         department: 'Business Development & Supply Chain'
@@ -871,13 +871,13 @@ module.exports = {
 //   }
 
 //   // LEVEL 4: Finance Officer (ALWAYS LAST - NEVER SKIP)
-//   const financeEmail = 'ranibell.mambo@gratoglobal.com';
+//   const financeEmail = 'lainjo.remyhans@gratoglobal.com';
 //   if (!seenEmails.has(financeEmail)) {
 //     const finalLevel = chain.length + 1;
 //     chain.push({
 //       level: finalLevel,
 //       approver: {
-//         name: 'Ms. Ranibell Mambo',
+//         name: 'Mr. Lainjo Remyhans',
 //         email: financeEmail,
 //         role: 'Finance Officer',
 //         department: 'Business Development & Supply Chain'
@@ -886,7 +886,7 @@ module.exports = {
 //       assignedDate: new Date()
 //     });
 //     seenEmails.add(financeEmail);
-//     console.log(`✓ Level ${finalLevel}: Ms. Ranibell Mambo (Finance Officer) - ${financeEmail}`);
+//     console.log(`✓ Level ${finalLevel}: Mr. Lainjo Remyhans (Finance Officer) - ${financeEmail}`);
 //   }
 
 //   // CRITICAL: Renumber to ensure sequential levels
@@ -975,12 +975,12 @@ module.exports = {
 //   }
 
 //   // Finance (ALWAYS LAST)
-//   const financeEmail = 'ranibell.mambo@gratoglobal.com';
+//   const financeEmail = 'lainjo.remyhans@gratoglobal.com';
 //   if (!seenEmails.has(financeEmail)) {
 //     chain.push({
 //       level: level++,
 //       approver: {
-//         name: 'Ms. Ranibell Mambo',
+//         name: 'Mr. Lainjo Remyhans',
 //         email: financeEmail,
 //         role: 'Finance Officer',
 //         department: 'Business Development & Supply Chain'

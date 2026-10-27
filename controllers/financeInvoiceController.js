@@ -270,7 +270,8 @@ exports.prepareInvoiceFromPO = async (req, res) => {
       dueDate: new Date(dueDate),
       totalAmount: parseFloat(totalAmount),
       taxAmount: parseFloat(taxAmount || 0),
-      netAmount: parseFloat(totalAmount) - parseFloat(taxAmount || 0),
+      // Final amount = amount before VAT + VAT (net plus VAT, never net minus VAT)
+      netAmount: parseFloat(totalAmount) + parseFloat(taxAmount || 0),
       description,
       paymentTerms,
       status: status, // 'draft' or 'pending_approval'
@@ -766,7 +767,9 @@ async function notifyApprovalChain(invoice) {
           <ul>
             <li><strong>Invoice Number:</strong> ${invoice.invoiceNumber}</li>
             <li><strong>PO Number:</strong> ${invoice.poNumber}</li>
-            <li><strong>Total Amount:</strong> XAF ${invoice.totalAmount?.toLocaleString()}</li>
+            <li><strong>Amount (excl. VAT):</strong> XAF ${invoice.totalAmount?.toLocaleString()}</li>
+            <li><strong>VAT:</strong> XAF ${(invoice.taxAmount || 0).toLocaleString()}</li>
+            <li><strong>Total (incl. VAT):</strong> XAF ${((invoice.totalAmount || 0) + (invoice.taxAmount || 0)).toLocaleString()}</li>
             <li><strong>Supplier:</strong> ${invoice.supplierDetails?.name || 'N/A'}</li>
             <li><strong>Due Date:</strong> ${moment(invoice.dueDate).format('DD/MM/YYYY')}</li>
           </ul>
