@@ -763,7 +763,9 @@ exports.getInvoiceDetails = async (req, res) => {
 // Get all invoices for supervisor (including upcoming ones)
 exports.getSupervisorInvoices = async (req, res) => {
   try {
-    const invoices = await Invoice.getForSupervisor(req.user.email);
+    const { getInheritedSeat } = require('../utils/financeSeat');
+    const inherited = await getInheritedSeat(req.user.email);
+    const invoices = await Invoice.getForSupervisor([req.user.email, ...inherited.emails]);
     const data = await withPOBalances(invoices);
 
     res.json({

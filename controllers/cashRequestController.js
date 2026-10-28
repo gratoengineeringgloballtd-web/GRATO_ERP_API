@@ -5,6 +5,7 @@ const Project = require('../models/Project');
 const { getCashRequestApprovalChain, getNextApprovalStatus, canUserApproveAtLevel } = require('../config/cashRequestApprovalChain');
 const { sendCashRequestEmail, sendEmail } = require('../services/emailService');
 const { getEffectiveApprovalEmails, matchesEffectiveApprover } = require('../utils/delegationHelper');
+const { getInheritedSeat } = require('../utils/financeSeat');
 const { 
   saveFile, 
   deleteFile,
@@ -427,7 +428,13 @@ const getFinanceRequests = async (req, res) => {
     // Effective emails = the user's own, plus anyone who has delegated their approvals
     // to them - computed once here since it's needed both when building the query and
     // when re-validating results below.
-    const financeEffectiveEmails = await getEffectiveApprovalEmails(req.user.userId, user.email);
+    // Remyhans also inherits Ranibell's finance history (her actions keep her name)
+    const inheritedSeat = await getInheritedSeat(user.email);
+    const financeEffectiveEmails = [
+      ...(await getEffectiveApprovalEmails(req.user.userId, user.email)),
+      ...inheritedSeat.emails
+    ];
+    const financeSeatEmails = [user.email, ...inheritedSeat.emails];
     
     let query = {};
     
@@ -456,7 +463,7 @@ const getFinanceRequests = async (req, res) => {
             // Requests approved by this finance officer
             'approvalChain': {
               $elemMatch: {
-                'approver.email': user.email,
+                'approver.email': { $in: financeSeatEmails },
                 'approver.role': 'Finance Officer',
                 'status': 'approved'
               }
@@ -466,7 +473,7 @@ const getFinanceRequests = async (req, res) => {
             // Requests rejected by this finance officer
             'approvalChain': {
               $elemMatch: {
-                'approver.email': user.email,
+                'approver.email': { $in: financeSeatEmails },
                 'approver.role': 'Finance Officer',
                 'status': 'rejected'
               }

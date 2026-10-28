@@ -1794,14 +1794,19 @@ const getFinanceRequisitions = async (req, res) => {
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
     const financeEmail = user.email.toLowerCase();
+    // Remyhans also inherits Ranibell's finance history (her actions keep her name)
+    const { getInheritedSeat } = require('../utils/financeSeat');
+    const inheritedSeat = await getInheritedSeat(user.email);
+    const financeSeatEmails = [financeEmail, ...inheritedSeat.emails];
+    const financeSeatUserIds = [req.user.userId, ...inheritedSeat.userIds];
 
     const query = {
       $or: [
         { status: 'pending_finance_verification' },
         { status: 'justification_pending_finance' },
-        { 'approvalChain': { $elemMatch: { 'approver.email': financeEmail, 'approver.role': { $regex: /finance/i }, 'status': 'pending' } } },
-        { 'financeVerification.verifiedBy': req.user.userId },
-        { status: { $in: ['approved', 'partially_disbursed', 'fully_disbursed'] }, 'financeVerification.verifiedBy': req.user.userId }
+        { 'approvalChain': { $elemMatch: { 'approver.email': { $in: financeSeatEmails }, 'approver.role': { $regex: /finance/i }, 'status': { $in: ['pending', 'approved', 'rejected'] } } } },
+        { 'financeVerification.verifiedBy': { $in: financeSeatUserIds } },
+        { status: { $in: ['approved', 'partially_disbursed', 'fully_disbursed'] }, 'financeVerification.verifiedBy': { $in: financeSeatUserIds } }
       ]
     };
 
@@ -1814,13 +1819,25 @@ const getFinanceRequisitions = async (req, res) => {
 
     const enrichedRequisitions = requisitions.map(req => {
       const reqObj = req.toObject();
-      const financeStep = reqObj.approvalChain?.find(step => step.approver.email.toLowerCase() === financeEmail && step.approver.role?.toLowerCase().includes('finance'));
+      const financeStep = reqObj.approvalChain?.find(step => financeSeatEmails.includes(step.approver.email.toLowerCase()) && step.approver.role?.toLowerCase().includes('finance'));
       const totalBudget = reqObj.budgetXAF || 0;
       const totalDisbursed = reqObj.totalDisbursed || 0;
       const remainingBalance = reqObj.remainingBalance ?? (totalBudget - totalDisbursed);
       const disbursementProgress = totalBudget > 0 ? Math.round((totalDisbursed / totalBudget) * 100) : 0;
-      return { ...reqObj, financeApprovalStep: financeStep, isAwaitingFinance: financeStep?.status === 'pending', financeHasActed: financeStep?.status !== 'pending', totalDisbursed, remainingBalance, disbursementProgress, disbursements: reqObj.disbursements || [] };
-    });
+      // "Waiting on finance" means it has actually reached finance: the requisition is at the
+      // finance verification stage, or the finance step is pending AND every earlier step is
+      // already approved. A pending finance step further down a chain that is still stuck at
+      // an earlier approver is NOT waiting on finance yet.
+      const earlierApproved = financeStep
+        ? (reqObj.approvalChain || []).filter(s => s.level < financeStep.level).every(s => s.status === 'approved')
+        : false;
+      const isAwaitingFinance =
+        reqObj.status === 'pending_finance_verification' ||
+        (financeStep?.status === 'pending' && earlierApproved && !['rejected', 'cancelled', 'denied'].includes(reqObj.status));
+      const financeHasActed = !!financeStep && financeStep.status !== 'pending';
+      const notYetAtFinance = !isAwaitingFinance && financeStep?.status === 'pending';
+      return { ...reqObj, financeApprovalStep: financeStep, isAwaitingFinance, financeHasActed, notYetAtFinance, totalDisbursed, remainingBalance, disbursementProgress, disbursements: reqObj.disbursements || [] };
+    }).filter(r => !r.notYetAtFinance);
 
     res.json({ success: true, data: enrichedRequisitions, count: enrichedRequisitions.length, pending: enrichedRequisitions.filter(r => r.isAwaitingFinance).length });
   } catch (error) {
