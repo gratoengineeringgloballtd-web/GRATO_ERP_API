@@ -7,6 +7,7 @@ const WorkflowService = require('../services/workflowService');
 const path = require('path');
 const fs = require('fs').promises;
 const accountingService = require('../services/accountingService');
+const { getEffectiveApprovalEmails } = require('../utils/delegationHelper');
 
 /**
  * Enrich one invoice or a list of invoices with `poBalance` — the tracked
@@ -58,14 +59,43 @@ async function withPOBalances(invoiceOrInvoices) {
   return isArray ? list : list[0];
 }
 
+/**
+ * Post a customer invoice to the books and RECORD the outcome on the invoice
+ * (postingStatus 'posted' / 'failed' + postingError). It never throws, but a failure is no
+ * longer silent: the caller gets { ok:false, error } to show the user, and finance can retry
+ * via PUT /api/invoices/finance/retry-posting/:invoiceId. Posting itself is idempotent.
+ */
 const safePostCustomerInvoiceEntry = async (invoiceId, userId, context = '') => {
+  const stamp = (fields) => Invoice.updateOne({ _id: invoiceId }, { $set: fields }).catch(e =>
+    console.error('Could not record posting status:', e.message));
   try {
     await accountingService.ensureDefaultChart();
     await accountingService.postCustomerInvoice(invoiceId, userId);
+    await stamp({ postingStatus: 'posted', postingError: null, postingAttemptedAt: new Date() });
     console.log(`✅ Accounting posted for customer invoice${context ? ` (${context})` : ''}`);
+    return { ok: true };
   } catch (error) {
-    console.error(`⚠️ Accounting auto-post skipped for customer invoice${context ? ` (${context})` : ''}:`, error.message);
+    console.error(`❌ ACCOUNTING POSTING FAILED for customer invoice${context ? ` (${context})` : ''}:`, error.message);
+    await stamp({ postingStatus: 'failed', postingError: String(error.message || error).slice(0, 500), postingAttemptedAt: new Date() });
+    return { ok: false, error: error.message || String(error) };
   }
+};
+
+// Ids that identify the person performing an action (the real person, even when acting as a delegator)
+const actorIds = (user) => {
+  const ids = [user?.userId, user?._id, user?.id];
+  const real = user?.actingBy;
+  if (real) ids.push(real.userId, real._id, real.id);
+  return ids.filter(Boolean).map(String);
+};
+const isPreparer = (invoice, user) => {
+  const ids = new Set(actorIds(user));
+  if ([invoice.createdBy, invoice.employee]
+    .filter(Boolean)
+    .map(v => String(v._id || v))
+    .some(v => ids.has(v))) return true;
+  const mine = [user?.email, user?.actingBy?.email].filter(Boolean).map(e => String(e).toLowerCase());
+  return invoice.getPreparerEmails().some(e => mine.includes(e));
 };
 
 
@@ -550,8 +580,24 @@ exports.processApprovalStep = async (req, res) => {
       });
     }
 
-    // Check if user can approve at current level
-    if (!invoice.canUserApprove(req.user.email)) {
+    if (invoice.approvalStatus !== 'pending_department_approval') {
+      return res.status(400).json({
+        success: false,
+        message: `This invoice is not awaiting approval (status: ${invoice.approvalStatus})`
+      });
+    }
+
+    // Segregation of duties: whoever prepared/uploaded the invoice cannot approve or reject it
+    if (isPreparer(invoice, req.user)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Segregation of duties: you prepared this invoice, so someone else must approve it.'
+      });
+    }
+
+    // Check if user (or someone who delegated to them) can approve at current level
+    const effectiveEmails = await getEffectiveApprovalEmails(req.user.userId, req.user.email);
+    if (!invoice.canUserApprove(effectiveEmails)) {
       return res.status(403).json({
         success: false,
         message: 'You are not authorized to approve this invoice at this level'
@@ -560,7 +606,7 @@ exports.processApprovalStep = async (req, res) => {
 
     // Process the approval step
     const processedStep = invoice.processApprovalStep(
-      req.user.email,
+      effectiveEmails,
       decision,
       comments,
       req.user.userId
@@ -568,20 +614,21 @@ exports.processApprovalStep = async (req, res) => {
 
     await invoice.save();
 
+    let posting = null;
     if (decision === 'approved' && invoice.approvalStatus === 'approved') {
-      await safePostCustomerInvoiceEntry(invoice._id, req.user.userId, 'final approval');
+      posting = await safePostCustomerInvoiceEntry(invoice._id, req.user.userId, 'final approval');
     }
 
     // Send notification to employee
     const statusText = decision === 'approved' ? 'approved' : 'rejected';
-    await sendEmail({
+    if (invoice.employee?.email) await sendEmail({
       to: invoice.employee.email,
       subject: `Invoice ${statusText.charAt(0).toUpperCase() + statusText.slice(1)} - ${invoice.poNumber}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="background-color: ${decision === 'approved' ? '#f6ffed' : '#fff2f0'}; padding: 20px; border-radius: 8px; border-left: 4px solid ${decision === 'approved' ? '#52c41a' : '#ff4d4f'};">
             <h3>Invoice ${decision === 'approved' ? 'Approved' : 'Rejected'}</h3>
-            <p>Dear ${invoice.employee.fullName},</p>
+            <p>Dear ${invoice.employee?.fullName || 'colleague'},</p>
             
             <p>Your invoice has been ${statusText} by ${processedStep.approver.name} (${processedStep.approver.role}).</p>
             
@@ -619,7 +666,10 @@ exports.processApprovalStep = async (req, res) => {
     console.log('=== APPROVAL STEP PROCESSED SUCCESSFULLY ===');
     res.json({
       success: true,
-      message: `Invoice ${statusText} successfully`,
+      message: `Invoice ${statusText} successfully` +
+        (posting && !posting.ok ? ' — BUT the accounting entry could not be posted; finance must retry posting.' : ''),
+      accountingPosted: posting ? posting.ok : undefined,
+      accountingError: posting && !posting.ok ? posting.error : undefined,
       data: invoice
     });
 
@@ -637,7 +687,8 @@ exports.getPendingApprovalsForUser = async (req, res) => {
   try {
     console.log('Fetching pending approvals for:', req.user.email);
 
-    const invoices = await Invoice.getPendingForApprover(req.user.email);
+    const effectiveEmails = await getEffectiveApprovalEmails(req.user.userId, req.user.email);
+    const invoices = await Invoice.getPendingForApprover(effectiveEmails);
 
     console.log(`Found ${invoices.length} pending invoices for approval`);
 
@@ -669,6 +720,20 @@ exports.getInvoiceDetails = async (req, res) => {
         success: false,
         message: 'Invoice not found'
       });
+    }
+
+    // Only finance/admin/ceo, the preparer/uploader, or someone in the approval chain may view it
+    const privileged = ['finance', 'admin', 'ceo'].includes(req.user.role);
+    if (!privileged) {
+      const emails = await getEffectiveApprovalEmails(req.user.userId, req.user.email);
+      const inChain = (invoice.approvalChain || []).some(step =>
+        step.approver?.email && emails.includes(String(step.approver.email).toLowerCase()));
+      if (!inChain && !isPreparer(invoice, req.user)) {
+        return res.status(403).json({
+          success: false,
+          message: 'You do not have access to this invoice'
+        });
+      }
     }
 
     const enrichedInvoice = await withPOBalances(invoice);
@@ -764,7 +829,8 @@ exports.assignInvoiceToDepartment = async (req, res) => {
     
     await invoice.save();
 
-    await safePostCustomerInvoiceEntry(invoice._id, req.user.userId, 'marked processed');
+    // NOTE: nothing is posted to the books here. An invoice is only booked once its approval
+    // chain is fully approved (see processApprovalStep).
     
     console.log('Invoice assigned successfully. First approver:', invoice.getCurrentApprover()?.approver.name);
     
@@ -909,9 +975,15 @@ exports.markInvoiceAsProcessed = async (req, res) => {
     };
     
     await invoice.save();
+
+    // Safety net: if the entry wasn't booked at approval (e.g. it failed), try again now
+    let posting = null;
+    if (invoice.postingStatus !== 'posted') {
+      posting = await safePostCustomerInvoiceEntry(invoice._id, req.user.userId, 'marked processed');
+    }
     
     // Notify employee
-    if (invoice.employee.email) {
+    if (invoice.employee?.email) {
       await sendEmail({
         to: invoice.employee.email,
         subject: `✅ Invoice Processed - ${invoice.poNumber}`,
@@ -919,7 +991,7 @@ exports.markInvoiceAsProcessed = async (req, res) => {
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
             <div style="background-color: #d4edda; padding: 20px; border-radius: 8px;">
               <h2>✅ Invoice Successfully Processed</h2>
-              <p>Dear ${invoice.employeeDetails.name},</p>
+              <p>Dear ${invoice.employeeDetails?.name || invoice.employee?.fullName || 'colleague'},</p>
               <p>Your invoice has been successfully processed by the finance team.</p>
               
               <div style="background-color: white; padding: 20px; border-radius: 8px;">
@@ -947,7 +1019,10 @@ exports.markInvoiceAsProcessed = async (req, res) => {
     
     res.json({
       success: true,
-      message: 'Invoice marked as processed successfully',
+      message: 'Invoice marked as processed successfully' +
+        (posting && !posting.ok ? ' — BUT the accounting entry could not be posted; use retry posting.' : ''),
+      accountingPosted: posting ? posting.ok : undefined,
+      accountingError: posting && !posting.ok ? posting.error : undefined,
       data: invoice
     });
     
@@ -957,6 +1032,65 @@ exports.markInvoiceAsProcessed = async (req, res) => {
       success: false,
       message: error.message || 'Failed to mark invoice as processed'
     });
+  }
+};
+
+// Admin/CEO: swap the approver on a pending step (e.g. someone on leave, or an in-flight invoice
+// whose approver is also its preparer). The new approver can't be the preparer.
+exports.reassignApprovalStep = async (req, res) => {
+  try {
+    const { level, newApproverEmail, reason } = req.body || {};
+    if (!level || !newApproverEmail || !reason || String(reason).trim().length < 5) {
+      return res.status(400).json({ success: false, message: 'level, newApproverEmail and a reason (min 5 characters) are required' });
+    }
+    const invoice = await Invoice.findById(req.params.invoiceId);
+    if (!invoice) return res.status(404).json({ success: false, message: 'Invoice not found' });
+    if (invoice.approvalStatus !== 'pending_department_approval') {
+      return res.status(400).json({ success: false, message: 'Only invoices awaiting approval can be reassigned' });
+    }
+    const step = invoice.approvalChain.find(s => s.level === Number(level));
+    if (!step || step.status !== 'pending') {
+      return res.status(400).json({ success: false, message: 'That step does not exist or is already decided' });
+    }
+    const email = String(newApproverEmail).trim().toLowerCase();
+    if (invoice.getPreparerEmails().includes(email)) {
+      return res.status(400).json({ success: false, message: 'The new approver prepared this invoice and cannot approve it' });
+    }
+    const user = await User.findOne({ email: new RegExp(`^${email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') })
+      .select('fullName email role department isActive');
+    if (!user || user.isActive === false) {
+      return res.status(404).json({ success: false, message: 'No active user has that email' });
+    }
+    step.reassignedFrom = { name: step.approver?.name, email: step.approver?.email };
+    step.reassignedBy = req.user.userId;
+    step.reassignedAt = new Date();
+    step.reassignReason = String(reason).trim();
+    step.approver = { name: user.fullName, email: user.email, userId: user._id, role: step.approver?.role || user.role, department: user.department };
+    step.notificationSent = false;
+    await invoice.save();   // post-save hook notifies the approver if this is the current level
+    res.json({ success: true, message: `Step ${level} reassigned to ${user.fullName}`, data: invoice });
+  } catch (error) {
+    console.error('Reassign failed:', error);
+    res.status(500).json({ success: false, message: error.message || 'Failed to reassign step' });
+  }
+};
+
+// Retry booking an approved invoice whose accounting posting failed (idempotent)
+exports.retryAccountingPost = async (req, res) => {
+  try {
+    const invoice = await Invoice.findById(req.params.invoiceId);
+    if (!invoice) return res.status(404).json({ success: false, message: 'Invoice not found' });
+    if (!['approved', 'processed'].includes(invoice.approvalStatus)) {
+      return res.status(400).json({ success: false, message: 'Only fully approved invoices can be posted to the books' });
+    }
+    const posting = await safePostCustomerInvoiceEntry(invoice._id, req.user.userId, 'manual retry');
+    if (!posting.ok) {
+      return res.status(422).json({ success: false, message: `Posting failed: ${posting.error}` });
+    }
+    res.json({ success: true, message: 'Invoice posted to the books' });
+  } catch (error) {
+    console.error('Retry posting failed:', error);
+    res.status(500).json({ success: false, message: error.message || 'Failed to retry posting' });
   }
 };
 

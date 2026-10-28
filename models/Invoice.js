@@ -41,7 +41,12 @@ const approvalStepSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
-  notificationSentAt: Date
+  notificationSentAt: Date,
+  // Set when an admin/CEO swaps the approver on a stuck step
+  reassignedFrom: { name: String, email: String },
+  reassignedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  reassignedAt: Date,
+  reassignReason: String
 }, {
   timestamps: true
 });
@@ -67,6 +72,22 @@ const invoiceSchema = new mongoose.Schema({
     required: [true, 'Invoice number is required'],
     trim: true
   },
+
+  // ── Accounting posting state ─────────────────────────────────────────────
+  // Posting happens ONLY on final approval. If it fails, the failure is recorded here
+  // (and shown to finance) instead of being swallowed, and can be retried.
+  postingStatus: {
+    type: String,
+    enum: ['not_posted', 'posted', 'failed'],
+    default: 'not_posted'
+  },
+  postingError: { type: String },
+  postingAttemptedAt: { type: Date },
+
+  // Numbered drafts are voided, never deleted, so invoice numbers are never reused or left as unexplained gaps
+  voidedAt: { type: Date },
+  voidedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  voidReason: { type: String },
 
   // ── Partial invoicing context ────────────────────────────────────────────
   // Snapshot of the PO's total value at the time this invoice was created, so this
@@ -197,7 +218,7 @@ const invoiceSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['draft', 'pending_approval', 'approved', 'rejected', 'paid', 'assigned'],
+    enum: ['draft', 'pending_approval', 'approved', 'rejected', 'paid', 'assigned', 'voided'],
     default: 'draft'
   },
 
@@ -412,7 +433,7 @@ invoiceSchema.methods.assignToDepartment = function(department, assignedByUserId
   this.assignmentTime = new Date().toTimeString().split(' ')[0];
   this.approvalStatus = 'pending_department_approval';
   
-  const employeeName = this.employeeDetails?.name || 'Unknown Employee';
+  const employeeName = this.employeeDetails?.name || this.createdByDetails?.name || 'Unknown Employee';
   
   console.log(`Creating invoice approval chain for: "${employeeName}" in department: "${department}"`);
   
@@ -465,15 +486,63 @@ invoiceSchema.methods.assignToDepartment = function(department, assignedByUserId
     }));
   }
 
+  // Segregation of duties: the person who prepared/uploaded the invoice never approves it.
+  this.removePreparerConflicts();
+
   this.currentApprovalLevel = this.approvalChain.length > 0 ? 1 : 0;
   
   console.log(`Invoice ${this.poNumber} assigned to ${department}. Approval chain: ${this.approvalChain.length} levels`);
 };
 
+// Accepts one email or an array (the user's own plus any delegators'); matching is case-insensitive.
+const toEmailSet = (emailOrEmails) =>
+  new Set((Array.isArray(emailOrEmails) ? emailOrEmails : [emailOrEmails])
+    .filter(Boolean).map(e => String(e).trim().toLowerCase()));
+
+// Emails of the people who prepared / uploaded this invoice
+invoiceSchema.methods.getPreparerEmails = function() {
+  return [this.createdByDetails?.email, this.employeeDetails?.email]
+    .filter(Boolean).map(e => String(e).trim().toLowerCase());
+};
+
+// Drop pending steps held by the preparer and renumber the rest. If nobody is left, route to the
+// CEO (or the CEO's delegate when the CEO is the preparer) so the invoice is never self-approved
+// and never stuck. Returns the removed steps.
+invoiceSchema.methods.removePreparerConflicts = function() {
+  const preparers = new Set(this.getPreparerEmails());
+  if (!preparers.size || !Array.isArray(this.approvalChain)) return [];
+
+  const isConflict = s => s.status === 'pending' && s.approver?.email &&
+    preparers.has(String(s.approver.email).trim().toLowerCase());
+  const removed = this.approvalChain.filter(isConflict);
+  if (!removed.length) return [];
+
+  let kept = this.approvalChain.filter(s => !isConflict(s)).map(s => (s.toObject ? s.toObject() : s));
+
+  if (kept.length === 0) {
+    const { CEO, DEFAULT_CEO_DELEGATE } = require('../config/ceoApprovalConfig');
+    const target = preparers.has(CEO.email.toLowerCase()) ? DEFAULT_CEO_DELEGATE : CEO;
+    kept = [{ approver: { name: target.name, email: target.email, role: target.role, department: target.department },
+              status: 'pending', notificationSent: false }];
+  }
+
+  kept.sort((a, b) => a.level - b.level);
+  this.approvalChain = kept.map((s, i) => ({
+    ...s,
+    level: i + 1,
+    activatedDate: i === 0 ? new Date() : s.activatedDate || null,
+    notificationSent: i === 0 ? false : s.notificationSent
+  }));
+  console.log(`Invoice ${this.invoiceNumber || this.poNumber}: removed ${removed.length} step(s) held by the preparer; chain is now ${this.approvalChain.length} level(s)`);
+  return removed;
+};
+
 invoiceSchema.methods.processApprovalStep = function(approverEmail, decision, comments, userId) {
+  const allowed = toEmailSet(approverEmail);
   const currentStep = this.approvalChain.find(step => 
     step.level === this.currentApprovalLevel && 
-    step.approver.email === approverEmail && 
+    step.approver && step.approver.email &&
+    allowed.has(String(step.approver.email).trim().toLowerCase()) && 
     step.status === 'pending'
   );
 
@@ -545,9 +614,11 @@ invoiceSchema.methods.getNextApprover = function() {
 //   const currentStep = this.getCurrentApprover();
 //   return currentStep && currentStep.approver.email === userEmail;
 // };
-invoiceSchema.methods.canUserApprove = function(userEmail) {
+invoiceSchema.methods.canUserApprove = function(userEmailOrEmails) {
   const currentStep = this.getCurrentApprover();
-  return currentStep && currentStep.approver && currentStep.approver.email === userEmail;
+  if (!currentStep || !currentStep.approver || !currentStep.approver.email) return false;
+  if (currentStep.status !== 'pending') return false;
+  return toEmailSet(userEmailOrEmails).has(String(currentStep.approver.email).trim().toLowerCase());
 };
 
 // Method to get approval history (completed steps only)
@@ -794,9 +865,27 @@ invoiceSchema.post('save', async function() {
   }
 });
 
+// Invoice numbers must be unique across the system. Checked in code (not only by an index)
+// so it also protects databases that already contain historical duplicates.
+invoiceSchema.pre('validate', async function(next) {
+  try {
+    if (!this.invoiceNumber || !(this.isNew || this.isModified('invoiceNumber'))) return next();
+    const clash = await this.constructor.findOne({
+      _id: { $ne: this._id },
+      invoiceNumber: this.invoiceNumber
+    }).select('_id').lean();
+    if (clash) {
+      return next(new Error(`Invoice number ${this.invoiceNumber} is already used by another invoice`));
+    }
+    next();
+  } catch (e) {
+    next(e);
+  }
+});
+
 // Handle duplicate key errors
 invoiceSchema.post('save', function(error, doc, next) {
-  if (error.name === 'MongoError' && error.code === 11000) {
+  if ((error.name === 'MongoError' || error.name === 'MongoServerError') && error.code === 11000) {
     if (error.keyPattern && error.keyPattern.poNumber && error.keyPattern.invoiceNumber) {
       next(new Error('An invoice with this PO number and invoice number already exists for this employee'));
     } else {

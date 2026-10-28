@@ -137,6 +137,20 @@ router.put('/finance/process/:invoiceId',
   invoiceApprovalController.markInvoiceAsProcessed
 );
 
+// Retry booking an approved invoice whose accounting posting failed
+router.put('/finance/retry-posting/:invoiceId',
+  authMiddleware,
+  requireRoles('finance', 'admin', 'ceo'),
+  invoiceApprovalController.retryAccountingPost
+);
+
+// Admin/CEO: swap the approver on a stuck pending step
+router.put('/:invoiceId/reassign-step',
+  authMiddleware,
+  requireRoles('admin', 'ceo'),
+  invoiceApprovalController.reassignApprovalStep
+);
+
 // ==================== UPLOAD ROUTE ====================
 router.post('/upload',
   authMiddleware,

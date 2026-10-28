@@ -425,112 +425,14 @@ exports.getAllInvoices = async (req, res) => {
   }
 };
 
-// Process invoice approval/rejection - UPDATED to use correct enum values
+// RETIRED: this endpoint used to approve/reject any invoice directly, skipping the approval chain,
+// the approver check and segregation of duties. All decisions now go through
+// PUT /api/invoices/approvals/:invoiceId/decision or PUT /api/invoices/supervisor/approve/:invoiceId.
 exports.processInvoiceDecision = async (req, res) => {
-  try {
-    const { invoiceId } = req.params;
-    const { decision, comments } = req.body;
-
-    console.log('=== INVOICE DECISION PROCESSING ===');
-    console.log('Invoice ID:', invoiceId);
-    console.log('Decision:', decision);
-
-    if (!['approved', 'rejected'].includes(decision)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid decision. Must be "approved" or "rejected"'
-      });
-    }
-
-    const invoice = await Invoice.findById(invoiceId)
-      .populate('employee', 'fullName email');
-
-    if (!invoice) {
-      return res.status(404).json({
-        success: false,
-        message: 'Invoice not found'
-      });
-    }
-
-    // ✅ FIXED: Update invoice with correct enum values
-    if (decision === 'approved') {
-      invoice.approvalStatus = 'approved';
-    } else {
-      invoice.approvalStatus = 'rejected';
-      if (comments) {
-        invoice.rejectionComments = comments;
-      }
-    }
-    
-    invoice.reviewedBy = req.user.userId;
-    invoice.reviewDate = new Date();
-
-    await invoice.save();
-
-    if (decision === 'approved') {
-      try {
-        await accountingService.ensureDefaultChart();
-        await accountingService.postCustomerInvoice(invoice._id, req.user.userId);
-        console.log('✅ Accounting posted for customer invoice (legacy approval flow)');
-      } catch (accountingError) {
-        console.error('⚠️ Accounting auto-post skipped for customer invoice (legacy approval flow):', accountingError.message);
-      }
-    }
-
-    // Send notification to employee
-    const notification = sendEmail({
-      to: invoice.employee.email,
-      subject: `Invoice ${decision === 'approved' ? 'Approved' : 'Rejected'} - ${invoice.poNumber}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background-color: ${decision === 'approved' ? '#f6ffed' : '#fff2f0'}; padding: 20px; border-radius: 8px; border-left: 4px solid ${decision === 'approved' ? '#52c41a' : '#ff4d4f'};">
-            <h3>Invoice ${decision === 'approved' ? 'Approved' : 'Rejected'}</h3>
-            <p>Dear ${invoice.employee.fullName},</p>
-            
-            <p>Your invoice has been ${decision}.</p>
-            
-            <div style="background-color: white; padding: 15px; border-radius: 5px; margin: 15px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-              <p><strong>Invoice Details:</strong></p>
-              <ul>
-                <li><strong>PO Number:</strong> ${invoice.poNumber}</li>
-                <li><strong>Invoice Number:</strong> ${invoice.invoiceNumber}</li>
-                <li><strong>Status:</strong> <span style="color: ${decision === 'approved' ? '#52c41a' : '#ff4d4f'};">${decision.toUpperCase()}</span></li>
-              </ul>
-            </div>
-            
-            ${decision === 'rejected' && comments ? `
-            <div style="background-color: #fff1f0; padding: 15px; border-radius: 5px; margin: 15px 0;">
-              <p><strong>Rejection Reason:</strong></p>
-              <p style="font-style: italic;">${comments}</p>
-            </div>
-            ` : ''}
-            
-            <p>${decision === 'approved' ? 'Your invoice has been processed successfully.' : 'Please review the comments and resubmit if necessary.'}</p>
-            
-            <p>Thank you!</p>
-          </div>
-        </div>
-      `
-    });
-
-    await notification.catch(error => {
-      console.error('Failed to send notification:', error);
-    });
-
-    console.log('=== INVOICE DECISION PROCESSED ===');
-    res.json({
-      success: true,
-      message: `Invoice ${decision} successfully`,
-      data: invoice
-    });
-
-  } catch (error) {
-    console.error('Error processing invoice decision:', error);
-    res.status(400).json({
-      success: false,
-      message: error.message || 'Failed to process decision'
-    });
-  }
+  return res.status(410).json({
+    success: false,
+    message: 'This endpoint has been retired. Use the approval chain endpoint: PUT /api/invoices/approvals/:invoiceId/decision'
+  });
 };
 
 // Get invoice details

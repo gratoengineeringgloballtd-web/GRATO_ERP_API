@@ -61,7 +61,6 @@ exports.prepareInvoiceFromPO = async (req, res) => {
       taxAmount = 0,
       description,
       paymentTerms = 'net-30',
-      status = 'draft',
       // Only used the first time a client PO is invoiced from an uploaded
       // file with no existing PO record: the PO's full value, so a tracked
       // record can be created and partial invoices raised against it later.
@@ -96,25 +95,38 @@ exports.prepareInvoiceFromPO = async (req, res) => {
       });
     }
 
+    // ── Input validation ────────────────────────────────────────────────────
+    // A new invoice is always a draft; the client cannot choose the status.
+    const status = 'draft';
+    const netNum = Number(totalAmount);
+    const vatNum = Number(taxAmount === '' || taxAmount === null || taxAmount === undefined ? 0 : taxAmount);
+    if (!Number.isFinite(netNum) || netNum <= 0) {
+      return res.status(400).json({ success: false, message: 'Amount (excl. VAT) must be a number greater than zero' });
+    }
+    if (!Number.isFinite(vatNum) || vatNum < 0) {
+      return res.status(400).json({ success: false, message: 'VAT must be a number that is zero or more' });
+    }
+    if (vatNum > netNum) {
+      return res.status(400).json({ success: false, message: 'VAT cannot be larger than the amount before VAT' });
+    }
+    const invDateObj = new Date(invoiceDate);
+    const dueDateObj = new Date(dueDate);
+    if (!invoiceDate || isNaN(invDateObj.getTime()) || !dueDate || isNaN(dueDateObj.getTime())) {
+      return res.status(400).json({ success: false, message: 'A valid invoice date and due date are required' });
+    }
+    if (dueDateObj < invDateObj) {
+      return res.status(400).json({ success: false, message: 'Due date cannot be before the invoice date' });
+    }
+    if (Array.isArray(items) && items.some(it =>
+      (it.quantity !== undefined && !(Number(it.quantity) >= 0)) ||
+      (it.unitPrice !== undefined && !(Number(it.unitPrice) >= 0)))) {
+      return res.status(400).json({ success: false, message: 'Item quantities and unit prices must be zero or more' });
+    }
+
     // Check if invoice already exists
     const normalizedPoNumber = poNumber && poNumber !== 'N/A' ? poNumber.toUpperCase() : undefined;
-    const existingQuery = {
-      invoiceNumber: invoiceNumber.trim(),
-      createdBy: req.user.userId
-    };
-
-    if (normalizedPoNumber) {
-      existingQuery.poNumber = normalizedPoNumber;
-    }
-
-    const existingInvoice = await Invoice.findOne(existingQuery);
-
-    if (existingInvoice) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invoice with this number already exists for this PO'
-      });
-    }
+    // Duplicate numbers are re-checked system-wide below, AFTER an auto-generated number has
+    // been assigned (the number the client sends may be replaced by the server's counter).
 
     // Get Finance user details
     const financeUser = await User.findById(req.user.userId).select('fullName email department');
@@ -142,6 +154,15 @@ exports.prepareInvoiceFromPO = async (req, res) => {
       invoiceNumber = await nextInvoiceNumber(
         customer ? (customer.companyName || customer.tradingName || customer.name) : ''
       );
+    }
+
+    invoiceNumber = String(invoiceNumber).trim();
+    const numberTaken = await Invoice.findOne({ invoiceNumber }).select('_id').lean();
+    if (numberTaken) {
+      return res.status(409).json({
+        success: false,
+        message: `Invoice number ${invoiceNumber} is already used by another invoice`
+      });
     }
 
     // Get PO details for reference (if poId provided)
@@ -271,7 +292,7 @@ exports.prepareInvoiceFromPO = async (req, res) => {
 
       const alreadyInvoiced = poRecord.invoicedAmount || 0;
       const remaining = Math.round(((poRecord.amount || 0) - alreadyInvoiced) * 100) / 100;
-      const requested = parseFloat(totalAmount) || 0;
+      const requested = Number(totalAmount) || 0;
 
       if (requested - remaining > 0.5) {
         return res.status(400).json({
@@ -305,13 +326,13 @@ exports.prepareInvoiceFromPO = async (req, res) => {
       } : null,
       invoiceDate: new Date(invoiceDate),
       dueDate: new Date(dueDate),
-      totalAmount: parseFloat(totalAmount),
-      taxAmount: parseFloat(taxAmount || 0),
+      totalAmount: netNum,
+      taxAmount: vatNum,
       // Final amount = amount before VAT + VAT (net plus VAT, never net minus VAT)
-      netAmount: parseFloat(totalAmount) + parseFloat(taxAmount || 0),
+      netAmount: netNum + vatNum,
       description,
       paymentTerms,
-      status: status, // 'draft' or 'pending_approval'
+      status, // always 'draft' on creation; submitInvoiceForApproval moves it forward
       items,
       paymentTermsBreakdown,
       paymentTermsInvoiced,
@@ -324,7 +345,8 @@ exports.prepareInvoiceFromPO = async (req, res) => {
         department: financeUser.department,
         role: 'finance'
       },
-      approvalChain: buildFinanceApprovalChain(financeUser.department),
+      // The real approval chain (named approvers) is built when the invoice is submitted
+      approvalChain: [],
       approvalStatus: 'pending_finance_review'
     };
 
@@ -346,7 +368,7 @@ exports.prepareInvoiceFromPO = async (req, res) => {
     let poBalance = null;
     if (poRecord && customer) {
       try {
-        await customer.recordInvoicing(resolvedCustomerPOId, parseFloat(totalAmount) || 0);
+        await customer.recordInvoicing(resolvedCustomerPOId, netNum);
         const updatedPo = customer.purchaseOrders.id(resolvedCustomerPOId);
         poBalance = {
           poTotal: updatedPo.amount,
@@ -431,6 +453,8 @@ exports.getFinancePreparedInvoices = async (req, res) => {
 
     if (status) {
       query.status = status;
+    } else {
+      query.status = { $ne: 'voided' };
     }
 
     console.log('Query:', JSON.stringify(query, null, 2));
@@ -589,16 +613,30 @@ exports.submitInvoiceForApproval = async (req, res) => {
       });
     }
 
-    // Update status
+    // Build the real approval chain (named approvers) from the department structure.
+    // The department comes from the request, else the invoice, else the preparer's own.
+    const department = req.body?.department || invoice.assignedDepartment || invoice.createdByDetails?.department;
+    if (!department) {
+      return res.status(400).json({
+        success: false,
+        message: 'A department is required to build the approval chain'
+      });
+    }
+
+    invoice.assignToDepartment(department, req.user.userId);   // sets pending_department_approval + chain
+    if (!invoice.approvalChain || invoice.approvalChain.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: `No approval chain could be built for department "${department}"`
+      });
+    }
     invoice.status = 'pending_approval';
-    invoice.approvalStatus = 'pending_manager_approval';
     invoice.submittedDate = new Date();
     invoice.submittedBy = req.user.userId;
 
     await invoice.save();
 
-    // Send notification to approval chain
-    await notifyApprovalChain(invoice);
+    // The first approver is notified by the invoice's post-save hook.
 
     res.json({
       success: true,
@@ -632,11 +670,11 @@ exports.deleteFinanceInvoice = async (req, res) => {
       });
     }
 
-    // Can only delete draft invoices
+    // Can only remove draft invoices
     if (invoice.status !== 'draft') {
       return res.status(400).json({
         success: false,
-        message: 'Only draft invoices can be deleted'
+        message: 'Only draft invoices can be removed'
       });
     }
 
@@ -680,11 +718,16 @@ exports.deleteFinanceInvoice = async (req, res) => {
       }
     }
 
-    await Invoice.findByIdAndDelete(invoiceId);
+    // Void rather than delete: the invoice number stays on record (no reuse, no silent gap)
+    invoice.status = 'voided';
+    invoice.voidedAt = new Date();
+    invoice.voidedBy = req.user.userId;
+    invoice.voidReason = (req.body && req.body.reason) || 'Draft removed by finance';
+    await invoice.save();
 
     res.json({
       success: true,
-      message: 'Invoice deleted successfully'
+      message: `Draft voided. Invoice number ${invoice.invoiceNumber} stays on record and will not be reused.`
     });
   } catch (error) {
     console.error('Error deleting invoice:', error);
@@ -706,7 +749,7 @@ exports.getInvoicesForCustomerPO = async (req, res) => {
     const { customerPOId } = req.params;
     const { customerId } = req.query;
 
-    const invoices = await Invoice.find({ customerPOId })
+    const invoices = await Invoice.find({ customerPOId, status: { $ne: 'voided' } })
       .select('invoiceNumber totalAmount taxAmount netAmount status approvalStatus invoiceDate dueDate createdAt createdByDetails')
       .sort({ createdAt: -1 });
 
@@ -739,94 +782,6 @@ exports.getInvoicesForCustomerPO = async (req, res) => {
   }
 };
 
-// ==================== HELPER FUNCTIONS ====================
-
-/**
- * Build Finance approval chain
- */
-function buildFinanceApprovalChain(department) {
-  return [
-    {
-      level: 1,
-      role: 'finance_manager',
-      department: department,
-      status: 'pending',
-      approvedBy: null,
-      approvalDate: null,
-      comments: ''
-    },
-    {
-      level: 2,
-      role: 'finance_director',
-      department: 'Finance',
-      status: 'pending',
-      approvedBy: null,
-      approvalDate: null,
-      comments: ''
-    },
-    {
-      level: 3,
-      role: 'cfo',
-      department: 'Finance',
-      status: 'pending',
-      approvedBy: null,
-      approvalDate: null,
-      comments: ''
-    }
-  ];
-}
-
-/**
- * Notify approval chain members
- */
-async function notifyApprovalChain(invoice) {
-  try {
-    // Get first approver in chain
-    const firstApprover = invoice.approvalChain?.[0];
-    if (!firstApprover) return;
-
-    // Get users with required role
-    const approvers = await User.find({
-      role: firstApprover.role,
-      department: firstApprover.department,
-      isActive: true
-    }).select('email fullName');
-
-    if (approvers.length === 0) return;
-
-    const emailBody = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px;">
-        <h3>Invoice Approval Required</h3>
-        <p>A new invoice has been submitted by Finance for your approval.</p>
-        
-        <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px;">
-          <p><strong>Invoice Details:</strong></p>
-          <ul>
-            <li><strong>Invoice Number:</strong> ${invoice.invoiceNumber}</li>
-            <li><strong>PO Number:</strong> ${invoice.poNumber}</li>
-            <li><strong>Amount (excl. VAT):</strong> XAF ${invoice.totalAmount?.toLocaleString()}</li>
-            <li><strong>VAT:</strong> XAF ${(invoice.taxAmount || 0).toLocaleString()}</li>
-            <li><strong>Total (incl. VAT):</strong> XAF ${((invoice.totalAmount || 0) + (invoice.taxAmount || 0)).toLocaleString()}</li>
-            <li><strong>Supplier:</strong> ${invoice.supplierDetails?.name || 'N/A'}</li>
-            <li><strong>Due Date:</strong> ${moment(invoice.dueDate).format('DD/MM/YYYY')}</li>
-          </ul>
-        </div>
-        
-        <p><a href="${process.env.CLIENT_URL}/finance/invoices/${invoice._id}/approve">
-          Review & Approve
-        </a></p>
-      </div>
-    `;
-
-    await sendEmail({
-      to: approvers.map(a => a.email),
-      subject: `⏳ Invoice Approval Required - ${invoice.invoiceNumber}`,
-      html: emailBody
-    }).catch(err => console.warn('Failed to send email:', err));
-
-  } catch (error) {
-    console.warn('Error notifying approval chain:', error);
-  }
-}
+// (Approval chains are built by Invoice.assignToDepartment; approver e-mails by Invoice.notifyCurrentApprover.)
 
 module.exports = exports;
