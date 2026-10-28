@@ -319,6 +319,11 @@ const budgetCodeSchema = new mongoose.Schema({
     default: true
   },
 
+  // Disable / enable trail (a disabled code is hidden from new requests but kept for history)
+  disabledAt: Date,
+  disabledBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  disabledReason: String,
+
   // Rejection Details
   rejectionReason: String,
   rejectedBy: {

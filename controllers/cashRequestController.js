@@ -694,6 +694,13 @@ const processFinanceDecision = async (req, res) => {
         });
       }
 
+      if (budgetCode.active === false) {
+        return res.status(400).json({
+          success: false,
+          message: `Budget code ${budgetCode.code} is disabled and cannot be used for new approvals`
+        });
+      }
+
       console.log(`\n💰 Budget Code: ${budgetCode.code} - ${budgetCode.name}`);
       console.log(`   Available: XAF ${budgetCode.remaining.toLocaleString()}`);
 

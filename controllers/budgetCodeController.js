@@ -913,7 +913,7 @@ const allocateBudgetToRequisition = async (req, res) => {
 
 const getBudgetDashboard = async (req, res) => {
   try {
-    const { department, budgetType, fiscalYear } = req.query;
+    const { department, budgetType, fiscalYear, includeDisabled } = req.query;
 
     const filters = { active: true };
     if (department) filters.department = department;
@@ -1022,11 +1022,34 @@ const getBudgetDashboard = async (req, res) => {
       }
     });
 
+    // Disabled codes are left out of the summary and alerts; only listed when asked for
+    let disabledCodes = [];
+    if (includeDisabled === 'true') {
+      const disabledFilter = { active: false, status: 'active' };
+      if (department) disabledFilter.department = department;
+      if (budgetType) disabledFilter.budgetType = budgetType;
+      if (fiscalYear) disabledFilter.fiscalYear = parseInt(fiscalYear);
+      const disabled = await BudgetCode.find(disabledFilter)
+        .populate('budgetOwner', 'fullName email department')
+        .populate('createdBy', 'fullName email')
+        .populate('disabledBy', 'fullName email');
+      disabledCodes = await Promise.all(disabled.map(async (code) => {
+        const actualUsed = await calculateBudgetUsage(code._id);
+        return {
+          ...code.toObject(),
+          used: actualUsed,
+          remaining: code.budget - actualUsed,
+          utilizationPercentage: code.budget > 0 ? Math.round((actualUsed / code.budget) * 10000) / 100 : 0
+        };
+      }));
+    }
+
     res.json({
       success: true,
       data: {
         summary,
         budgetCodes: codesWithActualUsage,
+        disabledCodes,
         alerts
       }
     });
@@ -1854,7 +1877,59 @@ const getDepartmentBudgetDashboard = async (req, res) => {
 };
 
 
+/**
+ * Disable or re-enable a budget code.
+ * A disabled code disappears from the pickers on new requests and from the dashboard, but all
+ * history (requests, allocations, reports, audit trail) is kept. Only approved codes can be
+ * enabled; pending or rejected codes are not affected by this.
+ */
+const setBudgetCodeEnabled = async (req, res) => {
+  try {
+    const { codeId } = req.params;
+    const { enabled, reason } = req.body;
+    if (typeof enabled !== 'boolean') {
+      return res.status(400).json({ success: false, message: '"enabled" must be true or false' });
+    }
+
+    const budgetCode = await BudgetCode.findById(codeId);
+    if (!budgetCode) return res.status(404).json({ success: false, message: 'Budget code not found' });
+
+    if (budgetCode.status !== 'active') {
+      return res.status(400).json({
+        success: false,
+        message: `This budget code is ${budgetCode.status}; only approved budget codes can be enabled or disabled.`
+      });
+    }
+
+    if (budgetCode.active === enabled) {
+      return res.json({ success: true, message: `Budget code is already ${enabled ? 'enabled' : 'disabled'}`, data: budgetCode });
+    }
+
+    budgetCode.active = enabled;
+    if (enabled) {
+      budgetCode.disabledAt = undefined;
+      budgetCode.disabledBy = undefined;
+      budgetCode.disabledReason = undefined;
+    } else {
+      budgetCode.disabledAt = new Date();
+      budgetCode.disabledBy = req.user.userId;
+      budgetCode.disabledReason = (reason || '').toString().trim() || undefined;
+    }
+    await budgetCode.save();
+
+    res.json({
+      success: true,
+      message: `Budget code ${budgetCode.code} ${enabled ? 'enabled' : 'disabled'}`,
+      data: budgetCode
+    });
+  } catch (error) {
+    console.error('Set budget code enabled error:', error);
+    res.status(500).json({ success: false, message: 'Failed to update budget code', error: error.message });
+  }
+};
+
 module.exports = {
+  setBudgetCodeEnabled,
   createBudgetCode,
   processBudgetCodeApproval,
   getBudgetCodes,

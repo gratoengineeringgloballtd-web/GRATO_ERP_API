@@ -7,6 +7,36 @@ const pdfService = require('../services/pdfService');
 const { sendEmail } = require('../services/emailService');
 const { cloudinary } = require('../config/cloudinary');
 const { saveFile, STORAGE_CATEGORIES } = require('../utils/cloudinaryStorage');
+const Counter = require('../models/Counter');
+
+// Invoice numbers are GRAE-INV-<CUSTOMER>-<YEAR>-<NNN>. NNN comes from ONE system-wide counter
+// held by the server (so two users can never get the same number). The first number issued is
+// 043 because invoices 1-42 already exist; if existing invoices ever go higher, the counter
+// continues after the highest one.
+const INVOICE_SEQ_START = 42; // last number already used
+const INVOICE_NUMBER_PATTERN = /^GRAE-INV-.+-\d{4}-(\d+)$/i;
+
+async function nextInvoiceNumber(customerName) {
+  // Never go below the highest sequence already present in the system
+  const existing = await Invoice.find({ invoiceNumber: INVOICE_NUMBER_PATTERN }).select('invoiceNumber').lean();
+  const highest = existing.reduce((m, i) => {
+    const mt = INVOICE_NUMBER_PATTERN.exec(i.invoiceNumber || '');
+    return mt ? Math.max(m, parseInt(mt[1], 10) || 0) : m;
+  }, 0);
+  await Counter.updateOne(
+    { _id: 'invoice_number' },
+    { $max: { seq: Math.max(INVOICE_SEQ_START, highest) } },
+    { upsert: true }
+  );
+  const counter = await Counter.findOneAndUpdate(
+    { _id: 'invoice_number' },
+    { $inc: { seq: 1 } },
+    { new: true }
+  );
+  const words = String(customerName || '').trim().split(/\s+/);
+  const abbrev = words[0] ? words[0].substring(0, 3).toUpperCase() : 'CUST';
+  return `GRAE-INV-${abbrev}-${new Date().getFullYear()}-${String(counter.seq).padStart(3, '0')}`;
+}
 
 /**
  * Finance-specific function to prepare invoices from approved POs
@@ -21,7 +51,6 @@ exports.prepareInvoiceFromPO = async (req, res) => {
     const {
       poId,
       poNumber,
-      invoiceNumber,
       supplierId,
       customerId,
       customerPOId,
@@ -38,6 +67,7 @@ exports.prepareInvoiceFromPO = async (req, res) => {
       // record can be created and partial invoices raised against it later.
       poTotalAmount
     } = req.body;
+    let invoiceNumber = req.body.invoiceNumber;
 
     // items / paymentTermsBreakdown / paymentTermsInvoiced arrive as real
     // arrays on a plain JSON request, but as JSON *strings* when this request
@@ -105,6 +135,13 @@ exports.prepareInvoiceFromPO = async (req, res) => {
     let customer = null;
     if (customerId) {
       customer = await Customer.findById(customerId);
+    }
+
+    // Auto-generated numbers from the preparation screen are replaced by the server's counter
+    if (INVOICE_NUMBER_PATTERN.test(String(invoiceNumber || '').trim())) {
+      invoiceNumber = await nextInvoiceNumber(
+        customer ? (customer.companyName || customer.tradingName || customer.name) : ''
+      );
     }
 
     // Get PO details for reference (if poId provided)

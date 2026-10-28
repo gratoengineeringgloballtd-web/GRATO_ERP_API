@@ -20,7 +20,8 @@ const {
   rejectBudgetRevision,
   getPendingRevisions,
   getBudgetCodeUsageTracking,
-  getDepartmentBudgetDashboard
+  getDepartmentBudgetDashboard,
+  setBudgetCodeEnabled
 } = require('../controllers/budgetCodeController');
 
 // ============================================
@@ -124,7 +125,8 @@ router.get(
       console.log('📊 Sample budget code:', allCodes[0]);
       
       let filter = { 
-        status: 'active'  // Remove active: true for now
+        status: 'active',
+        active: true      // disabled codes are hidden from new requests
       };
       
       // Optionally filter by department if provided
@@ -528,6 +530,18 @@ router.get(
  * @desc    Update budget code
  * @access  Private (Finance, Admin)
  */
+/**
+ * @route   PATCH /api/budget-codes/:codeId/enabled
+ * @desc    Disable (hide from new requests, keep history) or re-enable a budget code
+ * @access  Private (Finance, Admin, CEO)
+ */
+router.patch(
+  '/:codeId/enabled',
+  authMiddleware,
+  requireRoles('finance', 'admin', 'ceo'),
+  setBudgetCodeEnabled
+);
+
 router.put(
   '/:codeId',
   authMiddleware,
